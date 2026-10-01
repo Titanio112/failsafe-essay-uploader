@@ -1,0 +1,45 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+config.ini
+
+# Ambiente Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Dados reais
+*.xlsx
+*.xls
+*.jpg
+*.jpeg
+*.png
+*.pdf
+redações plataforma/
+
+# Progresso e saídas
+*.db
+*.db-shm
+*.db-wal
+relatorios/
+diagnosticos/
+screenshots/
+traces/
+playwright-report/
+test-results/
+
+# Sessões do navegador
+playwright/.auth/
+storage_state*.json
+*.cookies
+*.session
+
+# Editores/SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
