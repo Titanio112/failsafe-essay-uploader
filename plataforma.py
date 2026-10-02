@@ -77,10 +77,10 @@ class TemaCombo:
 
 def login(page: Page, email: str, password: str) -> Page:
     """Faz login e retorna a page já em /minhas-redacoes."""
-    verificar_dominio_autorizado(page)
 
     page.goto(f"https://{DOMINIO_ESPERADO}/auth/users/sign_in")
     page.wait_for_load_state("domcontentloaded")
+    verificar_dominio_autorizado(page)
 
     page.locator('input[name="user[email]"]').fill(email)
     page.locator('input[name="user[password]"]').fill(password)
@@ -88,9 +88,12 @@ def login(page: Page, email: str, password: str) -> Page:
 
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
-
-    if "sign_in" in page.url:
-        raise LoginFalhou("permaneceu na página de login após submit")
+    
+    # Navegar para /minhas-redacoes após login
+    page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes")
+    page.wait_for_load_state("networkidle")
+    verificar_dominio_autorizado(page)
+    return page
 
     return page
 

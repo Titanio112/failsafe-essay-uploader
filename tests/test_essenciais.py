@@ -449,8 +449,8 @@ def test_launch():
     from dotenv import load_dotenv
     load_dotenv()
     
-    email = os.getenv("ESQUEMA_TESTE_EMAIL")
-    senha = os.getenv("ESQUEMA_TESTE_SENHA")
+    email = os.getenv("ESQUEMA_EMAIL_TESTE")
+    senha = os.getenv("ESQUEMA_SENHA_TESTE")
     
     if not email or not senha:
         pytest.skip("Credenciais de teste não configuradas no .env")
