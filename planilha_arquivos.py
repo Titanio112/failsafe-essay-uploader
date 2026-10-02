@@ -36,6 +36,7 @@ ALUNO_SEM_ARQUIVO = "ALUNO_SEM_ARQUIVO"
 SEM_CODIGO = "SEM_CODIGO"
 CODIGO_INVALIDO = "CODIGO_INVALIDO"
 REVISAO_MANUAL = "REVISAO_MANUAL"
+SIMULADO = "SIMULADO"
 
 ESTADOS_CONCILIACAO = (
     EXATO_UNICO,
@@ -46,6 +47,7 @@ ESTADOS_CONCILIACAO = (
     SEM_CODIGO,
     CODIGO_INVALIDO,
     REVISAO_MANUAL,
+    SIMULADO,
 )
 
 MARCADOR_PESSOA = " - Red"
@@ -247,11 +249,19 @@ def conciliar(
     for a in alunos:
         por_norm.setdefault(a.nome_norm, []).append(a)
 
+    # Detectar códigos duplicados no combo do site (ex.: 0000 aparece 2x para Simulados)
+    codigos_duplicados_site: Set[str] = set()
+    if codigos_site:
+        contagem_codigos: dict[str, int] = {}
+        for cod in codigos_site:
+            contagem_codigos[cod] = contagem_codigos.get(cod, 0) + 1
+        codigos_duplicados_site = {cod for cod, count in contagem_codigos.items() if count > 1}
+
     # Contar quantos arquivos cada aluno tem por código (antes de processar)
     # para detectar duplicatas de mesmo aluno + mesmo código
     from collections import defaultdict
     contagem_aluno_codigo: dict[tuple[str, str], int] = defaultdict(int)
-    
+
     # Primeira passada: contar
     for pasta, arquivos in arquivos_por_pasta.items():
         for nome_arquivo in arquivos:
@@ -305,6 +315,9 @@ def conciliar(
             elif codigos_site and codigo not in codigos_site:
                 estado_inicial = CODIGO_INVALIDO
                 codigo_valido = False
+            elif codigo and codigo in codigos_duplicados_site:
+                estado_inicial = SIMULADO
+                codigo_valido = True  # Código existe, mas é ambíguo no site
             else:
                 estado_inicial = ""
 
