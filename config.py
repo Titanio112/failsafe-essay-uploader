@@ -158,9 +158,18 @@ def carregar_config(caminho: str | Path | None = None) -> Config:
     return Config()
 
 
-def obter_senha() -> str:
+def obter_senha(senha_env: str = "ESQUEMA_SENHA_PADRAO") -> str:
     """Senha somente por variável de ambiente ou getpass. Nunca em arquivo/log."""
-    senha = os.environ.get("ESQUEMA_SENHA_PADRAO")
+    senha = os.environ.get(senha_env)
     if senha:
         return senha
-    return getpass("Senha padrão da plataforma (entrada oculta): ")
+    prompt = "Senha padrão da plataforma (entrada oculta): " if senha_env == "ESQUEMA_SENHA_PADRAO" else "Senha de teste (entrada oculta): "
+    return getpass(prompt)
+
+
+def obter_email_teste() -> str:
+    """E-mail da conta de teste via variável de ambiente."""
+    email = os.environ.get("ESQUEMA_EMAIL_TESTE")
+    if email:
+        return email
+    return input("E-mail da conta de teste: ")
