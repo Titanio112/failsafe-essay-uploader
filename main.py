@@ -110,7 +110,7 @@ def main(argv=None) -> int:
     with Progresso(cfg.banco_progresso) as prog:
         for item in resultado.fila_validada():
             if prog.obter(item.aluno.id, item.chave) is None:
-                prog.marcar(item.aluno.id, item.chave, "PENDENTE", pasta=item.pasta)
+                prog.marcar(item.aluno.id, item.chave, "A_ENVIAR", pasta=item.pasta)
 
     resumo = resultado.resumo()
     print()

@@ -1,6 +1,6 @@
 """Progresso em SQLite, logs sanitizados e relatórios CSV/TXT.
 
-Estados por aluno+arquivo: PENDENTE, ENVIANDO, ENVIADO, JA_ENVIADO,
+Estados por aluno+arquivo: A_ENVIAR, ENVIANDO, ENVIADO, JA_ENVIADO,
 ERRO, REVISAO_MANUAL, PULADO.
 """
 
@@ -18,7 +18,7 @@ from planilha_arquivos import (
     normalizar_nome,
 )
 
-PENDENTE = "PENDENTE"
+A_ENVIAR = "A_ENVIAR"
 ENVIANDO = "ENVIANDO"
 ENVIADO = "ENVIADO"
 JA_ENVIADO = "JA_ENVIADO"
