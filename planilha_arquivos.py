@@ -56,8 +56,14 @@ class PlanilhaError(RuntimeError):
 _PONTUACAO_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _ESPACOS_RE = re.compile(r"\s+")
 
+# Regex para código do tema no ARQUIVO (pasta): número seguido de separador (espaço, _, ., -) ou fim
+# Ex.: "000 Simulado", "001_Carta", "002.Red", "003-Narração", "004" → código "000", "001", "002", "003", "004"
+# "3B ..." NÃO é código (não tem separador após o número)
 PADRAO_CODIGO_ARQUIVO = re.compile(r"^\s*(\d+)(?=[\s_.-]|$)")
-PADRAO_CODIGO_TEMA = re.compile(r"^\s*(\d+)(?=\s*-|\s|$)")
+
+# Regex para código do tema no COMBO DO SITE: número seguido de " - " ou espaço ou fim
+# Ex.: "0- Narração", "00- Carta", "000- DISSERTATIVO" → "0", "00", "000"
+PADRAO_CODIGO_TEMA_SITE = re.compile(r"^\s*(\d+)(?=\s*-|\s|$)")
 
 def normalizar_nome(texto: str) -> str:
     if not texto:
@@ -100,7 +106,7 @@ def extrair_codigo_tema(nome_arquivo: str, pasta: str = "") -> Optional[str]:
     return codigo_arquivo or codigo_pasta
 
 def extrair_codigo_do_tema_site(texto_tema: str) -> Optional[str]:
-    match = PADRAO_CODIGO_TEMA.match(texto_tema)
+    match = PADRAO_CODIGO_TEMA_SITE.match(texto_tema)
     if match:
         return match.group(1)
     return None
