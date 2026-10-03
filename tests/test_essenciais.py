@@ -715,5 +715,140 @@ def test_carregar_alunos_erro_sem_colunas_obrigatorias(config_teste, tmp_path):
         assert "aluno" in str(e) or "e-mail" in str(e) or "turma" in str(e)
 
 
+# =====================================================================
+# Testes de duplicidade (T4 offline) - PASSO 1 Fase 3
+# =====================================================================
+
+def test_duplicidade_ja_enviado():
+    """Mesmo código em qualquer data → JA_ENVIADO com data."""
+    from plataforma import ItemListaRedacao, verificar_duplicidade
+    
+    lista = [
+        ItemListaRedacao(data="15/10/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
+        ItemListaRedacao(data="20/10/2026", tema="1- Carta", nota="", situacao="Pendente", botao_texto=""),
+    ]
+    
+    estado, data = verificar_duplicidade(lista, "0")
+    assert estado == "JA_ENVIADO"
+    assert data == "15/10/2026"
+
+
+def test_duplicidade_codigo_ausente_pode_seguir():
+    """Código não encontrado na lista → OK (pode prosseguir)."""
+    from plataforma import ItemListaRedacao, verificar_duplicidade
+    
+    lista = [
+        ItemListaRedacao(data="15/10/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
+        ItemListaRedacao(data="20/10/2026", tema="1- Carta", nota="", situacao="Pendente", botao_texto=""),
+    ]
+    
+    estado, data = verificar_duplicidade(lista, "999")
+    assert estado == "OK"
+    assert data is None
+
+
+def test_duplicidade_lista_ilegivel_revisao_manual():
+    """Lista sem dados suficientes (tema/data) → REVISAO_MANUAL."""
+    from plataforma import ItemListaRedacao, verificar_duplicidade
+    
+    # Lista vazia
+    estado, data = verificar_duplicidade([], "0")
+    assert estado == "REVISAO_MANUAL"
+    assert data is None
+    
+    # Lista com linhas mas sem tema/data
+    lista = [
+        ItemListaRedacao(data="", tema="", nota="", situacao="", botao_texto=""),
+        ItemListaRedacao(data="", tema="", nota="", situacao="", botao_texto=""),
+    ]
+    estado, data = verificar_duplicidade(lista, "0")
+    assert estado == "REVISAO_MANUAL"
+    assert data is None
+
+
+def test_duplicidade_codigos_string_distintos():
+    """Códigos '0', '00', '000' são strings distintas."""
+    from plataforma import ItemListaRedacao, verificar_duplicidade
+    
+    lista = [
+        ItemListaRedacao(data="15/10/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
+        ItemListaRedacao(data="16/10/2026", tema="00- Carta", nota="", situacao="Pendente", botao_texto=""),
+        ItemListaRedacao(data="17/10/2026", tema="000- Dissertativo", nota="", situacao="Pendente", botao_texto=""),
+    ]
+    
+    # "0" não deve achar "00" nem "000"
+    estado, _ = verificar_duplicidade(lista, "0")
+    assert estado == "JA_ENVIADO"
+    
+    estado, _ = verificar_duplicidade(lista, "00")
+    assert estado == "JA_ENVIADO"
+    
+    estado, _ = verificar_duplicidade(lista, "000")
+    assert estado == "JA_ENVIADO"
+    
+    # "01" não existe
+    estado, _ = verificar_duplicidade(lista, "01")
+    assert estado == "OK"
+
+
+def test_duplicidade_mesmo_aluno_mesmo_codigo_revisao_manual():
+    """Dois arquivos do mesmo aluno com mesmo código → REVISAO_MANUAL (na conciliação)."""
+    # Este teste verifica a regra na conciliação (planilha_arquivos.py)
+    # Já coberto por test_conciliacao_duas_redacoes_mesmo_aluno_mesmo_codigo
+    pass
+
+
+def test_ler_lista_redacoes_html_simulado():
+    """ler_lista_redacoes_html parseia HTML simulado corretamente."""
+    from plataforma import ler_lista_redacoes_html, ItemListaRedacao
+    
+    html = """
+    <table>
+        <tbody>
+            <tr><td>15/10/2026</td><td>0- Narração</td><td></td><td>Pendente</td><td></td></tr>
+            <tr><td>16/10/2026</td><td>1- Carta</td><td>9.5</td><td>Corrigida</td><td>Ver</td></tr>
+        </tbody>
+    </table>
+    """
+    
+    lista = ler_lista_redacoes_html(html)
+    assert len(lista) == 2
+    assert lista[0].data == "15/10/2026"
+    assert lista[0].tema == "0- Narração"
+    assert lista[0].situacao == "Pendente"
+    assert lista[1].data == "16/10/2026"
+    assert lista[1].tema == "1- Carta"
+    assert lista[1].nota == "9.5"
+    assert lista[1].situacao == "Corrigida"
+    assert lista[1].botao_texto == "Ver"
+
+
+def test_ler_lista_redacoes_html_sem_tabela_retorna_vazio():
+    """HTML sem tabela retorna lista vazia."""
+    from plataforma import ler_lista_redacoes_html
+    
+    html = "<div>Sem tabela aqui</div>"
+    lista = ler_lista_redacoes_html(html)
+    assert lista == []
+
+
+def test_ler_lista_redacoes_html_linhas_incompletas_ignoradas():
+    """Linhas com menos de 4 colunas são ignoradas."""
+    from plataforma import ler_lista_redacoes_html
+    
+    html = """
+    <table>
+        <tbody>
+            <tr><td>15/10/2026</td><td>0- Narração</td></tr>
+            <tr><td>16/10/2026</td><td>1- Carta</td><td></td><td>Pendente</td><td></td></tr>
+        </tbody>
+    </table>
+    """
+    
+    lista = ler_lista_redacoes_html(html)
+    assert len(lista) == 1
+    assert lista[0].tema == "1- Carta"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

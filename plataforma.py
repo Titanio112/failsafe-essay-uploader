@@ -171,6 +171,71 @@ def detectar_ja_enviado(lista: list[ItemListaRedacao], codigo: str) -> Optional[
         if match and match.group(1) == codigo:
             return (item.data, item.tema)
     return None
+
+
+def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
+    """
+    Lê a lista de redações a partir de HTML/texto simulado (para testes offline).
+    Espera o mesmo formato que /minhas-redacoes: tabela com colunas data, tema, nota, situação, botão.
+    """
+    from bs4 import BeautifulSoup
+    
+    soup = BeautifulSoup(html, "html.parser")
+    itens = []
+    
+    table = soup.find("table")
+    if not table:
+        return itens
+    
+    rows = table.find_all("tr")
+    for row in rows:
+        cols = row.find_all("td")
+        if len(cols) < 4:
+            continue
+        data = cols[0].get_text(strip=True)
+        tema = cols[1].get_text(strip=True)
+        nota = cols[2].get_text(strip=True)
+        situacao = cols[3].get_text(strip=True)
+        botao_texto = cols[4].get_text(strip=True) if len(cols) > 4 else ""
+        itens.append(ItemListaRedacao(
+            data=data, tema=tema, nota=nota, situacao=situacao, botao_texto=botao_texto
+        ))
+    return itens
+
+
+def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: str) -> tuple[str, Optional[str]]:
+    """
+    Verifica duplicidade conforme AGENTS.md:
+    - Mesmo código em qualquer data → JA_ENVIADO com mensagem [DUPLICADA]
+    - Lista sem dados suficientes (tema/data) → REVISAO_MANUAL
+    - Código sempre string ('0' ≠ '00' ≠ '000')
+    
+    Returns: (estado, mensagem_ou_data)
+      - ('JA_ENVIADO', data_envio) se já enviado
+      - ('REVISAO_MANUAL', None) se lista ilegível
+      - ('OK', None) se pode prosseguir
+    """
+    import re
+    
+    if not lista_redacoes:
+        return "REVISAO_MANUAL", None
+    
+    tem_dados_suficientes = False
+    for item in lista_redacoes:
+        # Verificar se tem tema e data válidos
+        if item.tema and item.data:
+            tem_dados_suficientes = True
+            match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", item.tema.strip())
+            if match:
+                codigo_item = match.group(1)
+                if codigo_item == codigo_tema:
+                    # Mesmo código encontrado → JA_ENVIADO
+                    return "JA_ENVIADO", item.data
+    
+    if not tem_dados_suficientes:
+        return "REVISAO_MANUAL", None
+    
+    return "OK", None
 # ─── Navegação formulário ────────────────────────────────────
 
 def abrir_formulario_envio(page: Page) -> Page:

@@ -3,3 +3,4 @@ openpyxl>=3.1,<4
 rapidfuzz>=3.10,<4
 pytest>=8,<10
 python-dotenv>=1.0,<2
+beautifulsoup4>=4.12,<5
