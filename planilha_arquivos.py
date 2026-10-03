@@ -192,22 +192,34 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
     wb = openpyxl.load_workbook(cfg.planilha, data_only=True)
     ws = wb[cfg.aba_planilha] if cfg.aba_planilha else wb.active
 
-    header = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    header = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=2, max_row=2))]
+    
+    def find_col(col_name: str) -> int:
+        """Encontra índice da coluna pelo nome."""
+        try:
+            return header.index(col_name.lower())
+        except ValueError:
+            raise PlanilhaError(f"Coluna não encontrada: {col_name}")
+
+    idx_nome = find_col(cfg.coluna_nome)
+    idx_email = find_col(cfg.coluna_email)
+    # Sala não é mais obrigatória — usar valor padrão "SEM_SALA" se não existir
     try:
-        idx_nome = header.index(cfg.coluna_nome.lower())
-        idx_email = header.index(cfg.coluna_email.lower())
-        idx_sala = header.index(cfg.coluna_sala.lower())
-    except ValueError as e:
-        raise PlanilhaError(f"Coluna não encontrada: {e}")
+        idx_sala = find_col("sala")
+    except PlanilhaError:
+        idx_sala = -1
 
     alunos = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if len(row) <= max(idx_nome, idx_email, idx_sala):
+    for row in ws.iter_rows(min_row=3, values_only=True):
+        if len(row) <= max(idx_nome, idx_email, idx_sala if idx_sala >= 0 else 0):
             continue
         nome = str(row[idx_nome]).strip() if row[idx_nome] else ""
         email = str(row[idx_email]).strip() if row[idx_email] else ""
-        sala = str(row[idx_sala]).strip() if row[idx_sala] else ""
-        if not nome or not email or not sala:
+        if idx_sala >= 0 and len(row) > idx_sala:
+            sala = str(row[idx_sala]).strip() if row[idx_sala] else "SEM_SALA"
+        else:
+            sala = "SEM_SALA"
+        if not nome or not email:
             continue
         alunos.append(Aluno(nome=nome, email=email, sala=sala))
     return alunos

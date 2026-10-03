@@ -47,12 +47,16 @@ from config import Config
 
 @pytest.fixture
 def planilha_temporaria():
-    """Cria uma planilha XLSX temporária com alunos de teste."""
+    """Cria uma planilha XLSX temporária com alunos de teste (com linha de título na linha 1, header na linha 2)."""
     from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "Alunos"
+    # Linha 1: título (como na planilha real)
+    ws.append(["Lista de Alunos"])
+    # Linha 2: header
     ws.append(["nome", "email", "sala"])
+    # Linha 3+: dados
     ws.append(["Ana Lalara Larili dos Larito", "anaclara@escola.com", "A"])
     ws.append(["Bruno Silva", "bruno@escola.com", "A"])
     ws.append(["Carlos Eduardo", "carlos@escola.com", "B"])
@@ -101,6 +105,7 @@ def config_teste(planilha_temporaria, pasta_arquivos_temporaria):
     cfg.limiar_fuzzy = 95.0
     cfg.margem_minima = 8.0
     cfg.max_envios_por_aluno = 4
+    cfg.aba_planilha = "Alunos"
     return cfg
 
 
@@ -238,7 +243,11 @@ def test_conciliacao_ambiguo(planilha_temporaria):
     wb = Workbook()
     ws = wb.active
     ws.title = "Alunos"
+    # Linha 1: título
+    ws.append(["Lista de Alunos"])
+    # Linha 2: header
     ws.append(["nome", "email", "sala"])
+    # Linha 3+: dados
     ws.append(["Joao Silva", "joao1@escola.com", "A"])
     ws.append(["Joao Silva", "joao2@escola.com", "A"])
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
@@ -248,6 +257,7 @@ def test_conciliacao_ambiguo(planilha_temporaria):
     try:
         cfg = Config()
         cfg.planilha = Path(tmp.name)
+        cfg.aba_planilha = "Alunos"
         pasta = tempfile.mkdtemp()
         subpasta = Path(pasta) / "001 - Carta"
         subpasta.mkdir()
@@ -441,7 +451,8 @@ def test_limite_4_envios_por_aluno(db_temporario):
     assert contador == 4
 # =====================================================================
 # Testes de lançamento (Playwright) - marcado como real
-# ============@pytest.mark.real
+# =====================================================================
+@pytest.mark.real
 def test_launch():
     """Abre navegador e faz login na conta de teste (requer credenciais no .env)."""
     from playwright.sync_api import sync_playwright

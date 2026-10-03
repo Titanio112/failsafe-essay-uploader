@@ -44,10 +44,9 @@ class Config:
     planilha: Path = field(default_factory=Path)
     extensoes: tuple[str, ...] = (".jpg", ".jpeg")
 
-    aba_planilha: str = ""
+    aba_planilha: str = "Planilha1"
     coluna_nome: str = "nome"
     coluna_email: str = "email"
-    coluna_sala: str = "sala"
 
     limiar_fuzzy: float = 95.0
     margem_minima: float = 8.0
