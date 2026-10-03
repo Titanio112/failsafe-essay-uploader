@@ -192,12 +192,32 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
     wb = openpyxl.load_workbook(cfg.planilha, data_only=True)
     ws = wb[cfg.aba_planilha] if cfg.aba_planilha else wb.active
 
-    header = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=2, max_row=2))]
+    # Localizar linha de cabeçalho pelo conteúdo (colunas "nome" e "email")
+    # Procura nas primeiras 10 linhas
+    header_row = None
+    header_cols = None
+    for row_idx in range(1, min(11, ws.max_row + 1)):
+        row_vals = [str(c.value).strip().lower() if c.value else "" for c in ws[row_idx]]
+        if "nome" in row_vals and "email" in row_vals:
+            header_row = row_idx
+            header_cols = row_vals
+            break
     
+    if header_row is None:
+        # Listar colunas encontradas nas primeiras 10 linhas para erro claro
+        found_cols = set()
+        for row_idx in range(1, min(11, ws.max_row + 1)):
+            row_vals = [str(c.value).strip().lower() if c.value else "" for c in ws[row_idx]]
+            found_cols.update(row_vals)
+        raise PlanilhaError(
+            f"Cabeçalho não encontrado (colunas 'nome' e 'email' obrigatórias). "
+            f"Colunas encontradas nas primeiras 10 linhas: {sorted(found_cols)}"
+        )
+
     def find_col(col_name: str) -> int:
         """Encontra índice da coluna pelo nome."""
         try:
-            return header.index(col_name.lower())
+            return header_cols.index(col_name.lower())
         except ValueError:
             raise PlanilhaError(f"Coluna não encontrada: {col_name}")
 
@@ -210,7 +230,7 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
         idx_sala = -1
 
     alunos = []
-    for row in ws.iter_rows(min_row=3, values_only=True):
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
         if len(row) <= max(idx_nome, idx_email, idx_sala if idx_sala >= 0 else 0):
             continue
         nome = str(row[idx_nome]).strip() if row[idx_nome] else ""

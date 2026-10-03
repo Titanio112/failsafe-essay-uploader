@@ -50,6 +50,8 @@ def parse_args(argv=None):
                    help="usa conta de teste e pasta testes/redacoes_teste/")
     p.add_argument("--envio-real", action="store_true",
                    help="habilita envio real (somente Fase 3+)")
+    p.add_argument("--analise-remota", action="store_true",
+                   help="somente leitura: login, lista redacoes, combo temas, logout")
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
     return p.parse_args(argv)
@@ -88,9 +90,31 @@ def main(argv=None) -> int:
     total_jpgs = sum(len(v) for v in arquivos.values())
     print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {total_jpgs}")
 
+    # Determinar codigos_site com fail-closed
+    codigos_site = set()
+    if args.analise_remota or args.envio_real or (args.modo_teste and args.envio_real):
+        # Modos que exigem códigos do site reais: abortar se não tiver
+        print("[ERRO] Códigos do site não disponíveis. Execute a análise remota primeiro para obter o combo de temas.")
+        print("[ERRO] Use --analise-remota no mesmo dia para preencher dados/temas_site.csv.")
+        return 2
+    else:
+        # Dry-run: usar dados/temas_site.csv como referência (pode estar vazio/desatualizado)
+        temas_csv = Path("dados/temas_site.csv")
+        if temas_csv.exists():
+            import csv
+            with open(temas_csv, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                codigos_site = {row["codigo"] for row in reader if row.get("codigo")}
+            if codigos_site:
+                print(f"[AVISO] Dry-run: usando {len(codigos_site)} códigos de dados/temas_site.csv (referência, pode estar desatualizado)")
+            else:
+                print("[AVISO] Dry-run: dados/temas_site.csv existe mas sem códigos válidos")
+        else:
+            print("[AVISO] Dry-run: dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
+
     resultado = conciliar(
         alunos, arquivos,
-        codigos_site=set(),
+        codigos_site=codigos_site,
         limiar=cfg.limiar_fuzzy, margem=cfg.margem_minima,
     )
 
