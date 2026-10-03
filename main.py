@@ -1,4 +1,4 @@
-﻿"""CLI: selecao de sala e orquestracao. Padrao: dry-run."""
+﻿"""CLI: orquestracao. Padrao: dry-run. NÃO EXISTEM SALAS — entramos como aluno."""
 
 from __future__ import annotations
 
@@ -46,28 +46,13 @@ from progresso_relatorio import (
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Automacao de redacoes — MVP")
     p.add_argument("--config", help="caminho do config.ini")
-    p.add_argument("--sala", help="sala a processar (ex.: B)")
+    p.add_argument("--modo-teste", action="store_true",
+                   help="usa conta de teste e pasta testes/redacoes_teste/")
     p.add_argument("--envio-real", action="store_true",
                    help="habilita envio real (somente Fase 3+)")
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
     return p.parse_args(argv)
-
-
-def selecionar_sala(salas, sala_arg):
-    if sala_arg:
-        alvo = sala_arg.strip()
-        if alvo not in salas:
-            raise SystemExit(f"Sala {alvo!r} nao encontrada. Disponiveis: {salas}")
-        return alvo
-    print("Salas disponiveis:")
-    for i, s in enumerate(salas, 1):
-        print(f"  {i}. {s}")
-    escolha = input("Numero da sala: ").strip()
-    try:
-        return salas[int(escolha) - 1]
-    except (ValueError, IndexError):
-        raise SystemExit("Selecao invalida.")
 
 
 def main(argv=None) -> int:
@@ -82,20 +67,30 @@ def main(argv=None) -> int:
         print("Envio real so sera executado na Fase 3, com as confirmacoes exigidas.")
         return 2
 
-    log.info("Iniciando conciliacao (dry-run).")
-
-    alunos = carregar_alunos(cfg)
-    salas = sorted({a.sala for a in alunos})
-    sala = selecionar_sala(salas, args.sala)
-    alunos_sala = [a for a in alunos if a.sala == sala]
-    print(f"Sala selecionada: {sala} ({len(alunos_sala)} aluno(s) na planilha)")
+    # Modo teste: usa conta de teste e pasta de teste
+    if args.modo_teste:
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        cfg.planilha = Path("testes") / "planilha_teste.xlsx"  # placeholder, não usado
+        cfg.pasta_raiz = Path("testes/redacoes_teste")
+        # Apenas aluno virtual
+        from planilha_arquivos import Aluno
+        email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
+        alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")]
+        log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")
+    else:
+        log.info("Iniciando conciliacao (dry-run).")
+        alunos = carregar_alunos(cfg)
+        print(f"Alunos carregados: {len(alunos)}")
 
     arquivos = descobrir_arquivos(cfg)
     total_jpgs = sum(len(v) for v in arquivos.values())
     print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {total_jpgs}")
 
     resultado = conciliar(
-        alunos_sala, arquivos,
+        alunos, arquivos,
+        codigos_site=set(),
         limiar=cfg.limiar_fuzzy, margem=cfg.margem_minima,
     )
 
