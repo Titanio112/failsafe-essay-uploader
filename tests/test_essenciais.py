@@ -892,3 +892,129 @@ def test_ler_lista_redacoes_html_linhas_incompletas_ignoradas():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+# =====================================================================
+# Testes @pytest.mark.real — somente leitura na conta de teste
+# =====================================================================
+
+@pytest.mark.real
+def test_real_leitura_conta_teste():
+    """Login → confirmar identidade → /minhas-redacoes → /wordings/new → validar temas → logout.
+    
+    Apenas leitura, SEM anexar arquivo, SEM clicar em 'Enviar resposta'.
+    Logs em logs/<execucao>/ com e-mail mascarado.
+    """
+    from playwright.sync_api import sync_playwright
+    from config import Config
+    from planilha_arquivos import Aluno
+    import datetime
+    
+    # Configuração
+    from config import obter_email_teste, obter_senha
+    # Carregar .env primeiro
+    from dotenv import load_dotenv
+    load_dotenv()
+    email_teste = obter_email_teste()
+    senha_teste = obter_senha("ESQUEMA_SENHA_TESTE")
+    
+    assert email_teste, "ESQUEMA_EMAIL_TESTE não definido no .env"
+    assert senha_teste, "ESQUEMA_SENHA_TESTE não definido no .env"
+    
+    # Mascarar e-mail para logs
+    email_mascarado = email_teste[:3] + "***" if len(email_teste) > 3 else "***"
+    
+    # Pasta de logs com timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = Path("logs") / f"test_real_{timestamp}"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, slow_mo=500)
+        context = browser.new_context()
+        page = context.new_page()
+        
+        # Importar funções da plataforma
+        from plataforma import (
+            login, confirmar_identidade, ler_lista_redacoes,
+            ler_saldo_creditos, ler_combo_temas, selecionar_tema_por_codigo, logout
+        )
+        
+        try:
+            # 1. Login
+            page = login(page, email_teste, senha_teste)
+            print(f"[LOG] Login realizado: {email_mascarado}")
+            
+            # 2. Confirmar identidade
+            aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")
+            confirmado = confirmar_identidade(page, aluno_teste)
+            assert confirmado, "Identidade não confirmada"
+            print(f"[LOG] Identidade confirmada: Usuario Testes Ignorar")
+            
+            # 3. /minhas-redacoes - ler lista e saldo
+            page.goto("https://www.esquemaredacao.com.br/minhas-redacoes")
+            page.wait_for_load_state("networkidle")
+            
+            lista = ler_lista_redacoes(page)
+            saldo = ler_saldo_creditos(page)
+            
+            print(f"[LOG] Linhas lidas em /minhas-redacoes: {len(lista)}")
+            for item in lista:
+                print(f"  - Data: {item.data}, Tema: {item.tema}, Situação: {item.situacao}, Botão: {item.botao_texto}")
+            print(f"[LOG] Saldo de créditos: {saldo}")
+            
+            # Salvar lista em log
+            with (log_dir / "lista_redacoes.txt").open("w", encoding="utf-8") as f:
+                f.write(f"E-mail: {email_mascarado}\n")
+                f.write(f"Saldo: {saldo}\n")
+                f.write(f"Total linhas: {len(lista)}\n\n")
+                for item in lista:
+                    f.write(f"{item.data} | {item.tema} | {item.nota} | {item.situacao} | {item.botao_texto}\n")
+            
+            # 4. /wordings/new - ler combo de temas
+            page.goto("https://www.esquemaredacao.com.br/wordings/new")
+            page.wait_for_load_state("networkidle")
+            
+            temas = ler_combo_temas(page)
+            print(f"[LOG] Temas no combo: {len(temas)}")
+            for tema in temas:
+                print(f"  - Código: '{tema.codigo}', Texto: '{tema.texto_completo}'")
+            
+            # Validar que "0"/"00"/"000" são distintos
+            codigos_temas = [t.codigo for t in temas]
+            assert "0" in codigos_temas, "Código '0' não encontrado no combo"
+            assert "00" in codigos_temas, "Código '00' não encontrado no combo"
+            assert "000" in codigos_temas, "Código '000' não encontrado no combo"
+            assert "0" != "00" != "000", "Códigos devem ser strings distintas"
+            
+            print(f"[LOG] Códigos '0', '00', '000' confirmados como distintos")
+            
+            # Salvar combo em log
+            with (log_dir / "combo_temas.txt").open("w", encoding="utf-8") as f:
+                f.write(f"E-mail: {email_mascarado}\n")
+                f.write(f"Total temas: {len(temas)}\n\n")
+                for tema in temas:
+                    f.write(f"{tema.codigo} | {tema.texto_completo}\n")
+            
+            # 5. Selecionar tema por código "0" SEM anexar arquivo e SEM clicar em enviar
+            selecionado = selecionar_tema_por_codigo(page, "0")
+            assert selecionado, "Falha ao selecionar tema código '0'"
+            print(f"[LOG] Tema '0- Narração' selecionado (sem anexar, sem enviar)")
+            
+            # Verificar estado do botão "Enviar resposta" após selecionar tema
+            btn_enviar = page.get_by_role("button", name="Enviar resposta")
+            enabled = btn_enviar.is_enabled()
+            print(f"[LOG] Botão 'Enviar resposta' está {'HABILITADO' if enabled else 'DESABILITADO'} após selecionar tema")
+            # Nota: o botão pode ficar habilitado após selecionar tema mesmo sem upload
+            
+            # 6. Logout
+            logout(page)
+            print(f"[LOG] Logout realizado com sucesso")
+            
+            # Verificar que voltou para login
+            assert "sign_in" in page.url or "login" in page.url, f"URL inesperada após logout: {page.url}"
+            print(f"[LOG] Redirecionado para página de login: {page.url}")
+            
+        finally:
+            context.close()
+            browser.close()

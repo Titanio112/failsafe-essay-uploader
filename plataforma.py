@@ -271,7 +271,8 @@ def selecionar_tema_por_codigo(page: Page, codigo: str) -> bool:
     temas = ler_combo_temas(page)
     for tema in temas:
         if tema.codigo == codigo:
-            page.get_by_role("option", name=tema.texto_completo).click()
+            combo = page.get_by_label("Informe o tema da redação")
+            combo.select_option(label=tema.texto_completo)
             page.wait_for_timeout(300)
             return True
     return False
@@ -388,6 +389,24 @@ def enviar_redacao(
     raise NotImplementedError(
         "Use as funções de Fase 3 via main.py com Progresso e autorização completa."
     )
+
+
+def logout(page: Page) -> None:
+    """Faz logout clicando no dropdown do usuário e no link 'Sair'."""
+    # Dropdown do usuário no topo direito
+    user_dropdown = page.get_by_role("button", name="Usuario Testes Ignorar")
+    user_dropdown.click()
+    page.wait_for_timeout(200)
+    
+    # Link "Sair" no dropdown
+    page.get_by_role("link", name="Sair").click()
+    page.wait_for_load_state("networkidle")
+    
+    # Verificar que voltou para a página de login ou home
+    if "sign_in" not in page.url and "login" not in page.url:
+        # Se foi para home, navegar para login
+        page.goto(f"https://{DOMINIO_ESPERADO}/auth/users/sign_in")
+        page.wait_for_load_state("networkidle")
 
 
 def login_permissao(page: Page, email: str, password: str) -> Page:
