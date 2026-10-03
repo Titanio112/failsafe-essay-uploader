@@ -102,7 +102,7 @@ def main(argv=None) -> int:
         temas_csv = Path("dados/temas_site.csv")
         if temas_csv.exists():
             import csv
-            with open(temas_csv, newline="", encoding="utf-8") as f:
+            with open(temas_csv, newline="", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f)
                 codigos_site = {row["codigo"] for row in reader if row.get("codigo")}
             if codigos_site:

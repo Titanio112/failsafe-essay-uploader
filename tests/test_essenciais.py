@@ -169,6 +169,12 @@ def test_extrair_codigo_do_tema_site():
     assert extrair_codigo_do_tema_site("1- Tema Qualquer") == "1"
     assert extrair_codigo_do_tema_site("17- Outro Tema") == "17"
     assert extrair_codigo_do_tema_site("Tema sem código") is None
+    # Temas sem hífen (apenas espaço) — preserva zeros à esquerda
+    assert extrair_codigo_do_tema_site("0000 Simulado SOMOS 01") == "0000"
+    assert extrair_codigo_do_tema_site("00000 DEPOIMENTO PESSOAL") == "00000"
+    assert extrair_codigo_do_tema_site("000000 Simulado 3º ano") == "000000"
+    # Código 3B não é válido (sem separador após o número)
+    assert extrair_codigo_do_tema_site("3B Texto") is None
 
 
 def test_validar_codigo_site():
