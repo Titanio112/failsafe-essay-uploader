@@ -266,8 +266,22 @@ def ler_combo_temas(page: Page) -> list[TemaCombo]:
     return temas
 
 
-def selecionar_tema_por_codigo(page: Page, codigo: str) -> bool:
-    """Seleciona a opção do combo cujo código seja exatamente igual."""
+def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] = None) -> bool:
+    """Seleciona a opção do combo cujo código seja exatamente igual.
+    
+    Se codigos_site for fornecido, valida:
+    - Código repetido no combo -> REVISAO_MANUAL (não seleciona, levanta RuntimeError)
+    - Código inexistente no combo -> REVISAO_MANUAL (não seleciona, levanta RuntimeError)
+    """
+    # Validar duplicidade no combo se lista fornecida
+    if codigos_site is not None:
+        from collections import Counter
+        contador = Counter(codigos_site)
+        if contador[codigo] > 1:
+            raise RuntimeError(f"Código '{codigo}' aparece {contador[codigo]}x no combo → SIMULADO/REVISAO_MANUAL")
+        if codigo not in codigos_site:
+            raise RuntimeError(f"Código '{codigo}' não existe no combo → REVISAO_MANUAL")
+    
     temas = ler_combo_temas(page)
     for tema in temas:
         if tema.codigo == codigo:

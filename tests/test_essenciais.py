@@ -567,6 +567,74 @@ def test_codigo_duplicado_csv_real_temas_site():
     assert "0000" in codigos_duplicados
 
 
+# =====================================================================
+# Testes unitários para selecionar_tema_por_codigo (validação de duplicidade/inexistente)
+# =====================================================================
+
+def test_selecionar_tema_por_codigo_duplicado_levanta_erro():
+    """Código duplicado no combo -> RuntimeError (SIMULADO/REVISAO_MANUAL)."""
+    from plataforma import selecionar_tema_por_codigo
+    from unittest.mock import MagicMock
+    
+    page = MagicMock()
+    # Simular combo com código "0000" aparecendo 2x
+    codigos_site = ["0", "00", "000", "0000", "0000", "0001"]
+    
+    try:
+        selecionar_tema_por_codigo(page, "0000", codigos_site)
+        assert False, "Deveria ter levantado RuntimeError para código duplicado"
+    except RuntimeError as e:
+        assert "0000" in str(e)
+        assert "2x" in str(e)
+        assert "SIMULADO" in str(e) or "REVISAO_MANUAL" in str(e)
+
+
+def test_selecionar_tema_por_codigo_inexistente_levanta_erro():
+    """Código inexistente no combo -> RuntimeError (REVISAO_MANUAL)."""
+    from plataforma import selecionar_tema_por_codigo
+    from unittest.mock import MagicMock
+    
+    page = MagicMock()
+    codigos_site = ["0", "00", "000", "0001"]
+    
+    try:
+        selecionar_tema_por_codigo(page, "999", codigos_site)
+        assert False, "Deveria ter levantado RuntimeError para código inexistente"
+    except RuntimeError as e:
+        assert "999" in str(e)
+        assert "não existe" in str(e) or "REVISAO_MANUAL" in str(e)
+
+
+def test_selecionar_tema_por_codigo_valido_funciona():
+    """Código válido e único no combo -> seleciona sem erro (teste de unidade com mock)."""
+    from plataforma import selecionar_tema_por_codigo, TemaCombo
+    from unittest.mock import MagicMock
+    
+    page = MagicMock()
+    combo = MagicMock()
+    page.get_by_label.return_value = combo
+    
+    # Mock do ler_combo_temas
+    import plataforma
+    original_ler_combo = plataforma.ler_combo_temas
+    
+    def mock_ler_combo(p):
+        return [
+            TemaCombo(codigo="0", texto_completo="0- Narração"),
+            TemaCombo(codigo="00", texto_completo="00- Carta"),
+        ]
+    
+    plataforma.ler_combo_temas = mock_ler_combo
+    
+    try:
+        codigos_site = ["0", "00"]
+        resultado = selecionar_tema_por_codigo(page, "0", codigos_site)
+        assert resultado is True
+        combo.select_option.assert_called_once_with(label="0- Narração")
+    finally:
+        plataforma.ler_combo_temas = original_ler_combo
+
+
 def test_verificacao_simulada_processando_para_pendente():
     """Simula o fluxo: 5s, Processando -> Pendente, contagem sobe 1, saldo cai 1."""
     from plataforma import ItemListaRedacao
