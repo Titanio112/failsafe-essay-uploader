@@ -7,10 +7,10 @@ import time
 
 from config import Config
 from excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
+from login import DOMINIO_ESPERADO
 
 
 def verificar_dominio_autorizado(page: Page) -> None:
-    from login import DOMINIO_ESPERADO
     dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
     if DOMINIO_ESPERADO not in dominio_atual:
         raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")

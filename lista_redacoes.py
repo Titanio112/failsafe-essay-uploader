@@ -9,6 +9,7 @@ from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
 from planilha_arquivos import normalizar_nome
 from excecoes import CaptchaOuBloqueio
+from login import DOMINIO_ESPERADO
 
 
 @dataclass
@@ -22,7 +23,6 @@ class ItemListaRedacao:
 
 
 def verificar_dominio_autorizado(page: Page) -> None:
-    from login import DOMINIO_ESPERADO
     dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
     if DOMINIO_ESPERADO not in dominio_atual:
         raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")

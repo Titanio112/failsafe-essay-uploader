@@ -1,0 +1,304 @@
+"""Testes de identidade (confirmar_identidade) - página simulada.
+
+Cobrem:
+- nome encontrado -> ok
+- acentos/maiúsculas -> ok
+- elemento ausente -> IdentidadeDivergente com diagnóstico
+- texto vazio -> IdentidadeDivergente
+- e-mail mascarado na mensagem
+"""
+
+from __future__ import annotations
+
+import pytest
+from unittest.mock import MagicMock
+from planilha_arquivos import Aluno
+from excecoes import IdentidadeDivergente
+
+
+def test_confirmar_identidade_sucesso():
+    """confirmar_identidade deve retornar True quando o nome bate (seletor exato)."""
+    from unittest.mock import MagicMock
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Mock do locator que retorna "Usuario Testes Ignorar" via text_content
+    # Nova implementação: page.locator("text=...").first.wait_for(state="visible")
+    #                   .count() -> 1
+    #                   .text_content() -> "Usuario Testes Ignorar"
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for = MagicMock()
+    nome_locator_mock.first.count.return_value = 1
+    nome_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar"
+
+    # Fallback locator (não deve ser chamado)
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for = MagicMock()
+    fallback_locator_mock.first.count.return_value = 0
+    fallback_locator_mock.first.text_content.return_value = ""
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        return fallback_locator_mock
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    # Mock verificar_dominio_autorizado
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        result = confirmar_identidade(page, aluno, modo_teste=True)
+        assert result is True
+        # Verificar que wait_for foi chamado com state="visible" e timeout=10000
+        nome_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=10000)
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_acentos_maiusculas():
+    """confirmar_identidade deve normalizar acentos e maiúsculas."""
+    from unittest.mock import MagicMock
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Nome na tela tem acento diferente: "USUÁRIO TESTES IGNORAR" vs "Usuario Testes Ignorar"
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for = MagicMock()
+    nome_locator_mock.first.count.return_value = 1
+    nome_locator_mock.first.text_content.return_value = "USUÁRIO TESTES IGNORAR"
+
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for = MagicMock()
+    fallback_locator_mock.first.count.return_value = 0
+    fallback_locator_mock.first.text_content.return_value = ""
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        return fallback_locator_mock
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        result = confirmar_identidade(page, aluno, modo_teste=True)
+        assert result is True
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_elemento_ausente():
+    """confirmar_identidade deve levantar IdentidadeDivergente com diagnóstico quando elemento não existe."""
+    from unittest.mock import MagicMock
+    from playwright.sync_api import TimeoutError as PWTimeoutError
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Ambos locators dão timeout
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    nome_locator_mock.first.count.return_value = 0
+    nome_locator_mock.first.text_content.return_value = ""
+
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    fallback_locator_mock.first.count.return_value = 0
+    fallback_locator_mock.first.text_content.return_value = ""
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        return fallback_locator_mock
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        with pytest.raises(IdentidadeDivergente) as exc_info:
+            confirmar_identidade(page, aluno, modo_teste=False)
+
+        msg = str(exc_info.value).lower()
+        assert "identidade não confere" in msg
+        assert "encontrado: vazio" in msg
+        assert "url:" in msg
+        assert "elemento_encontrado: false" in msg
+        assert "qtd_casados: 0" in msg
+        assert "te***@esquema.com" in msg  # e-mail mascarado
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_texto_vazio():
+    """confirmar_identidade deve levantar IdentidadeDivergente quando texto vem vazio."""
+    from unittest.mock import MagicMock
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Locator encontrado mas texto vazio
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for = MagicMock()
+    nome_locator_mock.first.count.return_value = 1
+    nome_locator_mock.first.text_content.return_value = ""  # vazio
+
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for = MagicMock()
+    fallback_locator_mock.first.count.return_value = 0
+    fallback_locator_mock.first.text_content.return_value = ""
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        return fallback_locator_mock
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        with pytest.raises(IdentidadeDivergente) as exc_info:
+            confirmar_identidade(page, aluno, modo_teste=False)
+
+        msg = str(exc_info.value).lower()
+        assert "identidade não confere" in msg
+        assert "encontrado: vazio" in msg
+        assert "te***@esquema.com" in msg  # e-mail mascarado
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+def test_confirmar_identidade_fallback():
+    """confirmar_identidade deve usar fallback (a[href='#'] >> text=Testes) quando seletor principal falha."""
+    from unittest.mock import MagicMock
+    from playwright.sync_api import TimeoutError as PWTimeoutError
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Principal dá timeout
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    nome_locator_mock.first.count.return_value = 0
+    nome_locator_mock.first.text_content.return_value = ""
+
+    # Fallback encontra
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for = MagicMock()
+    fallback_locator_mock.first.count.return_value = 1
+    fallback_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar"
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        if "a[href='#']" in selector and "Testes" in selector:
+            return fallback_locator_mock
+        return MagicMock()
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        result = confirmar_identidade(page, aluno, modo_teste=True)
+        assert result is True
+        fallback_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=5000)
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_nome_diferente():
+    """confirmar_identidade deve levantar IdentidadeDivergente quando nome normalizado não bate."""
+    from unittest.mock import MagicMock
+    import login
+    from plataforma import confirmar_identidade
+
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+
+    # Nome diferente
+    nome_locator_mock = MagicMock()
+    nome_locator_mock.first.wait_for = MagicMock()
+    nome_locator_mock.first.count.return_value = 1
+    nome_locator_mock.first.text_content.return_value = "Outro Usuario Qualquer"
+
+    fallback_locator_mock = MagicMock()
+    fallback_locator_mock.first.wait_for = MagicMock()
+    fallback_locator_mock.first.count.return_value = 0
+    fallback_locator_mock.first.text_content.return_value = ""
+
+    def locator_side_effect(selector):
+        if selector.startswith("text="):
+            return nome_locator_mock
+        return fallback_locator_mock
+
+    page.locator.side_effect = locator_side_effect
+
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+
+    try:
+        with pytest.raises(IdentidadeDivergente) as exc_info:
+            confirmar_identidade(page, aluno, modo_teste=False)
+
+        msg = str(exc_info.value).lower()
+        assert "identidade não confere" in msg
+        assert "encontrado (normalizado): 'outro usuario qualquer' != 'usuario testes ignorar'" in msg
+        assert "esperado: usuario testes ignorar" in msg
+        assert "te***@esquema.com" in msg  # e-mail mascarado
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_mascarar_email():
+    """Teste unitário da função mascarar_email."""
+    from planilha_arquivos import mascarar_email
+
+    assert mascarar_email("teste@esquema.com") == "te***@esquema.com"
+    assert mascarar_email("a@b.com") == "a***@b.com"
+    assert mascarar_email("longeremail@domain.org") == "lo***@domain.org"
+    assert mascarar_email("") == "***"
+    assert mascarar_email("sem-arroba") == "***"
+    assert mascarar_email("@domain.com") == "***@domain.com"

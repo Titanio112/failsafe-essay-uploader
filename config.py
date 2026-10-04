@@ -50,6 +50,8 @@ class Config:
 
     limiar_fuzzy: float = 95.0
     margem_minima: float = 8.0
+    max_envios_por_aluno: int = 4
+    max_envios_teste: int = 1  # config.ini pode sobrescrever
     exigir_aprovacao_fuzzy: bool = True
 
     max_envios_por_aluno: int = 4
@@ -108,6 +110,8 @@ def _ler_ini(caminho: Path) -> Config:
         sec = parser["conciliacao"]
         cfg.limiar_fuzzy = sec.getfloat("limiar_fuzzy", cfg.limiar_fuzzy)
         cfg.margem_minima = sec.getfloat("margem_minima", cfg.margem_minima)
+        cfg.max_envios_por_aluno = sec.getint("max_envios_por_aluno", cfg.max_envios_por_aluno)
+        cfg.max_envios_teste = sec.getint("max_envios_teste", cfg.max_envios_teste)
         cfg.exigir_aprovacao_fuzzy = sec.getboolean(
             "exigir_aprovacao_fuzzy", cfg.exigir_aprovacao_fuzzy
         )

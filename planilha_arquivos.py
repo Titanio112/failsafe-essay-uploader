@@ -1,11 +1,11 @@
-﻿"""Leitura do XLSX, listagem de JPGs, normalizacao e conciliacao.
+"""Leitura do XLSX, listagem de JPGs, normalizacao e conciliacao.
 
 Estados de cada arquivo conciliado:
 
-- ``EXATO_UNICO``: correspondencia normalizada exata e unica com um aluno.
+- ``EXATO_UNICO``: correspondência normalizada exata e única com um aluno.
 - ``SUGESTAO_FUZZY``: melhor candidato aproximado acima do limiar e com
-  margem para o segundo. NUNCA entra na fila real sem revisao humana.
-- ``AMBIGUO``: correspondencia exata com mais de um aluno, ou fuzzy com
+  margem para o segundo. NUNCA entra na fila real sem revisão humana.
+- ``AMBIGUO``: correspondência exata com mais de um aluno, ou fuzzy com
   margem insuficiente / mais de um candidato no limiar.
 - ``ARQUIVO_SEM_ALUNO``: nenhum candidato acima do limiar.
 - ``ALUNO_SEM_ARQUIVO``: aluno da sala sem nenhum arquivo associado.
@@ -27,18 +27,7 @@ import openpyxl
 from rapidfuzz import fuzz
 
 from config import Config
-
-EXATO_UNICO = "EXATO_UNICO"
-SUGESTAO_FUZZY = "SUGESTAO_FUZZY"
-AMBIGUO = "AMBIGUO"
-ARQUIVO_SEM_ALUNO = "ARQUIVO_SEM_ALUNO"
-ALUNO_SEM_ARQUIVO = "ALUNO_SEM_ARQUIVO"
-SEM_CODIGO = "SEM_CODIGO"
-CODIGO_INVALIDO = "CODIGO_INVALIDO"
-REVISAO_MANUAL = "REVISAO_MANUAL"
-SIMULADO = "SIMULADO"
-
-ESTADOS_CONCILIACAO = (
+from estados import (
     EXATO_UNICO,
     SUGESTAO_FUZZY,
     AMBIGUO,
@@ -48,79 +37,23 @@ ESTADOS_CONCILIACAO = (
     CODIGO_INVALIDO,
     REVISAO_MANUAL,
     SIMULADO,
+    ESTADOS_CONCILIACAO,
+    MARCADOR_PESSOA,
 )
-
-MARCADOR_PESSOA = " - Red"
 
 class PlanilhaError(RuntimeError):
     """Planilha ausente ou sem as colunas esperadas."""
 
-_PONTUACAO_RE = re.compile(r"[^\w\s]", re.UNICODE)
-_ESPACOS_RE = re.compile(r"\s+")
+from normalizacao import (
+    normalizar_nome,
+    extrair_pessoa,
+    extrair_codigo_do_arquivo,
+    extrair_codigo_do_tema_site,
+    extrair_codigo_tema,
+    PADRAO_CODIGO_ARQUIVO,
+    PADRAO_CODIGO_TEMA_SITE,
+)
 
-# Regex para código do tema no ARQUIVO (pasta): número seguido de separador (espaço, _, ., -) ou fim
-# Ex.: "000 Simulado", "001_Carta", "002.Red", "003-Narração", "004" → código "000", "001", "002", "003", "004"
-# "3B ..." NÃO é código (não tem separador após o número)
-PADRAO_CODIGO_ARQUIVO = re.compile(r"^\s*(\d+)(?=[\s_.-]|$)")
-
-# Regex para código do tema no COMBO DO SITE: número seguido de " - " ou espaço ou fim
-# Ex.: "0- Narração", "00- Carta", "000- DISSERTATIVO" → "0", "00", "000"
-PADRAO_CODIGO_TEMA_SITE = re.compile(r"^\s*(\d+)(?=\s*-|\s|$)")
-
-def normalizar_nome(texto: str) -> str:
-    if not texto:
-        return ""
-    decomposto = unicodedata.normalize("NFKD", str(texto))
-    sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
-    minusculo = sem_acento.casefold()
-    sem_pontuacao = _PONTUACAO_RE.sub(" ", minusculo)
-    sem_apostrofo = sem_pontuacao.replace("'", " ").replace("'", " ")
-    return _ESPACOS_RE.sub(" ", sem_apostrofo).strip()
-
-def extrair_pessoa(nome_arquivo: str) -> str:
-    stem = Path(nome_arquivo).stem
-    codigo_match = PADRAO_CODIGO_ARQUIVO.match(stem)
-    if codigo_match:
-        pos_fim_codigo = codigo_match.end()
-        resto = stem[pos_fim_codigo:].lstrip(" _.-")
-    else:
-        resto = stem
-    pessoa, sep, _ = resto.partition(MARCADOR_PESSOA)
-    return pessoa.strip() if sep else resto.strip()
-
-def extrair_codigo_tema(nome_arquivo: str, pasta: str = "") -> Optional[str]:
-    """Extrai código do tema do arquivo. Se houver conflito arquivo vs pasta, retorna None para sinalizar REVISAO_MANUAL."""
-    stem = Path(nome_arquivo).stem
-    match_arquivo = PADRAO_CODIGO_ARQUIVO.match(stem)
-    codigo_arquivo = match_arquivo.group(1) if match_arquivo else None
-    
-    codigo_pasta = None
-    if pasta:
-        match_pasta = PADRAO_CODIGO_ARQUIVO.match(pasta)
-        if match_pasta:
-            codigo_pasta = match_pasta.group(1)
-    
-    # Conflito: ambos existem e são diferentes
-    if codigo_arquivo and codigo_pasta and codigo_arquivo != codigo_pasta:
-        return None  # Sinaliza conflito -> REVISAO_MANUAL no conciliar
-    
-    # Prioridade: arquivo > pasta
-    return codigo_arquivo or codigo_pasta
-
-def extrair_codigo_do_tema_site(texto_tema: str) -> Optional[str]:
-    match = PADRAO_CODIGO_TEMA_SITE.match(texto_tema)
-    if match:
-        return match.group(1)
-    return None
-
-def validar_codigo_site(codigo: str, codigos_site: Set[str]) -> bool:
-    return codigo in codigos_site
-
-def mascarar_email(email: str) -> str:
-    if not email or "@" not in email:
-        return "***"
-    local, dominio = email.split("@", 1)
-    return f"{local[:2]}***@{dominio}" if local else f"***@{dominio}"
 
 @dataclass
 class Aluno:
@@ -136,6 +69,7 @@ class Aluno:
     @property
     def id(self) -> str:
         return self.email.casefold() if self.email else self.nome_norm
+
 
 @dataclass
 class ItemConciliacao:
@@ -155,6 +89,7 @@ class ItemConciliacao:
     def chave(self) -> str:
         return f"{self.pasta}/{self.arquivo}"
 
+
 @dataclass
 class ResultadoConciliacao:
     itens: list
@@ -167,6 +102,13 @@ class ResultadoConciliacao:
 
     def resumo(self) -> dict:
         return {e: len(self.por_estado(e)) for e in ESTADOS_CONCILIACAO}
+
+
+def _emitir_aviso(mensagem: str) -> None:
+    aviso = f"[AVISO] {mensagem}"
+    print(aviso)
+    warnings.warn(aviso, UserWarning, stacklevel=3)
+
 
 def _sugerir_fuzzy(norm: str, alunos: list, limiar: float, margem: float):
     pontuacoes = sorted(
@@ -183,10 +125,6 @@ def _sugerir_fuzzy(norm: str, alunos: list, limiar: float, margem: float):
         return AMBIGUO, None, candidatos, melhor_score, segundo_score
     return SUGESTAO_FUZZY, melhor_aluno, [melhor_aluno], melhor_score, segundo_score
 
-def _emitir_aviso(mensagem: str) -> None:
-    aviso = f"[AVISO] {mensagem}"
-    print(aviso)
-    warnings.warn(aviso, UserWarning, stacklevel=3)
 
 def carregar_alunos(cfg: Config) -> list[Aluno]:
     wb = openpyxl.load_workbook(cfg.planilha, data_only=True)
@@ -427,3 +365,10 @@ def conciliar(
             ))
 
     return ResultadoConciliacao(itens=itens)
+
+
+def mascarar_email(email: str) -> str:
+    if not email or "@" not in email:
+        return "***"
+    local, dominio = email.split("@", 1)
+    return f"{local[:2]}***@{dominio}" if local else f"***@{dominio}"

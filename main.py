@@ -1,25 +1,14 @@
-﻿"""CLI: orquestracao. Padrao: dry-run. NÃO EXISTEM SALAS — entramos como aluno."""
+"""CLI: orquestracao. Padrao: dry-run. NÃO EXISTEM SALAS — entramos como aluno."""
 
 from __future__ import annotations
 
 import argparse
 import sys
 import logging
-
-# Configuração de logging com UTF-8
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-# Configuração de encoding para stdout e stderr
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
+from datetime import datetime
 from pathlib import Path
 
+# Configuração de encoding para stdout e stderr
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -34,12 +23,41 @@ from planilha_arquivos import (
     descobrir_arquivos,
     mascarar_email,
     normalizar_nome,
+    Aluno,
+    ResultadoConciliacao,
+    ItemConciliacao,
+)
+from estados import (
+    EXATO_UNICO,
+    SUGESTAO_FUZZY,
+    AMBIGUO,
+    ARQUIVO_SEM_ALUNO,
+    SEM_CODIGO,
+    CODIGO_INVALIDO,
+    REVISAO_MANUAL,
 )
 from progresso_relatorio import (
     Progresso,
     configurar_logging,
     gerar_fila_dry_run,
     gerar_relatorio_conciliacao,
+    JA_ENVIADO,
+)
+from plataforma import (
+    login,
+    confirmar_identidade,
+    ler_saldo_creditos,
+    ler_lista_redacoes,
+    verificar_duplicidade,
+    abrir_formulario_envio,
+    ler_combo_temas,
+    selecionar_tema_por_codigo,
+    selecionar_criterio,
+    anexar_arquivo,
+    aguardar_upload_aceito,
+    clicar_enviar,
+    aguardar_confirmacao,
+    logout,
 )
 
 

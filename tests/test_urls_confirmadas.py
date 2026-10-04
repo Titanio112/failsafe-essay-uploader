@@ -30,9 +30,11 @@ def test_formulario_envio_url():
     assert "/nova-redacao" not in source
 
 def test_confirmar_identidade_url():
-    """Confirmar identidade usa /minhas-redacoes."""
+    """Confirmar identidade espera página /minhas-redacoes (página já aberta)."""
     from login import confirmar_identidade
     import inspect
     source = inspect.getsource(confirmar_identidade)
-    assert "/minhas-redacoes" in source
+    # A função não navega para /minhas-redacoes - ela assume que a página já está lá
+    # Verificar que não usa URLs antigas
     assert "/alunos/minhas-redacoes" not in source
+    assert "/meus-pedidos" not in source
