@@ -56,5 +56,12 @@
 - **T5 (testes novos)**: NÃO foi feito na Etapa M — não há registro no PROJECT_MEMORY.md
 - **Evidência**: PROJECT_MEMORY.md só registra até ETAPA L (modularização completa, 47 testes). A contagem atual de testes offline é 54 (47 originais + 7 novos de test_login_criterio.py). Não houve T3/T4/T5 da Etapa M implementados.
 
-## T6 - Fechar [ ]
-- Commit com data 04/10/2026. PARE e relate: git log, pytest, TAREFAS_ATUAIS.md, e o comando exato para o Antonio rodar o teste real com --tb=short.
+## T6 - Fechar [x]
+- Commit: 260a6e6 (data 04/10/2026)
+- **git log**: 260a6e6, 804dfed, 8d333a3, 4289ff2, 1b9dee8, 7e7d161, 2876dfa, efc03c2
+- **pytest -m "not real"**: 54 passed, 2 deselected
+- **TAREFAS_ATUAIS.md**: atualizado com T1-T6
+- **Comando exato para Antonio rodar o teste real com --tb=short**:
+  ```
+  python -m pytest tests/test_essenciais.py::test_real_leitura_conta_teste -v -m real --tb=short --timeout=120
+  ```
