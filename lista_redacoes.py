@@ -49,7 +49,7 @@ def ler_saldo_creditos(page: Page) -> int:
 
 def ler_lista_redacoes(page: Page) -> list[ItemListaRedacao]:
     """Lê a lista de redações do aluno em /minhas-redacoes."""
-    page.goto("https://www.esquemaredacao.com.br/alunos/minhas-redacoes", wait_until="domcontentloaded")
+    page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
 

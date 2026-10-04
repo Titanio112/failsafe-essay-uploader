@@ -58,7 +58,7 @@ def confirmar_identidade(page: Page, aluno: Aluno) -> bool:
     """Confirma se o aluno logado corresponde ao esperado.
     
     Retorna True se confirmado, levanta IdentidadeDivergente se não."""
-    page.goto("https://www.esquemaredacao.com.br/alunos/minhas-redacoes", wait_until="domcontentloaded")
+    page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
 

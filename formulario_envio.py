@@ -17,7 +17,7 @@ def verificar_dominio_autorizado(page: Page) -> None:
 
 def abrir_formulario_envio(page: Page) -> None:
     """Abre o formulário de envio de redação."""
-    page.goto(f"https://{DOMINIO_ESPERADO}/nova-redacao", wait_until="domcontentloaded")
+    page.goto(f"https://{DOMINIO_ESPERADO}/wordings/new", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
 

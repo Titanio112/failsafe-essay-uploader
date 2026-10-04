@@ -1,10 +1,21 @@
-# TAREFAS_ATUAIS.md - ETAPA N: CORRIGIR O LOGIN
+# TAREFAS_ATUAIS.md - ETAPA O: NAO EXISTEM SALAS - TESTE REAL BUG + URLS CONFIRMADAS
 
 **Regra:** NAO EXISTEM SALAS. Nao logar real, nao enviar real, nao clicar Enviar resposta, nao digitar confirmacao. Quem executa o envio e o Antonio.
 **Regras de edicao:** NUNCA reescreva arquivo inteiro; trechos pequenos (~4000 chars); nenhum .py acima de ~300 linhas; timeout/erro de stream: PARE e relate, sem repetir em loop.
-**Atualize este arquivo com T1 a T6. ANTES de cada topico, releia TAREFAS_ATUAIS.md e AGENTS.md. AO TERMINAR cada um, resumo de no maximo 8 linhas (feito, evidencia colada, pendencias).**
+**Atualize este arquivo com T1 a T5. ANTES de cada topico, releia TAREFAS_ATUAIS.md e AGENTS.md. AO TERMINAR cada um, resumo de no maximo 8 linhas (feito, evidencia colada, pendencias).**
 
 ---
+
+## T1 - Bug do teste real: import tardio de Aluno [x]
+- **Erro**: `UnboundLocalError: cannot access local variable 'Aluno'` na linha 1103 do test_real_leitura_conta_teste
+- **Causa**: `Aluno` importado no topo do arquivo (linha 25), mas dentro da funcao `test_real_leitura_conta_teste` ha um `from plataforma import ...` que pode criar escopo local. O Python ve `Aluno` como variavel local na funcao porque ha atribuicao/uso antes do import global ser "visivel" no escopo da funcao.
+- **Correcao**: Adicionado `from planilha_arquivos import Aluno` dentro do bloco `try` da funcao (linha 1102), antes do uso na linha 1103.
+- **Evidencia**:
+  ```diff
+  +            from planilha_arquivos import Aluno
+               login(page, cfg, email, senha)
+               confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE"))
+  ```
 
 ## T1 - Origem do bug [x]
 - **Commit que introduziu o bug**: Modularizacao (linhas de checkpoint) - login.py criado a partir de plataforma.py

@@ -17,9 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from planilha_arquivos import (
     normalizar_nome,
     extrair_pessoa,
-    extrair_codigo_tema,
+    extrair_codigo_do_arquivo,
     extrair_codigo_do_tema_site,
-    validar_codigo_site,
     conciliar,
     carregar_alunos,
     descobrir_arquivos,
@@ -36,6 +35,7 @@ from planilha_arquivos import (
     SIMULADO,
     ESTADOS_CONCILIACAO,
 )
+from normalizacao import validar_codigo_site, extrair_codigo_tema
 from plataforma import ItemListaRedacao
 from progresso_relatorio import Progresso
 from config import Config
@@ -561,7 +561,7 @@ def test_codigo_duplicado_csv_real_temas_site():
     assert contagem["000"] == 1
     
     # Verificar que a lógica de validação detecta duplicidade
-    from planilha_arquivos import validar_codigo_site
+    from normalizacao import validar_codigo_site
     
     # Criar set de códigos do CSV (sem duplicatas, pois é um set)
     codigos_site = set(codigos)
@@ -964,6 +964,110 @@ def test_ler_lista_redacoes_html_linhas_incompletas_ignoradas():
     assert lista[0].tema == "1- Carta"
 
 
+# =====================================================================
+# Testes unitários para confirmar_identidade (simulado, sem navegador)
+# =====================================================================
+
+def test_confirmar_identidade_sucesso_simulado():
+    """confirmar_identidade deve retornar True quando o nome bate."""
+    from unittest.mock import MagicMock
+    from planilha_arquivos import Aluno
+    from plataforma import IdentidadeDivergente
+    
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/alunos/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+    
+    # Mock do locator que retorna "Usuario Testes Ignorar"
+    # Need to mock the chain: page.locator(...).first.inner_text(...)
+    locator_mock = MagicMock()
+    locator_mock.first.inner_text.return_value = "Usuario Testes Ignorar"
+    page.locator.return_value = locator_mock
+    
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    
+    # Mock verificar_dominio_autorizado to avoid domain check
+    import login
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+    
+    from plataforma import confirmar_identidade
+    try:
+        result = confirmar_identidade(page, aluno)
+        assert result is True
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_falha_simulado():
+    """confirmar_identidade deve levantar IdentidadeDivergente quando o nome NÃO bate."""
+    from unittest.mock import MagicMock
+    from planilha_arquivos import Aluno
+    from plataforma import IdentidadeDivergente
+    
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/alunos/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+    # Mock do locator que retorna nome diferente
+    # Need to mock the chain: page.locator(...).first.inner_text(...)
+    locator_mock = MagicMock()
+    locator_mock.first.inner_text.return_value = "Outro Usuario"
+    page.locator.return_value = locator_mock
+    
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    
+    # Mock verificar_dominio_autorizado to avoid domain check
+    import login
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+    
+    from plataforma import confirmar_identidade
+    try:
+        confirmar_identidade(page, aluno)
+        assert False, "Deveria ter levantado IdentidadeDivergente"
+    except IdentidadeDivergente as e:
+        assert "outro usuario" in str(e).lower()
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
+def test_confirmar_identidade_nao_encontrado_simulado():
+    """confirmar_identidade deve levantar IdentidadeDivergente quando não encontra o elemento."""
+    from unittest.mock import MagicMock
+    from planilha_arquivos import Aluno
+    from playwright.sync_api import TimeoutError as PWTimeoutError
+    from plataforma import IdentidadeDivergente
+    
+    page = MagicMock()
+    page.url = "https://www.esquemaredacao.com.br/alunos/minhas-redacoes"
+    page.goto = MagicMock()
+    page.wait_for_load_state = MagicMock()
+    
+    # Mock do locator que dá timeout
+    locator_mock = MagicMock()
+    locator_mock.first.inner_text.side_effect = PWTimeoutError("timeout")
+    page.locator.return_value = locator_mock
+    
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    
+    # Mock verificar_dominio_autorizado to avoid domain check
+    import login
+    original_verificar = login.verificar_dominio_autorizado
+    login.verificar_dominio_autorizado = MagicMock()
+    
+    from plataforma import confirmar_identidade
+    try:
+        confirmar_identidade(page, aluno)
+        assert False, "Deveria ter levantado IdentidadeDivergente"
+    except IdentidadeDivergente as e:
+        # When timeout, nome_logado = "" so message says "Encontrado: "
+        assert "identidade não confere" in str(e).lower()
+    finally:
+        login.verificar_dominio_autorizado = original_verificar
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
@@ -974,6 +1078,37 @@ if __name__ == "__main__":
 
 @pytest.mark.real
 def test_real_leitura_conta_teste():
+    """Login real na conta de teste, ler lista e combo."""
+    from playwright.sync_api import sync_playwright
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    email = os.getenv("ESQUEMA_EMAIL_TESTE")
+    senha = os.getenv("ESQUEMA_SENHA_TESTE")
+
+    if not email or not senha:
+        pytest.skip("Credenciais de teste não configuradas no .env")
+
+    from config import Config
+    cfg = Config()
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False, slow_mo=500)
+        page = browser.new_page()
+
+        try:
+            from plataforma import login, confirmar_identidade, ler_lista_redacoes, ler_combo_temas
+            from planilha_arquivos import Aluno
+            login(page, cfg, email, senha)
+            confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE"))
+            lista = ler_lista_redacoes(page)
+            assert isinstance(lista, list)
+            temas = ler_combo_temas(page)
+            assert isinstance(temas, list)
+            assert len(temas) > 0
+        finally:
+            browser.close()
     """Login → confirmar identidade → /minhas-redacoes → /wordings/new → validar temas → logout.
     
     Apenas leitura, SEM anexar arquivo, SEM clicar em 'Enviar resposta'.
