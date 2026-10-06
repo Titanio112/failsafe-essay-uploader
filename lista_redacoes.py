@@ -28,23 +28,35 @@ def verificar_dominio_autorizado(page: Page) -> None:
         raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")
 
 
-def ler_saldo_creditos(page: Page) -> int:
-    """Lê o saldo de créditos da conta logada."""
+def ler_saldo_creditos(page: Page) -> int | None:
+    """Lê o saldo de créditos da conta logada.
+    
+    Retorna o número de créditos como int, ou None se não conseguir ler.
+    Não retorna 0 para não mascarar erros de leitura."""
     page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
 
-    # Tentar encontrar saldo na página
+    # Tentar encontrar saldo na página - padrão observado: "Você tem 999 crédito(s)"
+    import re
     try:
-        saldo_texto = page.locator(".saldo-creditos, .creditos, [data-testid=credits]").first.inner_text(timeout=3000)
-        # Extrair número
-        import re
-        match = re.search(r"(\d+)", saldo_texto)
+        # Procurar no texto completo da página
+        full_text = page.locator("body").inner_text(timeout=5000)
+        # Padrão: "Você tem 999 crédito(s)" ou "999 crédito(s)"
+        match = re.search(r"Você\s+tem\s+(\d+)\s+crédito", full_text, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        match = re.search(r"(\d+)\s+crédito\(s\)", full_text, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        # Fallback: qualquer número seguido de "crédito"
+        match = re.search(r"(\d+)\s+crédito", full_text, re.IGNORECASE)
         if match:
             return int(match.group(1))
     except PWTimeoutError:
         pass
-    return 0
+    
+    return None  # Não conseguiu ler - fail closed
 
 
 def ler_lista_redacoes(page: Page) -> list[ItemListaRedacao]:
