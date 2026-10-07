@@ -1,126 +1,232 @@
-# TAREFAS_ATUAIS.md - ETAPA Q: CORRECOES ESTATICAS + ETAPA U: ENVIO DE TESTE
+# TAREFAS_ATUAIS.md — Ordem: docs -> F2a (2 etapas) -> F2b -> F2c -> F2d -> F3
 
-**Regra:** NAO EXISTEM SALAS. Nao logar real, nao enviar real, nao clicar Enviar resposta, nao digitar confirmacao. Quem executa o envio e o Antonio.
-**Regras de edicao:** NUNCA reescreva arquivo inteiro; trechos pequenos (~4000 chars); nenhum .py acima de ~200 linhas; timeout/erro de stream: PARE e relate, sem repetir em loop.
-**Atualize este arquivo com T1 a T4. ANTES de cada topico, releia TAREFAS_ATUAIS.md e AGENTS.md. AO TERMINAR cada um, resumo de no maximo 8 linhas (feito, evidencia colada, pendencias).**
+> Uma tarefa por vez. Só vira [x] com PROVA colada (saída literal, mín. 15 linhas
+> + git diff --stat + git log --oneline -1). Formato conforme REGRAS seção 12.
+> O Cline NUNCA digita ENVIAR / ENVIAR TESTE. Quem envia é o Antônio.
 
----
-
-## T1 - O erro [x]
-- **Problema**: lista_redacoes.py:52 -> NameError: name 'DOMINIO_ESPERADO' is not defined (import estava dentro da funcao, removido na Etapa O)
-- **Fix**: Movido from login import DOMINIO_ESPERADO para topo do modulo (linha 12), removido import interno da funcao verificar_dominio_autorizado
-- **Evidencia**:
-```
-diff --git a/lista_redacoes.py b/lista_redacoes.py
-index 73da312..de52552 100644
---- a/lista_redacoes.py
-+++ b/lista_redacoes.py
-@@ -9,6 +9,7 @@ from playwright.sync_api import Page, TimeoutError as PWTimeoutError
-
- from planilha_arquivos import normalizar_nome
- from excecoes import CaptchaOuBloqueio
-+from login import DOMINIO_ESPERADO
-@@ -22,7 +23,6 @@ class ItemListaRedacao:
-
- def verificar_dominio_autorizado(page: Page) -> None:
--    from login import DOMINIO_ESPERADO
-     dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
-```
-- **Testes**: 76 passed, 2 deselected
-
-## T2 - Achar todos de uma vez [x]
-- **Instalado**: pyflakes 4.0.2 (pip install pyflakes)
-- **Rodado**: python -m pyflakes em todos os modulos (raiz e tests/)
-
-## T3 - pyflakes em todos os modulos [x]
-- **Rodado**: python -m pyflakes . (sem erros)
-- **Rodado**: python -m pyflakes tests/ (sem erros)
-
-## T4 - Testes unitarios [x]
-- **Rodado**: python -m pytest tests/ -m "not real" -q
-- **Resultado**: 77 passed, 2 deselected
-
-## T5 - fluxo_envio_teste.py [x]
-- **Criado**: fluxo_envio_teste.py com funcao executar_envio_teste(cfg, progresso)
-- **Implementa**: 13 passos (arquivo, confirmacao, login, identidade, saldo, duplicidade, formulario, combo, validacao, selecao, anexo, upload, ENVIANDO, clicar_enviar, confirmacao, logout)
-- **Reutiliza**: modulos login, lista_redacoes, formulario_envio, confirmacao (sem duplicar logica)
-- **Conta**: Usuario Testes Ignorar (email ESQUEMA_EMAIL_TESTE)
-- **Confirmacao**: input "ENVIAR TESTE" antes de qualquer acao no navegador
-- **Limite**: 1 envio por execucao (max_envios_teste = 1)
-- **Seguranca**: nenhum segredo logado (email mascarado, sem senhas/tokens/cookies)
-- **Testes**: 77 passed, 2 deselected
-- **Syntax**: python -m py_compile fluxo_envio_teste.py -> OK
+Legenda das verificações: "0 ocorrências" = rodar Select-String e colar saída vazia.
 
 ---
 
-## ETAPA U: ENVIO DE TESTE (pendente autorizacao)
+## T1 - Corrigir e versionar INVENTARIO.md [ ]
+- Objetivo: substituir INVENTARIO.md pelo conteúdo corrigido (versão 07/10 que corrige os erros da seção 8 do CONTEXTO) e versionar INVENTARIO.md + REGRAS_CLINE_AUTOMACAO.md.
+- Arquivos que PODE mexer: INVENTARIO.md, REGRAS_CLINE_AUTOMACAO.md.
+- Arquivos que NÃO pode mexer: qualquer .py, .env, AGENTS.md, PROJECT_MEMORY.md, outros.
+- Comando de verificação:
+  Select-String -Path INVENTARIO.md -Pattern "46 untracked","7 rastreados"  (0 ocorrências)
+  git add INVENTARIO.md REGRAS_CLINE_AUTOMACAO.md ; git commit ; git status --short
+- PROVA: (colar aqui a saída)
+- Fora de escopo: escrever o conteúdo por conta própria (o Antônio fornece o texto corrigido), apagar qualquer arquivo.
 
-- [ ] U1 - Executar `python main.py --modo-teste --envio-real` com conta de teste
-- [ ] U2 - Validar T1-T3 do AGENTS.md (5 arquivos, tema 0 JA_ENVIADO, outros 4 Pendente, saldo -4)
-- [ ] U3 - Reexecutar mesmos 5 -> todos JA_ENVIADO, contagem/saldo inalterados
-- [x] U4 - Atualizar PROJECT_MEMORY.md: CONFIRMADO (seletores, fluxo validado, regra codigo string) vs HIPOTESE (envio real nao executado) - **FEITO 2026-10-06**
-- [ ] U5 - Atualizar AGENTS.md: refletir main.py modular, fluxo_envio_teste.py criado/wired, pendente test_identidade.py import fix e loop producao
-- **Encontrados e corrigidos** (undefined name / referenced before assignment):
-  1. conciliacao.py:193 -> SUGESTAO_FUZZY nao importado de estados (adicionado na linha 21)
-  2. formulario_envio.py:20 -> DOMINIO_ESPERADO nao definido (movido import do topo, removido da funcao verificar_dominio_autorizado)
-  3. confirmacao.py:41 -> DOMINIO_ESPERADO nao definido (mesmo fix)
-  4. lista_redacoes.py:52 -> DOMINIO_ESPERADO nao definido (ja corrigido no T1)
-- **Saida final pyflakes**: ZERO erros de undefined name / referenced before assignment
-- **Avisos restantes**: apenas 'imported but unused' e 'redefinition of unused' (nao mexi, conforme instrucao)
-- **Testes**: 76 passed, 2 deselected
+## T2 - Corrigir contradições dos documentos [ ]
+- Objetivo: aplicar nas docs as correções da seção 8 do CONTEXTO (seletor de anexo, falso sinal de upload, regra de duplicidade, módulos inexistentes, ESQUEMA_SENHA_TESTE, remoção de "SALA", itens repetidos do PROJECT_MEMORY, autor estranho e item 5.5 cortado do DECISOES_PENDENTES). O Antônio fornece os textos corrigidos de AGENTS.md e PROJECT_MEMORY.md; em DECISOES_PENDENTES.md apenas trocar o autor e fechar o fragmento 5.5.
+- Arquivos que PODE mexer: AGENTS.md, PROJECT_MEMORY.md, DECISOES_PENDENTES.md.
+- Arquivos que NÃO pode mexer: qualquer .py, .env, tests/, TAREFAS_ATUAIS.md, INVENTARIO.md.
+- Comando de verificação:
+  Select-String -Path AGENTS.md,PROJECT_MEMORY.md -Pattern "wording\[attachment\]"  (0)
+  Select-String -Path AGENTS.md,PROJECT_MEMORY.md -Pattern "ESQUEMA_TESTE_SENHA"    (0)
+  Select-String -Path AGENTS.md,PROJECT_MEMORY.md -Pattern "SALA"                   (0)
+  Select-String -Path AGENTS.md,PROJECT_MEMORY.md -Pattern "qualquer data"          (0)
+  Select-String -Path AGENTS.md -Pattern "input\[name=\"wording\[pages_attributes\]\[0\]\[file\]\"\]"  (>=1)
+  git add -A docs ; git commit
+- PROVA: (colar aqui a saída)
+- Fora de escopo: mudar regras de negócio, apagar seções sem instrução, criar documentos novos.
 
-## T3 - Protecao permanente (arquivo NOVO) [x]
-- **Criado**: tests/test_estatico.py com teste test_pyflakes_no_undefined
-- **Funcao**: roda pyflakes em todos os .py do projeto (raiz + tests/) e FALHA se houver "undefined name" ou "referenced before assignment"
-- **Execucao**: pytest tests/test_estatico.py -v -> PASSED
-- **Suite completa**: 77 passed, 2 deselected (inclui o novo teste)
-- **Evidencia**:
-```
-tests/test_estatico.py::test_pyflakes_no_undefined PASSED
-```
+## T3 - Restaurar PROMPT_CLINE.md [ ]
+- Objetivo: desfazer a exclusão acidental (decisão do dono é manter o arquivo).
+- Arquivos que PODE mexer: PROMPT_CLINE.md (restaurar).
+- Arquivos que NÃO pode mexer: todos os outros.
+- Comando de verificação:
+  git checkout -- PROMPT_CLINE.md ; git status --short  (não pode mais listar PROMPT_CLINE.md)
+  Test-Path PROMPT_CLINE.md   (True)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: editar o conteúdo do arquivo.
 
-## T4 - Testes de identidade (confirmar_identidade) [x]
-- **Problema**: 4 testes falhando em test_identidade.py por mocks desatualizados apos mudanca no login.py (confirmar_identidade agora tenta dropdown .navbar-right .dropdown-toggle primeiro, depois fallback text=, depois a[href='#'] >> text=Testes)
-- **Fix**: Atualizados todos os 4 testes para mockar o dropdown primeiro (com timeout PWTimeoutError para cair nos fallbacks), ajustados asserts de timeout corretos (3000ms para fallback final)
-- **Evidencia**:
-```
-tests/test_identidade.py::test_confirmar_identidade_sucesso PASSED
-tests/test_identidade.py::test_confirmar_identidade_acentos_maiusculas PASSED
-tests/test_identidade.py::test_confirmar_identidade_elemento_ausente PASSED
-tests/test_identidade.py::test_confirmar_identidade_texto_vazio PASSED
-tests/test_identidade.py::test_confirmar_identidade_fallback PASSED
-tests/test_identidade.py::test_confirmar_identidade_nome_diferente PASSED
-tests/test_identidade.py::test_mascarar_email PASSED
-```
-- **Testes totais**: 77 passed, 2 deselected
+## T4 - F2a etapa 1a: apagar txt/bak rastreados (grupo A1, 22 itens) [ ]
+- Objetivo: remover do repositório os .txt/.bak rastreados de lixo do grupo A1 do INVENTARIO seção 6.A.
+- Arquivos que PODE mexer: SOMENTE os 22 do grupo A1 (git rm).
+- Arquivos que NÃO pode mexer: qualquer outro.
+- Comando de verificação:
+  git rm PM_part1.txt PM_part2.txt PM_part3.txt PM_temp.txt TAREFAS_ATUAIS.md.bak commit_msg.txt diff.txt headers.txt launch_error.txt launch_error2.txt len.txt log_out.txt old_func.txt out.txt planilha_content.txt planilha_content2.txt pytest_output.txt send_flow_body.txt temp_content.txt temp_plataforma.txt test.txt test_error.txt
+  git status --short
+- PROVA: (colar aqui a saída)
+- Fora de escopo: apagar .py, untracked, pastas; commitar (commit é T7).
 
-## T5 - Testes alterados e fechamento [x]
-- **git diff dos 3 testes de identidade alterados em tests/test_essenciais.py**:## T4 - Testes alterados e fechamento [x]
-- **git diff dos 3 testes de identidade alterados em tests/test_essenciais.py**:
+## T5 - F2a etapa 1b: apagar .py rastreados de lixo (grupo A2, 21 itens) [ ]
+- Objetivo: remover os .py rastreados de lixo do grupo A2, incluindo conciliacao.py (ninguém importa).
+- Arquivos que PODE mexer: SOMENTE os 21 do grupo A2 (git rm).
+- Arquivos que NÃO pode mexer: qualquer outro .py de produção/teste.
+- Comando de verificação:
+  git status --short
+  python -m pytest -m "not real" -q   (0 failed — obrigatório rodar e colar)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: apagar plataforma.py (é F2d/T15), untracked, commitar.
 
-### 1. test_confirmar_identidade_sucesso_simulado
-**Mudança**: MOCK (não mudou comportamento testado)
-- Antes: mockava `page.locator().first.inner_text()` → retorna string direta
-- Agora: mocka `page.locator("text=...").first.wait_for()`, `.count()=1`, `.text_content()` → retorna string
-- URL: mudou de `/alunos/minhas-redacoes` para `/minhas-redacoes` (correto)
-- Import: `Aluno` removido (não usado), `IdentidadeDivergente` removido, agora usa `confirmar_identidade` de `plataforma`
-- **Comportamento testado**: IDÊNTICO - sucesso quando nome bate exato
+## T6 - F2a etapa 1c: apagar pastas rastreadas temp/ e temp_conciliacao/ [ ]
+- Objetivo: remover as 2 pastas rastreadas de lixo (grupo A3).
+- Arquivos que PODE mexer: temp/, temp_conciliacao/ (git rm -r).
+- Arquivos que NÃO pode mexer: qualquer outro.
+- Comando de verificação:
+  git status --short
+  python -m pytest -m "not real" -q   (0 failed)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: commitar (é T7), apagar untracked.
 
-### 2. test_confirmar_identidade_falha_simulado
-**Mudança**: MOCK (não mudou comportamento testado)
-- Antes: mockava `inner_text()` retornando "Outro Usuario"
-- Agora: mocka `wait_for()`, `count()=1`, `text_content()` → "Outro Usuario"; fallback também mockado com count=0
-- URL: corrigida para `/minhas-redacoes`
-- Import: `IdentidadeDivergente` agora de `excecoes` (não mais `plataforma`)
-- **Comportamento testado**: IDÊNTICO - falha quando nome não bate (IdentidadeDivergente)
+## T7 - F2a etapa 2: apagar untracked de lixo (grupo 6.B, 20 itens) + commit [ ]
+- Objetivo: deletar do disco os 20 untracked de lixo, MANTENDO INVENTARIO.md e REGRAS_CLINE_AUTOMACAO.md, e commitar a F2a inteira.
+- Arquivos que PODE mexer: SOMENTE os 20 untracked do grupo 6.B (del).
+- Arquivos que NÃO pode mexer: INVENTARIO.md, REGRAS_CLINE_AUTOMACAO.md, .env, qualquer rastreado.
+- Comando de verificação:
+  git status --short   (não pode sobrar nenhum dos 20; INVENTARIO/REGRAS já commitados em T1)
+  python -m pytest -m "not real" -q   (0 failed)
+  git commit -m "F2a: remove lixo rastreado e untracked" ; git log --oneline -1
+- PROVA: (colar aqui a saída)
+- Fora de escopo: mover arquivos, criar modulos/, mexer em código.
 
-### 3. test_confirmar_identidade_timeout_simulado
-**Mudança**: MOCK (não mudou comportamento testado)
-- Antes: mockava `inner_text.side_effect = PWTimeoutError`
-- Agora: mocka ambos locators com `wait_for.side_effect = PWTimeoutError`, `count=0`, `text_content=""`
-- URL: corrigida para `/minhas-redacoes`
-- Import: `IdentidadeDivergente` de `excecoes`
-- **Comportamento testado**: IDÊNTICO - falha quando ambos locators dão timeout (IdentidadeDivergente)
+## T8 - F2b: criar modulos/ e mover módulos sem dependência de plataforma [ ]
+- Objetivo: criar modulos/ (com __init__.py vazio) e git mv de config.py, estados.py, excecoes.py, normalizacao.py, descoberta_arquivos.py.
+- Arquivos que PODE mexer: criar modulos/__init__.py; mover os 5 listados.
+- Arquivos que NÃO pode mexer: conteúdo interno dos arquivos movidos; login.py, lista_redacoes.py, formulario_envio.py, confirmacao.py, fluxo_envio_teste.py, planilha_arquivos.py, progresso_relatorio.py, main.py, plataforma.py, tests/.
+- Comando de verificação:
+  Test-Path modulos\\config.py,modulos\\estados.py,modulos\\excecoes.py,modulos\\normalizacao.py,modulos\\descoberta_arquivos.py,modulos\\__init__.py   (todos True)
+  python -m py_compile modulos\\__init__.py
+  git status --short   (mostra os 5 renomeados)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: editar imports, criar dominio.py/avisos.py, pytest.
 
-- **Commit**: data 04/10/2026
-- **Testes totais**: 77 passed, 2 deselected
+## T9 - F2b: criar modulos/dominio.py e modulos/avisos.py [ ]
+- Objetivo: criar dominio.py com verificar_dominio_autorizado (cópia única, vinda de login.py) e avisos.py com _emitir_aviso (cópia única, vinda de descoberta_arquivos.py). NÃO remover ainda as cópias antigas (isso é T11).
+- Arquivos que PODE mexer: criar modulos/dominio.py, modulos/avisos.py.
+- Arquivos que NÃO pode mexer: qualquer arquivo existente.
+- Comando de verificação:
+  python -m py_compile modulos\\dominio.py modulos\\avisos.py
+  python -m pyflakes modulos\\dominio.py modulos\\avisos.py   (sem "undefined name")
+- PROVA: (colar aqui a saída)
+- Fora de escopo: remover defs duplicadas, editar módulos existentes.
+
+## T10 - F2b: mover os módulos restantes para modulos/ [ ]
+- Objetivo: git mv de login.py, lista_redacoes.py, formulario_envio.py, confirmacao.py, fluxo_envio_teste.py, planilha_arquivos.py, progresso_relatorio.py para modulos/.
+- Arquivos que PODE mexer: mover os 7 listados.
+- Arquivos que NÃO pode mexer: conteúdo interno; main.py, plataforma.py, tests/.
+- Comando de verificação:
+  git status --short   (mostra os 7 renomeados)
+  Test-Path modulos\\login.py,modulos\\lista_redacoes.py,modulos\\formulario_envio.py,modulos\\confirmacao.py,modulos\\fluxo_envio_teste.py,modulos\\planilha_arquivos.py,modulos\\progresso_relatorio.py  (todos True)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: editar imports (é T11+), apagar plataforma.py.
+
+## T11 - F2c: corrigir imports internos de modulos/ e remover defs duplicadas [ ]
+- Objetivo: dentro de modulos/, trocar cópias duplicadas por import de modulos.dominio / modulos.avisos e ajustar imports cruzados (planilha_arquivos -> descoberta_arquivos etc.).
+- Arquivos que PODE mexer: somente .py dentro de modulos/.
+- Arquivos que NÃO pode mexer: main.py, plataforma.py, tests/.
+- Comando de verificação:
+  python -m py_compile (todos os .py de modulos/)
+  python -m pyflakes (todos os .py de modulos/)   (sem "undefined name")
+  Select-String -Path modulos\\*.py -Pattern "def verificar_dominio_autorizado"  (1 ocorrência, em dominio.py)
+  Select-String -Path modulos\\*.py -Pattern "def _emitir_aviso"  (1 ocorrência, em avisos.py)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: pytest (suíte fica vermelha até T14 — esperado), editar tests/.
+
+## T12 - F2c: atualizar imports de modulos/fluxo_envio_teste.py [ ]
+- Objetivo: apontar os imports para modulos.* (era from login/lista_redacoes/...).
+- Arquivos que PODE mexer: modulos/fluxo_envio_teste.py.
+- Arquivos que NÃO pode mexer: lógica do fluxo, outros arquivos.
+- Comando de verificação:
+  python -m py_compile modulos\\fluxo_envio_teste.py ; python -m pyflakes modulos\\fluxo_envio_teste.py
+- PROVA: (colar aqui a saída)
+- Fora de escopo: ligar ao CLI (é T16), alterar comportamento.
+
+## T13 - F2c: atualizar imports de main.py [ ]
+- Objetivo: trocar o import da linha 46 (from plataforma import ...) pelos imports de modulos.*.
+- Arquivos que PODE mexer: main.py.
+- Arquivos que NÃO pode mexer: lógica de negócio, outros arquivos.
+- Comando de verificação:
+  python -m py_compile main.py ; python -m pyflakes main.py
+  python main.py --help   (roda sem ImportError — colar saída)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: ligar fluxo_envio_teste ao CLI (é T16).
+
+## T14 - F2c: atualizar imports dos testes [ ]
+- Objetivo: test_essenciais.py, test_identidade.py, test_imports_reais.py passam a importar de modulos.*. Proibido mudar o que os testes verificam.
+- Arquivos que PODE mexer: tests/test_essenciais.py, tests/test_identidade.py, tests/test_imports_reais.py.
+- Arquivos que NÃO pode mexer: qualquer .py de produção, plataforma.py.
+- Comando de verificação:
+  python -m pytest -m "not real" -q   (0 failed — colar total real)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: alterar asserts/comportamento testado, apagar plataforma.py.
+
+## T15 - F2d: apagar plataforma.py + fechar a limpeza [ ]
+- Objetivo: com zero imports restantes de plataforma, apagar o arquivo, rodar a suíte, commitar e criar tag pos-limpeza.
+- Arquivos que PODE mexer: plataforma.py (git rm).
+- Arquivos que NÃO pode mexer: qualquer outro.
+- Comando de verificação:
+  Select-String -Path *.py,modulos\\*.py,tests\\*.py -Pattern "from plataforma|import plataforma"  (0 ocorrências)
+  python -m pytest -m "not real" -q   (0 failed — colar total real)
+  git commit -m "F2d: remove plataforma.py" ; git tag pos-limpeza ; git log --oneline -1
+- PROVA: (colar aqui a saída)
+- Fora de escopo: criar módulos NOVOS (progresso.py, relatorios.py, logging_config.py, tabelas.py, fluxo_dryrun.py, fluxo_analise_remota.py — fica para depois da F3, decisão do Antônio).
+
+## T16 - F3: ligar o envio de teste ao CLI [ ]
+- Objetivo: `python main.py --modo-teste --envio-real` passa a chamar executar_envio_teste() em vez de imprimir [BLOQUEADO].
+- Arquivos que PODE mexer: main.py (somente o roteamento de argumentos).
+- Arquivos que NÃO pode mexer: modulos/fluxo_envio_teste.py, qualquer outro.
+- Comando de verificação:
+  python main.py --modo-teste --envio-real
+  (critério: NÃO imprime [BLOQUEADO]; para no prompt pedindo ENVIAR TESTE.
+   Quem verifica digita algo diferente de ENVIAR TESTE para abortar.)
+  python main.py --modo-teste   (sem --envio-real continua [BLOQUEADO])
+- PROVA: (colar aqui a saída)
+- Fora de escopo: login real, navegar no site, anexar, clicar em enviar.
+
+## T17 - F3: descobrir o sinal de "upload aceito" (só observação) [ ]
+- Objetivo: medir o que muda na página /wordings/new depois do anexo (DOM, console, requisições de rede), usando a conta de teste. Resultado documentado em comentário no teste.
+- Arquivos que PODE mexer: criar tests/test_upload_sinal.py (@pytest.mark.real); escrever logs em logs/.
+- Arquivos que NÃO pode mexer: qualquer .py existente; .env.
+- Comando de verificação:
+  python -m pytest tests/test_upload_sinal.py -v -m real
+  (login + selecionar tema + ENEM + anexar 1 JPG de testes/redacoes_teste/ +
+   capturar console/respostas/DOM + logout. PROIBIDO clicar em "Enviar resposta".)
+- PROVA: (colar aqui a saída, incluindo a evidência capturada)
+- Fora de escopo: clicar em enviar, digitar confirmação, chutar seletor. Se nada mudar na página: registrar em DECISOES_PENDENTES.md e PARAR.
+
+## T18 - F3: implementar aguardar_upload_aceito com a evidência [ ]
+- Objetivo: implementar/aguardar o sinal observado em T17 em modulos/formulario_envio.py.
+- Arquivos que PODE mexer: modulos/formulario_envio.py, tests/test_upload_sinal.py.
+- Arquivos que NÃO pode mexer: outros módulos, main.py.
+- Comando de verificação:
+  python -m pytest -m "not real" -q   (0 failed)
+  python -m pytest tests/test_upload_sinal.py -v -m real   (sinal detectado após anexar)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: inventar seletor não observado em T17. Sem evidência suficiente: registrar em DECISOES_PENDENTES.md e PARAR.
+
+## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
+- Objetivo: cumprir o critério de pronto da F3 na conta de teste.
+- Arquivos que PODE mexer: nenhum (o Cline só apoia; quem executa é o Antônio).
+- Arquivos que NÃO pode mexer: todos — proibido o Cline digitar ENVIAR TESTE ou clicar.
+- Comando de verificação (Antônio roda e cola):
+  python main.py --modo-teste --envio-real
+  O Antônio vê no navegador: tema selecionado -> ENEM -> arquivo anexado;
+  o Antônio digita ENVIAR TESTE; 1 clique; site mostra
+  "Processando arquivo" e depois "Pendente".
+- PROVA: (colar aqui a saída do terminal + a situação vista no site)
+- Fora de escopo: retry automático, 2º envio na mesma execução, alunos reais.
+
+## T20 - F3: reexecução idempotente [ ]
+- Objetivo: rodar de novo com os mesmos arquivos e confirmar que todos são pulados como duplicados (mesmo dia + mesmo tema).
+- Arquivos que PODE mexer: nenhum (Antônio executa; o Cline só lê a saída).
+- Arquivos que NÃO pode mexer: todos.
+- Comando de verificação (Antônio roda e cola):
+  python main.py --modo-teste --envio-real
+  (saída: item(ns) marcados JA_ENVIADO / pulados; nenhum novo clique)
+- PROVA: (colar aqui a saída)
+- Fora de escopo: produção, outras contas.
+
+---
+
+## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
+
+## Pendências de decisão (não implementar sem resposta do Antônio)
+- D1: a lista /minhas-redacoes da conta de teste está vazia ou mostra as 2
+  redações enviadas manualmente em 30/09? (muda o esperado de duplicidade no T19)
+- D2: sinal de "upload aceito" (só resolvido em T17/T18 com observação real).
+- D3: módulos NOVOS (progresso.py, relatorios.py, logging_config.py, tabelas.py,
+  fluxo_dryrun.py, fluxo_analise_remota.py) ficam para depois da F3? (padrão: sim)
