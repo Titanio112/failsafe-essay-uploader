@@ -40,7 +40,7 @@ class Config:
     headless: bool = False
     slow_mo_ms: int = 500
 
-    pasta_raiz: Path = field(default_factory=lambda: RAIZ / "Redações plataforma")
+    pasta_raiz: Path = field(default_factory=lambda: RAIZ / "redacoes_pendentes")
     planilha: Path = field(default_factory=Path)
     extensoes: tuple[str, ...] = (".jpg", ".jpeg")
 

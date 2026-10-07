@@ -18,7 +18,7 @@ def verificar_dominio_autorizado(page: Page) -> None:
 
 def clicar_enviar(page: Page) -> None:
     """Clica uma única vez no botão 'Enviar resposta'."""
-    btn = page.locator("button:has-text('Enviar resposta'), input[type='submit'][value*='Enviar']").first
+    btn = page.locator("input[type='submit'][value='Enviar resposta'][name='commit']").first
     btn.click()
 
 

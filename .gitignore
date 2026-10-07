@@ -4,6 +4,9 @@
 !.env.example
 config.ini
 
+# Fixtures HTML (contêm CSRF tokens)
+tests/fixtures/
+
 # Ambiente Python
 .venv/
 venv/
@@ -27,6 +30,7 @@ redações plataforma/
 *.db-wal
 relatorios/
 diagnosticos/
+logs/
 screenshots/
 traces/
 playwright-report/

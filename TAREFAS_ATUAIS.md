@@ -1,4 +1,4 @@
-# TAREFAS_ATUAIS.md - ETAPA Q: CORRECOES ESTATICAS
+# TAREFAS_ATUAIS.md - ETAPA Q: CORRECOES ESTATICAS + ETAPA U: ENVIO DE TESTE
 
 **Regra:** NAO EXISTEM SALAS. Nao logar real, nao enviar real, nao clicar Enviar resposta, nao digitar confirmacao. Quem executa o envio e o Antonio.
 **Regras de edicao:** NUNCA reescreva arquivo inteiro; trechos pequenos (~4000 chars); nenhum .py acima de ~200 linhas; timeout/erro de stream: PARE e relate, sem repetir em loop.
@@ -31,6 +31,35 @@ index 73da312..de52552 100644
 ## T2 - Achar todos de uma vez [x]
 - **Instalado**: pyflakes 4.0.2 (pip install pyflakes)
 - **Rodado**: python -m pyflakes em todos os modulos (raiz e tests/)
+
+## T3 - pyflakes em todos os modulos [x]
+- **Rodado**: python -m pyflakes . (sem erros)
+- **Rodado**: python -m pyflakes tests/ (sem erros)
+
+## T4 - Testes unitarios [x]
+- **Rodado**: python -m pytest tests/ -m "not real" -q
+- **Resultado**: 77 passed, 2 deselected
+
+## T5 - fluxo_envio_teste.py [x]
+- **Criado**: fluxo_envio_teste.py com funcao executar_envio_teste(cfg, progresso)
+- **Implementa**: 13 passos (arquivo, confirmacao, login, identidade, saldo, duplicidade, formulario, combo, validacao, selecao, anexo, upload, ENVIANDO, clicar_enviar, confirmacao, logout)
+- **Reutiliza**: modulos login, lista_redacoes, formulario_envio, confirmacao (sem duplicar logica)
+- **Conta**: Usuario Testes Ignorar (email ESQUEMA_EMAIL_TESTE)
+- **Confirmacao**: input "ENVIAR TESTE" antes de qualquer acao no navegador
+- **Limite**: 1 envio por execucao (max_envios_teste = 1)
+- **Seguranca**: nenhum segredo logado (email mascarado, sem senhas/tokens/cookies)
+- **Testes**: 77 passed, 2 deselected
+- **Syntax**: python -m py_compile fluxo_envio_teste.py -> OK
+
+---
+
+## ETAPA U: ENVIO DE TESTE (pendente autorizacao)
+
+- [ ] U1 - Executar `python main.py --modo-teste --envio-real` com conta de teste
+- [ ] U2 - Validar T1-T3 do AGENTS.md (5 arquivos, tema 0 JA_ENVIADO, outros 4 Pendente, saldo -4)
+- [ ] U3 - Reexecutar mesmos 5 -> todos JA_ENVIADO, contagem/saldo inalterados
+- [x] U4 - Atualizar PROJECT_MEMORY.md: CONFIRMADO (seletores, fluxo validado, regra codigo string) vs HIPOTESE (envio real nao executado) - **FEITO 2026-10-06**
+- [ ] U5 - Atualizar AGENTS.md: refletir main.py modular, fluxo_envio_teste.py criado/wired, pendente test_identidade.py import fix e loop producao
 - **Encontrados e corrigidos** (undefined name / referenced before assignment):
   1. conciliacao.py:193 -> SUGESTAO_FUZZY nao importado de estados (adicionado na linha 21)
   2. formulario_envio.py:20 -> DOMINIO_ESPERADO nao definido (movido import do topo, removido da funcao verificar_dominio_autorizado)
@@ -50,7 +79,23 @@ index 73da312..de52552 100644
 tests/test_estatico.py::test_pyflakes_no_undefined PASSED
 ```
 
-## T4 - Testes alterados e fechamento [x]
+## T4 - Testes de identidade (confirmar_identidade) [x]
+- **Problema**: 4 testes falhando em test_identidade.py por mocks desatualizados apos mudanca no login.py (confirmar_identidade agora tenta dropdown .navbar-right .dropdown-toggle primeiro, depois fallback text=, depois a[href='#'] >> text=Testes)
+- **Fix**: Atualizados todos os 4 testes para mockar o dropdown primeiro (com timeout PWTimeoutError para cair nos fallbacks), ajustados asserts de timeout corretos (3000ms para fallback final)
+- **Evidencia**:
+```
+tests/test_identidade.py::test_confirmar_identidade_sucesso PASSED
+tests/test_identidade.py::test_confirmar_identidade_acentos_maiusculas PASSED
+tests/test_identidade.py::test_confirmar_identidade_elemento_ausente PASSED
+tests/test_identidade.py::test_confirmar_identidade_texto_vazio PASSED
+tests/test_identidade.py::test_confirmar_identidade_fallback PASSED
+tests/test_identidade.py::test_confirmar_identidade_nome_diferente PASSED
+tests/test_identidade.py::test_mascarar_email PASSED
+```
+- **Testes totais**: 77 passed, 2 deselected
+
+## T5 - Testes alterados e fechamento [x]
+- **git diff dos 3 testes de identidade alterados em tests/test_essenciais.py**:## T4 - Testes alterados e fechamento [x]
 - **git diff dos 3 testes de identidade alterados em tests/test_essenciais.py**:
 
 ### 1. test_confirmar_identidade_sucesso_simulado

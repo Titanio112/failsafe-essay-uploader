@@ -59,6 +59,7 @@ from plataforma import (
     aguardar_confirmacao,
     logout,
 )
+from fluxo_envio_teste import executar_envio_teste
 
 
 def parse_args(argv=None):
@@ -82,11 +83,6 @@ def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-    if args.envio_real:
-        print(MENSAGEM_BLOQUEIO)
-        print("Envio real so sera executado na Fase 3, com as confirmacoes exigidas.")
-        return 2
-
     # Modo teste: usa conta de teste e pasta de teste
     if args.modo_teste:
         import os
@@ -100,6 +96,11 @@ def main(argv=None) -> int:
         alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")]
         log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")
     else:
+        if args.envio_real:
+            print(MENSAGEM_BLOQUEIO)
+            print("Envio real so sera executado na Fase 3, com as confirmacoes exigidas.")
+            return 2
+
         log.info("Iniciando conciliacao (dry-run).")
         alunos = carregar_alunos(cfg)
         print(f"Alunos carregados: {len(alunos)}")
@@ -110,7 +111,9 @@ def main(argv=None) -> int:
 
     # Determinar codigos_site com fail-closed
     codigos_site = set()
-    if args.analise_remota or args.envio_real or (args.modo_teste and args.envio_real):
+    # Falha fechada para produção e análise remota, mas NÃO para modo teste + envio real
+    # (o fluxo_envio_teste faz sua própria validação no combo do site)
+    if (args.analise_remota or args.envio_real) and not (args.modo_teste and args.envio_real):
         # Modos que exigem códigos do site reais: abortar se não tiver
         print("[ERRO] Códigos do site não disponíveis. Execute a análise remota primeiro para obter o combo de temas.")
         print("[ERRO] Use --analise-remota no mesmo dia para preencher dados/temas_site.csv.")
@@ -157,12 +160,36 @@ def main(argv=None) -> int:
     print(f"  Ambiguos:                  {resumo['AMBIGUO']}")
     print(f"  Arquivos sem aluno:        {resumo['ARQUIVO_SEM_ALUNO']}")
     print(f"  Alunos sem arquivo:        {resumo['ALUNO_SEM_ARQUIVO']}")
+    print(f"  Sem codigo na pasta:       {resumo.get('SEM_CODIGO', 0)}")
+    print(f"  Codigo invalido:           {resumo.get('CODIGO_INVALIDO', 0)}")
+    print(f"  Simulados (codigo duplicado no site): {resumo.get('SIMULADO', 0)}")
+    print(f"  Revisao manual:            {resumo.get('REVISAO_MANUAL', 0)}")
+    print()
+
+    # Tabela por tema
+    if resultado.itens:
+        print("Detalhes por tema:")
+        temas_ordenados = sorted(set(i.pasta for i in resultado.itens if i.pasta))
+        for tema in temas_ordenados:
+            itens_tema = [i for i in resultado.itens if i.pasta == tema]
+            print(f"  Tema {tema}: {len(itens_tema)} arquivo(s)")
+            for item in itens_tema:
+                aluno_nome = item.aluno.nome if item.aluno else "N/A"
+                obs = f" ({item.observacao})" if item.observacao else ""
+                print(f"    {item.estado}: {item.arquivo} -> {aluno_nome}{obs}")
+
     print()
     print(f"Relatorio CSV: {csv_path}")
     print(f"Fila dry-run:  {txt_path}")
     print()
     print("Revise o CSV antes de autorizar qualquer envio. Fuzzy/ambiguo/sem par")
     print("exigem revisao humana e nao entram na fila real.")
+
+    # Modo teste com envio real: executar fluxo de envio de teste
+    if args.modo_teste and args.envio_real:
+        progresso = Progresso(cfg.banco_progresso)
+        return executar_envio_teste(cfg, progresso)
+
     return 0
 
 

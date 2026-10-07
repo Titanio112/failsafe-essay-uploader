@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS progresso (
     estado       TEXT NOT NULL,
     tentativas   INTEGER NOT NULL DEFAULT 0,
     detalhe      TEXT DEFAULT '',
+    hash_arquivo TEXT DEFAULT '',
     criado_em    TEXT NOT NULL,
     atualizado_em TEXT NOT NULL,
     PRIMARY KEY (aluno_id, arquivo)
@@ -137,20 +138,22 @@ class Progresso:
         estado: str,
         pasta: str = "",
         detalhe: str = "",
+        hash_arquivo: str = "",
     ) -> None:
         agora = self._agora()
         self.con.execute(
             """
             INSERT INTO progresso (aluno_id, arquivo, pasta, estado, tentativas,
-                                   detalhe, criado_em, atualizado_em)
-            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+                                   detalhe, hash_arquivo, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
             ON CONFLICT(aluno_id, arquivo)
             DO UPDATE SET estado = excluded.estado,
                           pasta = excluded.pasta,
                           detalhe = excluded.detalhe,
+                          hash_arquivo = excluded.hash_arquivo,
                           atualizado_em = excluded.atualizado_em
             """,
-            (aluno_id, arquivo, pasta, estado, detalhe, agora, agora),
+            (aluno_id, arquivo, pasta, estado, detalhe, hash_arquivo, agora, agora),
         )
         self.con.commit()
 

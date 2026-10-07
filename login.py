@@ -63,27 +63,38 @@ def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> 
     from normalizacao import normalizar_nome
 
     # Esperar elemento do menu do usuário (topo da página) - até 10s
-    # Seletor que funcionava na Etapa E: texto exato do nome
-    nome_locator = page.locator(f"text={aluno.nome}").first
+    # HTML real: <a class="dropdown-toggle" ...>Usuario Testes Ignorar <i class="fa fa-caret-down"></i></a>
+    # Tentar seletor específico do dropdown primeiro
+    dropdown_locator = page.locator(".navbar-right .dropdown-toggle").first
     encontrado = False
     texto_visivel = ""
     qtd_casados = 0
 
     try:
-        nome_locator.wait_for(state="visible", timeout=10000)
-        encontrado = True
-        qtd_casados = nome_locator.count()
-        texto_visivel = (nome_locator.text_content() or "").strip()
-    except PWTimeoutError:
-        # Fallback: tentar seletor genérico do menu
-        fallback_locator = page.locator("a[href='#'] >> text=Testes").first
-        try:
-            fallback_locator.wait_for(state="visible", timeout=5000)
+        dropdown_locator.wait_for(state="visible", timeout=10000)
+        texto_visivel = (dropdown_locator.text_content() or "").strip()
+        # O texto inclui o ícone, limpar
+        if texto_visivel:
             encontrado = True
-            qtd_casados = fallback_locator.count()
-            texto_visivel = (fallback_locator.text_content() or "").strip()
+            qtd_casados = 1
+    except PWTimeoutError:
+        # Fallback 1: buscar por texto do nome do aluno em qualquer lugar
+        nome_locator = page.locator(f"text={aluno.nome}").first
+        try:
+            nome_locator.wait_for(state="visible", timeout=5000)
+            encontrado = True
+            qtd_casados = nome_locator.count()
+            texto_visivel = (nome_locator.text_content() or "").strip()
         except PWTimeoutError:
-            pass
+            # Fallback 2: seletor genérico "Testes"
+            fallback_locator = page.locator("a[href='#'] >> text=Testes").first
+            try:
+                fallback_locator.wait_for(state="visible", timeout=3000)
+                encontrado = True
+                qtd_casados = fallback_locator.count()
+                texto_visivel = (fallback_locator.text_content() or "").strip()
+            except PWTimeoutError:
+                pass
 
     if not encontrado or not texto_visivel:
         # Diagnóstico seguro (sem e-mail, sem senha)

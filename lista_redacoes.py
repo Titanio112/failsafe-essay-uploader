@@ -184,13 +184,18 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
     return itens
 
 
-def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: str) -> tuple[str, Optional[str]]:
+def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: str, data_hoje: str | None = None) -> tuple[str, Optional[str]]:
     """Verifica se já existe redação com esse código na lista.
     
     Retorna: (estado, data_envio) onde estado pode ser:
-    - "JA_ENVIADO": já enviado (com data)
-    - "OK": não encontrado, pode prosseguir
-    - "REVISAO_MANUAL": lista ilegível/sem dados"""
+    - "JA_ENVIADO": já enviado HOJE (com data)
+    - "OK": não encontrado hoje, pode prosseguir
+    - "REVISAO_MANUAL": lista ilegível/sem dados
+    """
+    from datetime import datetime
+    if data_hoje is None:
+        data_hoje = datetime.now().strftime("%d/%m/%Y")
+    
     if not lista_redacoes:
         return "REVISAO_MANUAL", None
     
@@ -206,16 +211,24 @@ def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: s
         item_codigo = match.group(1) if match else item.codigo
         
         if item_codigo == codigo_tema:
-            if item.situacao.lower() == "cancelada":
-                return "OK", None
-            return "JA_ENVIADO", item.data
+            # Verificar se a data é de HOJE
+            item_data = item.data.strip()
+            if item_data == data_hoje:
+                if item.situacao.lower() == "cancelada":
+                    return "OK", None
+                return "JA_ENVIADO", item.data
+            # Mesmo código mas data diferente - NÃO é duplicata
+            continue
     
     return "OK", None
 
 
-def detectar_ja_enviado(lista_redacoes: list[ItemListaRedacao], codigo: str) -> tuple[bool, str]:
-    """Verifica se já foi enviado - retorna (True, data) ou (False, '')."""
-    estado, data = verificar_duplicidade(lista_redacoes, codigo)
+def detectar_ja_enviado(lista_redacoes: list[ItemListaRedacao], codigo: str, data_hoje: str | None = None) -> tuple[bool, str]:
+    """Verifica se já foi enviado HOJE - retorna (True, data) ou (False, '')."""
+    from datetime import datetime
+    if data_hoje is None:
+        data_hoje = datetime.now().strftime("%d/%m/%Y")
+    estado, data = verificar_duplicidade(lista_redacoes, codigo, data_hoje)
     if estado == "JA_ENVIADO":
         return True, data or ""
     return False, ""

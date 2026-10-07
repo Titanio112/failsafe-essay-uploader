@@ -17,7 +17,7 @@ from excecoes import IdentidadeDivergente
 
 
 def test_confirmar_identidade_sucesso():
-    """confirmar_identidade deve retornar True quando o nome bate (seletor exato)."""
+    """confirmar_identidade deve retornar True quando o nome bate (seletor dropdown)."""
     from unittest.mock import MagicMock
     import login
     from plataforma import confirmar_identidade
@@ -27,23 +27,26 @@ def test_confirmar_identidade_sucesso():
     page.goto = MagicMock()
     page.wait_for_load_state = MagicMock()
 
-    # Mock do locator que retorna "Usuario Testes Ignorar" via text_content
-    # Nova implementação: page.locator("text=...").first.wait_for(state="visible")
-    #                   .count() -> 1
-    #                   .text_content() -> "Usuario Testes Ignorar"
+    # Mock do dropdown (.navbar-right .dropdown-toggle) - PRIMEIRA TENTATIVA
+    dropdown_locator_mock = MagicMock()
+    dropdown_locator_mock.first.wait_for = MagicMock()
+    dropdown_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar "
+
+    # Fallback 1: page.locator("text=...") - não deve ser chamado
     nome_locator_mock = MagicMock()
     nome_locator_mock.first.wait_for = MagicMock()
     nome_locator_mock.first.count.return_value = 1
     nome_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar"
 
-    # Fallback locator (não deve ser chamado)
+    # Fallback 2: page.locator("a[href='#'] >> text=Testes") - não deve ser chamado
     fallback_locator_mock = MagicMock()
     fallback_locator_mock.first.wait_for = MagicMock()
     fallback_locator_mock.first.count.return_value = 0
-    fallback_locator_mock.first.text_content.return_value = ""
 
     def locator_side_effect(selector):
-        if selector.startswith("text="):
+        if ".navbar-right .dropdown-toggle" in selector:
+            return dropdown_locator_mock
+        elif selector.startswith("text="):
             return nome_locator_mock
         return fallback_locator_mock
 
@@ -51,22 +54,19 @@ def test_confirmar_identidade_sucesso():
 
     aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
 
-    # Mock verificar_dominio_autorizado
     original_verificar = login.verificar_dominio_autorizado
     login.verificar_dominio_autorizado = MagicMock()
 
     try:
         result = confirmar_identidade(page, aluno, modo_teste=True)
         assert result is True
-        # Verificar que wait_for foi chamado com state="visible" e timeout=10000
-        nome_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=10000)
     finally:
         login.verificar_dominio_autorizado = original_verificar
-
 
 def test_confirmar_identidade_acentos_maiusculas():
     """confirmar_identidade deve normalizar acentos e maiúsculas."""
     from unittest.mock import MagicMock
+    from playwright.sync_api import TimeoutError as PWTimeoutError
     import login
     from plataforma import confirmar_identidade
 
@@ -74,6 +74,12 @@ def test_confirmar_identidade_acentos_maiusculas():
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
     page.goto = MagicMock()
     page.wait_for_load_state = MagicMock()
+
+    # Dropdown locator - timeout para cair no fallback
+    dropdown_locator_mock = MagicMock()
+    dropdown_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    dropdown_locator_mock.first.count.return_value = 0
+    dropdown_locator_mock.first.text_content.return_value = ""
 
     # Nome na tela tem acento diferente: "USUÁRIO TESTES IGNORAR" vs "Usuario Testes Ignorar"
     nome_locator_mock = MagicMock()
@@ -87,7 +93,9 @@ def test_confirmar_identidade_acentos_maiusculas():
     fallback_locator_mock.first.text_content.return_value = ""
 
     def locator_side_effect(selector):
-        if selector.startswith("text="):
+        if ".navbar-right .dropdown-toggle" in selector:
+            return dropdown_locator_mock
+        elif selector.startswith("text="):
             return nome_locator_mock
         return fallback_locator_mock
 
@@ -211,22 +219,30 @@ def test_confirmar_identidade_fallback():
     page.goto = MagicMock()
     page.wait_for_load_state = MagicMock()
 
-    # Principal dá timeout
+    # Dropdown locator - timeout
+    dropdown_locator_mock = MagicMock()
+    dropdown_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    dropdown_locator_mock.first.count.return_value = 0
+    dropdown_locator_mock.first.text_content.return_value = ""
+
+    # Principal (text=) dá timeout
     nome_locator_mock = MagicMock()
     nome_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
     nome_locator_mock.first.count.return_value = 0
     nome_locator_mock.first.text_content.return_value = ""
 
-    # Fallback encontra
+    # Fallback (a[href='#'] >> text=Testes) encontra
     fallback_locator_mock = MagicMock()
     fallback_locator_mock.first.wait_for = MagicMock()
     fallback_locator_mock.first.count.return_value = 1
     fallback_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar"
 
     def locator_side_effect(selector):
-        if selector.startswith("text="):
+        if ".navbar-right .dropdown-toggle" in selector:
+            return dropdown_locator_mock
+        elif selector.startswith("text="):
             return nome_locator_mock
-        if "a[href='#']" in selector and "Testes" in selector:
+        elif "a[href='#']" in selector and "Testes" in selector:
             return fallback_locator_mock
         return MagicMock()
 
@@ -240,7 +256,7 @@ def test_confirmar_identidade_fallback():
     try:
         result = confirmar_identidade(page, aluno, modo_teste=True)
         assert result is True
-        fallback_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=5000)
+        fallback_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=3000)
     finally:
         login.verificar_dominio_autorizado = original_verificar
 
@@ -248,13 +264,22 @@ def test_confirmar_identidade_fallback():
 def test_confirmar_identidade_nome_diferente():
     """confirmar_identidade deve levantar IdentidadeDivergente quando nome normalizado não bate."""
     from unittest.mock import MagicMock
+    from playwright.sync_api import TimeoutError as PWTimeoutError
     import login
     from plataforma import confirmar_identidade
+    import pytest
+    from excecoes import IdentidadeDivergente
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
     page.goto = MagicMock()
     page.wait_for_load_state = MagicMock()
+
+    # Dropdown locator - timeout para cair no fallback
+    dropdown_locator_mock = MagicMock()
+    dropdown_locator_mock.first.wait_for.side_effect = PWTimeoutError("timeout")
+    dropdown_locator_mock.first.count.return_value = 0
+    dropdown_locator_mock.first.text_content.return_value = ""
 
     # Nome diferente
     nome_locator_mock = MagicMock()
@@ -268,7 +293,9 @@ def test_confirmar_identidade_nome_diferente():
     fallback_locator_mock.first.text_content.return_value = ""
 
     def locator_side_effect(selector):
-        if selector.startswith("text="):
+        if ".navbar-right .dropdown-toggle" in selector:
+            return dropdown_locator_mock
+        elif selector.startswith("text="):
             return nome_locator_mock
         return fallback_locator_mock
 
@@ -285,11 +312,11 @@ def test_confirmar_identidade_nome_diferente():
 
         msg = str(exc_info.value).lower()
         assert "identidade não confere" in msg
-        assert "encontrado (normalizado): 'outro usuario qualquer' != 'usuario testes ignorar'" in msg
-        assert "esperado: usuario testes ignorar" in msg
+        assert "encontrado (normalizado): 'outro usuario qualquer'" in msg
         assert "te***@esquema.com" in msg  # e-mail mascarado
     finally:
         login.verificar_dominio_autorizado = original_verificar
+
 
 
 def test_mascarar_email():

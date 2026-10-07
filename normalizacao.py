@@ -43,14 +43,8 @@ def extrair_pessoa(nome_arquivo: str) -> str:
         pos_fim_codigo = codigo_match.end()
         resto = stem[pos_fim_codigo:].lstrip(" _.-")
     else:
-        # Fallback: remover prefixo numérico sem separador (ex.: "01Usuario" -> "Usuario")
-        # Isso cobre nomes de arquivo como "01Usuario Testes Ignorar.jpg"
-        match_num = re.match(r"^\s*(\d+)", stem)
-        if match_num:
-            pos_fim_num = match_num.end()
-            resto = stem[pos_fim_num:].lstrip(" _.-")
-        else:
-            resto = stem
+        # SEM separador (espaço, _, ., -) ou fim → NÃO é código, o stem inteiro é a pessoa
+        resto = stem
     pessoa, sep, _ = resto.partition(MARCADOR_PESSOA)
     return pessoa.strip()
 

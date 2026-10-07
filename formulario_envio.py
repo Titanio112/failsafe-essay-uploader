@@ -26,10 +26,10 @@ def ler_combo_temas(page: Page) -> list[tuple[str, str]]:
     """Lê as opções do combo 'Informe o tema da redação'.
     
     Retorna lista de (codigo, texto_completo)."""
-    # Aguardar combo carregar
-    page.wait_for_selector("select[name='redacao[tema_id]'], select#tema_id, select[name='tema']", timeout=10000)
+    # Aguardar combo carregar - seletor real do site
+    page.wait_for_selector("select[name='wording[wording_proposal_id]']", timeout=10000)
     
-    combo = page.locator("select[name='redacao[tema_id]'], select#tema_id, select[name='tema']").first
+    combo = page.locator("select[name='wording[wording_proposal_id]']").first
     opcoes = combo.locator("option").all()
     
     resultado = []
@@ -83,7 +83,7 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
     
     # Fallback: tentar por value direto no select
     try:
-        combo = page.locator("select[name='redacao[tema_id]'], select#tema_id, select[name='tema']").first
+        combo = page.locator("select[name='wording[wording_proposal_id]']").first
         combo.select_option(value=codigo)
         return True
     except Exception:
@@ -94,19 +94,17 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
 
 def selecionar_criterio(page: Page) -> None:
     """Seleciona o critério ENEM no formulário."""
-    # Procurar radio/select para ENEM
+    # Critério é um select: select[name="wording[folder_id]"]
+    # value="1" = ENEM, value="2" = FUVEST, value="3" = UNICAMP
     try:
-        page.check("input[value='enem'], input[name='redacao[criterio]'][value='enem']", timeout=3000)
+        page.select_option("select[name='wording[folder_id]']", value="1", timeout=3000)
     except PWTimeoutError:
-        try:
-            page.select_option("select[name='redacao[criterio]']", value="enem", timeout=3000)
-        except PWTimeoutError:
-            pass  # Critério pode já estar selecionado ou ser padrão
+        pass  # Critério pode já estar selecionado ou ser padrão
 
 
 def anexar_arquivo(page: Page, caminho_arquivo: str) -> None:
     """Anexa o arquivo JPG no input file."""
-    input_file = page.locator("input[type='file'][name='redacao[arquivo]'], input[type='file'][accept*='image']").first
+    input_file = page.locator("input[type='file'][name=\"wording[pages_attributes][0][file]\"]").first
     input_file.set_input_files(caminho_arquivo)
 
 
