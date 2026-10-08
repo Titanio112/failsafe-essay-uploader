@@ -15,8 +15,8 @@ try:
 except (AttributeError, ValueError):
     pass
 
-from config import Config, MENSAGEM_BLOQUEIO, carregar_config
-from planilha_arquivos import (
+from modulos.config import Config, MENSAGEM_BLOQUEIO, carregar_config
+from modulos.planilha_arquivos import (
     ALUNO_SEM_ARQUIVO,
     carregar_alunos,
     conciliar,
@@ -27,7 +27,7 @@ from planilha_arquivos import (
     ResultadoConciliacao,
     ItemConciliacao,
 )
-from estados import (
+from modulos.estados import (
     EXATO_UNICO,
     SUGESTAO_FUZZY,
     AMBIGUO,
@@ -36,30 +36,36 @@ from estados import (
     CODIGO_INVALIDO,
     REVISAO_MANUAL,
 )
-from progresso_relatorio import (
+from modulos.progresso_relatorio import (
     Progresso,
     configurar_logging,
     gerar_fila_dry_run,
     gerar_relatorio_conciliacao,
     JA_ENVIADO,
 )
-from plataforma import (
+from modulos.login import (
     login,
     confirmar_identidade,
+)
+from modulos.lista_redacoes import (
     ler_saldo_creditos,
     ler_lista_redacoes,
     verificar_duplicidade,
+)
+from modulos.formulario_envio import (
     abrir_formulario_envio,
     ler_combo_temas,
     selecionar_tema_por_codigo,
     selecionar_criterio,
     anexar_arquivo,
     aguardar_upload_aceito,
+)
+from modulos.confirmacao import (
     clicar_enviar,
     aguardar_confirmacao,
     logout,
 )
-from fluxo_envio_teste import executar_envio_teste
+from modulos.fluxo_envio_teste import executar_envio_teste
 
 
 def parse_args(argv=None):
@@ -91,7 +97,7 @@ def main(argv=None) -> int:
         cfg.planilha = Path("testes") / "planilha_teste.xlsx"  # placeholder, não usado
         cfg.pasta_raiz = Path("testes/redacoes_teste")
         # Apenas aluno virtual
-        from planilha_arquivos import Aluno
+        from modulos.planilha_arquivos import Aluno
         email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
         alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")]
         log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")

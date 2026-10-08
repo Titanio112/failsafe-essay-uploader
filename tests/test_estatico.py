@@ -11,7 +11,7 @@ def test_pyflakes_no_undefined():
         "main.py", "config.py", "estados.py", "normalizacao.py",
         "descoberta_arquivos.py", "conciliacao.py", "planilha_arquivos.py",
         "excecoes.py", "login.py", "lista_redacoes.py", "formulario_envio.py",
-        "confirmacao.py", "plataforma.py", "progresso.py", "relatorios.py",
+        "confirmacao.py", "progresso.py", "relatorios.py",
         "logging_config.py", "progresso_relatorio.py", "tabelas.py",
         "fluxo_dryrun.py", "fluxo_envio_teste.py", "fluxo_analise_remota.py",
     ]

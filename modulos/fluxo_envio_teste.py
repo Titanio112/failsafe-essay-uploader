@@ -12,11 +12,11 @@ from typing import Optional
 
 from playwright.sync_api import Page, sync_playwright
 
-from config import Config, obter_email_teste, obter_senha
-from planilha_arquivos import Aluno, descobrir_arquivos, extrair_codigo_do_arquivo
-from login import login, confirmar_identidade, DOMINIO_ESPERADO
-from lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, detectar_ja_enviado
-from formulario_envio import (
+from modulos.config import Config, obter_email_teste, obter_senha
+from modulos.planilha_arquivos import Aluno, descobrir_arquivos, extrair_codigo_do_arquivo
+from modulos.login import login, confirmar_identidade, DOMINIO_ESPERADO
+from modulos.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, detectar_ja_enviado
+from modulos.formulario_envio import (
     verificar_dominio_autorizado,
     abrir_formulario_envio,
     ler_combo_temas,
@@ -25,9 +25,9 @@ from formulario_envio import (
     anexar_arquivo,
     aguardar_upload_aceito,
 )
-from confirmacao import clicar_enviar, aguardar_confirmacao, logout
-from progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
-from excecoes import CaptchaOuBloqueio
+from modulos.confirmacao import clicar_enviar, aguardar_confirmacao, logout
+from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
+from modulos.excecoes import CaptchaOuBloqueio
 
 
 log = logging.getLogger("automacao_redacoes")
@@ -54,7 +54,7 @@ def executar_envio_teste(
     pasta_tema = sorted(arquivos.keys())[0]
     arquivo = sorted(arquivos[pasta_tema])[0]
     # Código do tema vem da PASTA, não do arquivo
-    from normalizacao import extrair_codigo_tema
+    from modulos.normalizacao import extrair_codigo_tema
     codigo_tema = extrair_codigo_tema(arquivo, pasta_tema)
 
     if not codigo_tema:

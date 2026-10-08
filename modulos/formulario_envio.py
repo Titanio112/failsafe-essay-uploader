@@ -1,12 +1,20 @@
 """Abertura de formulário, seleção de tema/critério, anexo e upload."""
 
 from __future__ import annotations
+from dataclasses import dataclass
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from config import Config
-from excecoes import CaptchaOuBloqueio, UploadNaoConfirmado
-from login import DOMINIO_ESPERADO
+from modulos.config import Config
+from modulos.excecoes import CaptchaOuBloqueio, UploadNaoConfirmado
+from modulos.login import DOMINIO_ESPERADO
+
+
+@dataclass
+class TemaCombo:
+    """Uma opção do combo 'Informe o tema da redação'."""
+    codigo: str
+    texto_completo: str
 
 
 def verificar_dominio_autorizado(page: Page) -> None:
@@ -60,12 +68,9 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
         if count > 1:
             raise RuntimeError(f"Código {codigo} aparece {count}x no combo do site (SIMULADO/REVISAO_MANUAL)")
     
-    # Import aqui para permitir mock nos testes
-    import plataforma
-    
     # Primeiro obter o texto completo do tema para usar como label
     try:
-        temas = plataforma.ler_combo_temas(page)
+        temas = ler_combo_temas(page)
         for tema in temas:
             # tema pode ser tupla (codigo, texto) ou objeto TemaCombo com .codigo/.texto_completo
             if hasattr(tema, 'codigo'):

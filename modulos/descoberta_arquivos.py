@@ -6,8 +6,8 @@ import warnings
 from pathlib import Path
 from typing import Dict, List, Set
 
-from config import Config
-from normalizacao import extrair_codigo_tema
+from modulos.config import Config
+from modulos.normalizacao import extrair_codigo_tema
 
 
 # Extensões permitidas (apenas .jpg, case-insensitive)

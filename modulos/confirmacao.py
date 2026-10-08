@@ -5,9 +5,9 @@ from __future__ import annotations
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 import time
 
-from config import Config
-from excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
-from login import DOMINIO_ESPERADO
+from modulos.config import Config
+from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
+from modulos.login import DOMINIO_ESPERADO
 
 
 def verificar_dominio_autorizado(page: Page) -> None:

@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from planilha_arquivos import (
+from modulos.planilha_arquivos import (
     ResultadoConciliacao,
     mascarar_email,
     normalizar_nome,

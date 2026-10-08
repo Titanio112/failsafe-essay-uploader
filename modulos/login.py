@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from config import Config
-from planilha_arquivos import Aluno
-from excecoes import CaptchaOuBloqueio, LoginFalhou, IdentidadeDivergente
+from modulos.config import Config
+from modulos.planilha_arquivos import Aluno
+from modulos.excecoes import CaptchaOuBloqueio, LoginFalhou, IdentidadeDivergente
 
 
 DOMINIO_ESPERADO = "www.esquemaredacao.com.br"
@@ -59,8 +59,8 @@ def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> 
 
     Retorna True se confirmado, levanta IdentidadeDivergente se não.
     Fail-closed: se elemento não existir ou texto vier vazio, NÃO aceita vazio."""
-    from planilha_arquivos import mascarar_email
-    from normalizacao import normalizar_nome
+    from modulos.planilha_arquivos import mascarar_email
+    from modulos.normalizacao import normalizar_nome
 
     # Esperar elemento do menu do usuário (topo da página) - até 10s
     # HTML real: <a class="dropdown-toggle" ...>Usuario Testes Ignorar <i class="fa fa-caret-down"></i></a>

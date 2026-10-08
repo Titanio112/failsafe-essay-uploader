@@ -14,7 +14,7 @@ import pytest
 # Inserir o diretório raiz no path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from planilha_arquivos import (
+from modulos.planilha_arquivos import (
     normalizar_nome,
     extrair_pessoa,
     extrair_codigo_do_arquivo,
@@ -35,10 +35,10 @@ from planilha_arquivos import (
     SIMULADO,
     ESTADOS_CONCILIACAO,
 )
-from normalizacao import validar_codigo_site, extrair_codigo_tema
-from plataforma import ItemListaRedacao
-from progresso_relatorio import Progresso
-from config import Config
+from modulos.normalizacao import validar_codigo_site, extrair_codigo_tema
+from modulos.lista_redacoes import ItemListaRedacao
+from modulos.progresso_relatorio import Progresso
+from modulos.config import Config
 
 
 # =====================================================================
@@ -97,7 +97,7 @@ def pasta_arquivos_temporaria():
 @pytest.fixture
 def config_teste(planilha_temporaria, pasta_arquivos_temporaria):
     """Cria um objeto Config para testes."""
-    from config import Config
+    from modulos.config import Config
     cfg = Config()
     cfg.planilha = Path(planilha_temporaria)
     cfg.pasta_raiz = Path(pasta_arquivos_temporaria)
@@ -245,7 +245,7 @@ def test_conciliacao_sugestao_fuzzy(alunos_teste, arquivos_por_pasta):
 def test_conciliacao_ambiguo(planilha_temporaria):
     """Dois alunos com mesmo nome normalizado -> AMBIGUO."""
     from openpyxl import Workbook
-    from config import Config
+    from modulos.config import Config
     wb = Workbook()
     ws = wb.active
     ws.title = "Alunos"
@@ -290,7 +290,7 @@ def test_arquivo_sem_aluno(alunos_teste, planilha_temporaria):
     subpasta.mkdir()
     (subpasta / "Fulano Inexistente - Red.jpg").write_bytes(b"fake")
     try:
-        from config import Config
+        from modulos.config import Config
         cfg = Config()
         cfg.planilha = Path(planilha_temporaria)
         cfg.pasta_raiz = Path(pasta)
@@ -321,7 +321,7 @@ def test_codigo_ausente_marcado_sem_codigo(alunos_teste, planilha_temporaria):
     subpasta.mkdir()
     (subpasta / "Fulano - Red.jpg").write_bytes(b"fake")
     try:
-        from config import Config
+        from modulos.config import Config
         cfg = Config()
         cfg.planilha = Path(planilha_temporaria)
         cfg.pasta_raiz = Path(pasta)
@@ -343,7 +343,7 @@ def test_codigo_invalido_marcado_codigo_invalido(alunos_teste, planilha_temporar
     subpasta.mkdir()
     (subpasta / "Fulano - Red.jpg").write_bytes(b"fake")
     try:
-        from config import Config
+        from modulos.config import Config
         cfg = Config()
         cfg.planilha = Path(planilha_temporaria)
         cfg.pasta_raiz = Path(pasta)
@@ -364,7 +364,7 @@ def test_dois_arquivos_mesmo_tema_mesmo_aluno_revisao_manual(alunos_teste, plani
     (subpasta / "Ana Lalara Larili dos Larito - Red1.jpg").write_bytes(b"fake")
     (subpasta / "Ana Lalara Larili dos Larito - Red2.jpg").write_bytes(b"fake")
     try:
-        from config import Config
+        from modulos.config import Config
         cfg = Config()
         cfg.planilha = Path(planilha_temporaria)
         cfg.pasta_raiz = Path(pasta)
@@ -388,7 +388,7 @@ def test_conflito_pasta_arquivo_revisao_manual(alunos_teste, planilha_temporaria
     subpasta.mkdir()
     (subpasta / "001 - Ana Lalara Larili dos Larito - Red.jpg").write_bytes(b"fake")
     try:
-        from config import Config
+        from modulos.config import Config
         cfg = Config()
         cfg.planilha = Path(planilha_temporaria)
         cfg.pasta_raiz = Path(pasta)
@@ -411,7 +411,7 @@ def test_nao_jpg_ignorado_com_aviso(alunos_teste, arquivos_por_pasta, capsys):
 
 def test_modo_teste_recusa_outros_emails(alunos_teste):
     """Modo teste deve recusar e-mails que não sejam o da conta de teste."""
-    from config import Config
+    from modulos.config import Config
     cfg = Config()
     # O modo teste é controlado via --modo-teste flag e variáveis de ambiente
     assert cfg is not None
@@ -433,7 +433,7 @@ def test_retomada_enviando_sem_duplicar(db_temporario):
 
 def test_bloqueio_envio_dry_run():
     """Sem --envio-real, envio deve ser bloqueado com mensagem padrão."""
-    from config import exigir_envio_real
+    from modulos.config import exigir_envio_real
     with pytest.raises(RuntimeError, match="Envio real desativado"):
         exigir_envio_real(False)
 
@@ -442,7 +442,7 @@ def test_limite_4_envios_por_aluno(db_temporario):
     """Limite de 4 envios por aluno em produção (configurável em teste)."""
     prog = Progresso(db_temporario)
     aluno = Aluno(nome="Ana Lalara", email="ana@teste.com", sala="A")
-    from progresso_relatorio import LimiteEnvios
+    from modulos.progresso_relatorio import LimiteEnvios
     # Registrar 4 envios usando registrar_envio (que insere na tabela envios)
     for i in range(4):
         prog.registrar_envio(aluno.id, f"teste{i}.jpg", max_envios=4)
@@ -477,14 +477,15 @@ def test_launch():
         page = browser.new_page()
         
         try:
-            from plataforma import login, confirmar_identidade, ler_lista_redacoes, ler_combo_temas
-            from config import Config
+            from modulos.login import login, confirmar_identidade
+            from modulos.lista_redacoes import ler_lista_redacoes, ler_combo_temas
+            from modulos.config import Config
             
             cfg = Config()
             login(page, cfg, email, senha)
             assert "/minhas-redacoes" in page.url
             
-            from planilha_arquivos import Aluno
+            from modulos.planilha_arquivos import Aluno
             aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE")
             confirmar_identidade(page, aluno_teste)
             
@@ -505,7 +506,7 @@ def test_launch():
             assert "000" in codigos
             
             # Teste de seleção de tema
-            from plataforma import selecionar_tema_por_codigo
+            from modulos.formulario_envio import selecionar_tema_por_codigo
             assert selecionar_tema_por_codigo(page, "0", codigos) is True
             
             print("[OK] LOGIN OK")
@@ -574,7 +575,7 @@ def test_codigo_duplicado_csv_real_temas_site():
     assert contagem["000"] == 1
     
     # Verificar que a lógica de validação detecta duplicidade
-    from normalizacao import validar_codigo_site
+    from modulos.normalizacao import validar_codigo_site
     
     # Criar set de códigos do CSV (sem duplicatas, pois é um set)
     codigos_site = set(codigos)
@@ -592,7 +593,7 @@ def test_codigo_duplicado_csv_real_temas_site():
 
 def test_selecionar_tema_por_codigo_duplicado_levanta_erro():
     """Código duplicado no combo -> RuntimeError (SIMULADO/REVISAO_MANUAL)."""
-    from plataforma import selecionar_tema_por_codigo
+    from modulos.formulario_envio import selecionar_tema_por_codigo
     from unittest.mock import MagicMock
     
     page = MagicMock()
@@ -610,7 +611,7 @@ def test_selecionar_tema_por_codigo_duplicado_levanta_erro():
 
 def test_selecionar_tema_por_codigo_inexistente_levanta_erro():
     """Código inexistente no combo -> RuntimeError (REVISAO_MANUAL)."""
-    from plataforma import selecionar_tema_por_codigo
+    from modulos.formulario_envio import selecionar_tema_por_codigo
     from unittest.mock import MagicMock
     
     page = MagicMock()
@@ -626,7 +627,7 @@ def test_selecionar_tema_por_codigo_inexistente_levanta_erro():
 
 def test_selecionar_tema_por_codigo_valido_funciona():
     """Código válido e único no combo -> seleciona sem erro (teste de unidade com mock)."""
-    from plataforma import selecionar_tema_por_codigo, TemaCombo
+    from modulos.formulario_envio import selecionar_tema_por_codigo, TemaCombo
     from unittest.mock import MagicMock
     
     page = MagicMock()
@@ -634,8 +635,8 @@ def test_selecionar_tema_por_codigo_valido_funciona():
     page.get_by_label.return_value = combo
     
     # Mock do ler_combo_temas
-    import plataforma
-    original_ler_combo = plataforma.ler_combo_temas
+    from modulos.formulario_envio import ler_combo_temas
+    original_ler_combo = ler_combo_temas
     
     def mock_ler_combo(p):
         return [
@@ -643,7 +644,8 @@ def test_selecionar_tema_por_codigo_valido_funciona():
             TemaCombo(codigo="00", texto_completo="00- Carta"),
         ]
     
-    plataforma.ler_combo_temas = mock_ler_combo
+    import modulos.formulario_envio as formulario_envio_module
+    formulario_envio_module.ler_combo_temas = mock_ler_combo
     
     try:
         codigos_site = ["0", "00"]
@@ -651,12 +653,12 @@ def test_selecionar_tema_por_codigo_valido_funciona():
         assert resultado is True
         combo.select_option.assert_called_once_with(label="0- Narração")
     finally:
-        plataforma.ler_combo_temas = original_ler_combo
+        formulario_envio_module.ler_combo_temas = original_ler_combo
 
 
 def test_verificacao_simulada_processando_para_pendente():
     """Simula o fluxo: 5s, Processando -> Pendente, contagem sobe 1, saldo cai 1."""
-    from plataforma import ItemListaRedacao
+    from modulos.lista_redacoes import ItemListaRedacao, contar_linhas_codigo_data
     
     lista_antes = [
         ItemListaRedacao(data="29/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
@@ -670,8 +672,6 @@ def test_verificacao_simulada_processando_para_pendente():
         ItemListaRedacao(data="30/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto="Aguarde a correção"),
     ]
     
-    from plataforma import contar_linhas_codigo_data
-    
     contagem_antes = contar_linhas_codigo_data(lista_antes, "0", "30/09/2026")
     assert contagem_antes == 0
     
@@ -684,8 +684,7 @@ def test_verificacao_simulada_processando_para_pendente():
 
 def test_verificacao_simulada_timeout():
     """Se timeout e linha não chega a Pendente -> REVISAO_MANUAL."""
-    from plataforma import ItemListaRedacao
-    from plataforma import contar_linhas_codigo_data
+    from modulos.lista_redacoes import ItemListaRedacao, contar_linhas_codigo_data
     
     lista_sem_nova = [
         ItemListaRedacao(data="29/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
@@ -697,7 +696,7 @@ def test_verificacao_simulada_timeout():
 
 def test_verificacao_simulada_estado_desconhecido():
     """Estado não mapeado (ex: 'Erro', 'Corrigida') -> REVISAO_MANUAL."""
-    from plataforma import ItemListaRedacao
+    from modulos.lista_redacoes import ItemListaRedacao
     
     lista = [
         ItemListaRedacao(data="30/09/2026", tema="0- Narração", nota="", situacao="Erro", botao_texto=""),
@@ -709,7 +708,7 @@ def test_verificacao_simulada_estado_desconhecido():
 
 def test_codigo_string_preserva_zeros():
     """Códigos '0', '00', '000' são strings distintas."""
-    from planilha_arquivos import extrair_codigo_do_tema_site
+    from modulos.planilha_arquivos import extrair_codigo_do_tema_site
     assert extrair_codigo_do_tema_site("0- Narração") == "0"
     assert extrair_codigo_do_tema_site("00- Carta") == "00"
     assert extrair_codigo_do_tema_site("000- Dissertativo") == "000"
@@ -750,7 +749,9 @@ def test_fail_closed_modo_teste_envio_real_sem_codigos_site(monkeypatch, tmp_pat
     """--modo-teste --envio-real sem códigos do site deve executar fluxo de teste (que valida no combo do site).
     O fluxo_envio_teste faz sua própria validação no combo do site, não há fail-closed no CLI para modo teste."""
     import sys
-    # Mock do executar_envio_teste no módulo main ANTES de importar
+    # Mock do executar_envio_teste no main ANTES de importar main
+    # O main importa via: from modulos.fluxo_envio_teste import executar_envio_teste
+    # Então devemos patchar main.executar_envio_teste
     def mock_executar_envio_teste(cfg, progresso):
         return 0
     monkeypatch.setattr('main.executar_envio_teste', mock_executar_envio_teste)
@@ -779,7 +780,7 @@ def test_dry_run_usa_temas_site_csv_como_referencia(monkeypatch, tmp_path, confi
         writer.writerow({'codigo': '002', 'texto': '002- Dissertativo', 'data_leitura': '2026-10-01', 'conta_mascarada': 'usr***'})
     
     # Monkeypatch do Path para usar o tmp_path
-    import planilha_arquivos
+    import modulos.planilha_arquivos
     original_cwd = Path.cwd()
     try:
         os.chdir(tmp_path)
@@ -800,7 +801,7 @@ def test_carregar_alunos_header_na_linha_2_com_titulo(planilha_temporaria, confi
     """Header na linha 2 com título na linha 1 deve funcionar."""
     cfg = config_teste
     cfg.planilha = Path(planilha_temporaria)
-    from planilha_arquivos import carregar_alunos
+    from modulos.planilha_arquivos import carregar_alunos
     alunos = carregar_alunos(cfg)
     assert len(alunos) == 5  # 5 alunos na fixture
 
@@ -808,8 +809,8 @@ def test_carregar_alunos_header_na_linha_2_com_titulo(planilha_temporaria, confi
 def test_carregar_alunos_header_na_linha_1_sem_titulo(config_teste, tmp_path):
     """Header na linha 1 (sem título) deve funcionar."""
     from openpyxl import Workbook
-    from planilha_arquivos import carregar_alunos
-    from config import Config
+    from modulos.planilha_arquivos import carregar_alunos
+    from modulos.config import Config
     
     wb = Workbook()
     ws = wb.active
@@ -833,8 +834,8 @@ def test_carregar_alunos_header_na_linha_1_sem_titulo(config_teste, tmp_path):
 def test_carregar_alunos_erro_sem_colunas_obrigatorias(config_teste, tmp_path):
     """Sem colunas 'nome' e 'email' deve dar erro claro listando colunas encontradas."""
     from openpyxl import Workbook
-    from planilha_arquivos import carregar_alunos, PlanilhaError
-    from config import Config
+    from modulos.planilha_arquivos import carregar_alunos, PlanilhaError
+    from modulos.config import Config
     
     wb = Workbook()
     ws = wb.active
@@ -867,7 +868,7 @@ def test_carregar_alunos_erro_sem_colunas_obrigatorias(config_teste, tmp_path):
 def test_duplicidade_ja_enviado():
     """Mesmo código na MESMA DATA (hoje) → JA_ENVIADO com data."""
     from datetime import datetime
-    from plataforma import ItemListaRedacao, verificar_duplicidade
+    from modulos.lista_redacoes import ItemListaRedacao, verificar_duplicidade
     
     hoje = datetime.now().strftime("%d/%m/%Y")
     lista = [
@@ -882,7 +883,7 @@ def test_duplicidade_ja_enviado():
 
 def test_duplicidade_codigo_ausente_pode_seguir():
     """Código não encontrado na lista → OK (pode prosseguir)."""
-    from plataforma import ItemListaRedacao, verificar_duplicidade
+    from modulos.lista_redacoes import ItemListaRedacao, verificar_duplicidade
     
     lista = [
         ItemListaRedacao(data="15/10/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
@@ -896,7 +897,7 @@ def test_duplicidade_codigo_ausente_pode_seguir():
 
 def test_duplicidade_lista_ilegivel_revisao_manual():
     """Lista sem dados suficientes (tema/data) → REVISAO_MANUAL."""
-    from plataforma import ItemListaRedacao, verificar_duplicidade
+    from modulos.lista_redacoes import ItemListaRedacao, verificar_duplicidade
     
     # Lista vazia
     estado, data = verificar_duplicidade([], "0")
@@ -916,7 +917,7 @@ def test_duplicidade_lista_ilegivel_revisao_manual():
 def test_duplicidade_codigos_string_distintos():
     """Códigos '0', '00', '000' são strings distintas."""
     from datetime import datetime
-    from plataforma import ItemListaRedacao, verificar_duplicidade
+    from modulos.lista_redacoes import ItemListaRedacao, verificar_duplicidade
     
     hoje = datetime.now().strftime("%d/%m/%Y")
     lista = [
@@ -943,7 +944,7 @@ def test_duplicidade_codigos_string_distintos():
 def test_duplicidade_mesmo_codigo_data_diferente_ok():
     """Mesmo código em data DIFERENTE de hoje → OK (pode enviar)."""
     from datetime import datetime
-    from plataforma import ItemListaRedacao, verificar_duplicidade
+    from modulos.lista_redacoes import ItemListaRedacao, verificar_duplicidade
     
     hoje = datetime.now().strftime("%d/%m/%Y")
     ontem = "05/10/2026" if hoje != "05/10/2026" else "04/10/2026"
@@ -962,7 +963,7 @@ def test_duplicidade_mesmo_codigo_data_diferente_ok():
 
 def test_ler_lista_redacoes_html_simulado():
     """ler_lista_redacoes_html parseia HTML simulado corretamente."""
-    from plataforma import ler_lista_redacoes_html, ItemListaRedacao
+    from modulos.lista_redacoes import ler_lista_redacoes_html, ItemListaRedacao
     
     html = """
     <table>
@@ -987,7 +988,7 @@ def test_ler_lista_redacoes_html_simulado():
 
 def test_ler_lista_redacoes_html_sem_tabela_retorna_vazio():
     """HTML sem tabela retorna lista vazia."""
-    from plataforma import ler_lista_redacoes_html
+    from modulos.lista_redacoes import ler_lista_redacoes_html
     
     html = "<div>Sem tabela aqui</div>"
     lista = ler_lista_redacoes_html(html)
@@ -996,7 +997,7 @@ def test_ler_lista_redacoes_html_sem_tabela_retorna_vazio():
 
 def test_ler_lista_redacoes_html_linhas_incompletas_ignoradas():
     """Linhas com menos de 4 colunas são ignoradas."""
-    from plataforma import ler_lista_redacoes_html
+    from modulos.lista_redacoes import ler_lista_redacoes_html
     
     html = """
     <table>
@@ -1019,8 +1020,8 @@ def test_ler_lista_redacoes_html_linhas_incompletas_ignoradas():
 def test_confirmar_identidade_sucesso_simulado():
     """confirmar_identidade deve retornar True quando o nome bate (seletor dropdown)."""
     from unittest.mock import MagicMock
-    import login
-    from plataforma import confirmar_identidade
+    import modulos.login as login_module
+    from modulos.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -1056,8 +1057,8 @@ def test_confirmar_identidade_sucesso_simulado():
     aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
 
     # Mock verificar_dominio_autorizado
-    original_verificar = login.verificar_dominio_autorizado
-    login.verificar_dominio_autorizado = MagicMock()
+    original_verificar = login_module.verificar_dominio_autorizado
+    login_module.verificar_dominio_autorizado = MagicMock()
 
     try:
         result = confirmar_identidade(page, aluno, modo_teste=True)
@@ -1065,14 +1066,14 @@ def test_confirmar_identidade_sucesso_simulado():
         # Verificar que wait_for foi chamado no dropdown com state="visible" e timeout=10000
         dropdown_locator_mock.first.wait_for.assert_called_with(state="visible", timeout=10000)
     finally:
-        login.verificar_dominio_autorizado = original_verificar
+        login_module.verificar_dominio_autorizado = original_verificar
 def test_confirmar_identidade_falha_simulado():
     """confirmar_identidade deve levantar IdentidadeDivergente quando o nome diverge."""
     from unittest.mock import MagicMock
-    from planilha_arquivos import Aluno
-    from excecoes import IdentidadeDivergente
-    import login
-    from plataforma import confirmar_identidade
+    from modulos.planilha_arquivos import Aluno
+    from modulos.excecoes import IdentidadeDivergente
+    import modulos.login as login_module
+    from modulos.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -1108,8 +1109,8 @@ def test_confirmar_identidade_falha_simulado():
     aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
 
     # Mock verificar_dominio_autorizado
-    original_verificar = login.verificar_dominio_autorizado
-    login.verificar_dominio_autorizado = MagicMock()
+    original_verificar = login_module.verificar_dominio_autorizado
+    login_module.verificar_dominio_autorizado = MagicMock()
 
     try:
         with pytest.raises(IdentidadeDivergente) as exc_info:
@@ -1120,15 +1121,15 @@ def test_confirmar_identidade_falha_simulado():
         assert "encontrado (normalizado): 'outro usuario' != 'usuario testes ignorar'" in msg
         assert "te***@esquema.com" in msg
     finally:
-        login.verificar_dominio_autorizado = original_verificar
+        login_module.verificar_dominio_autorizado = original_verificar
 def test_confirmar_identidade_nao_encontrado_simulado():
     """confirmar_identidade deve levantar IdentidadeDivergente quando não encontra o elemento."""
     from unittest.mock import MagicMock
     from playwright.sync_api import TimeoutError as PWTimeoutError
-    from planilha_arquivos import Aluno
-    from excecoes import IdentidadeDivergente
-    import login
-    from plataforma import confirmar_identidade
+    from modulos.planilha_arquivos import Aluno
+    from modulos.excecoes import IdentidadeDivergente
+    import modulos.login as login_module
+    from modulos.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -1156,8 +1157,8 @@ def test_confirmar_identidade_nao_encontrado_simulado():
     aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
 
     # Mock verificar_dominio_autorizado
-    original_verificar = login.verificar_dominio_autorizado
-    login.verificar_dominio_autorizado = MagicMock()
+    original_verificar = login_module.verificar_dominio_autorizado
+    login_module.verificar_dominio_autorizado = MagicMock()
 
     try:
         with pytest.raises(IdentidadeDivergente) as exc_info:
@@ -1171,7 +1172,7 @@ def test_confirmar_identidade_nao_encontrado_simulado():
         assert "qtd_casados: 0" in msg
         assert "te***@esquema.com" in msg  # e-mail mascarado
     finally:
-        login.verificar_dominio_autorizado = original_verificar
+        login_module.verificar_dominio_autorizado = original_verificar
 
 
 if __name__ == "__main__":
@@ -1196,7 +1197,7 @@ def test_real_leitura_conta_teste():
     if not email or not senha:
         pytest.skip("Credenciais de teste não configuradas no .env")
 
-    from config import Config
+    from modulos.config import Config
     cfg = Config()
 
     with sync_playwright() as p:
@@ -1204,8 +1205,10 @@ def test_real_leitura_conta_teste():
         page = browser.new_page()
 
         try:
-            from plataforma import login, confirmar_identidade, ler_lista_redacoes, ler_combo_temas, abrir_formulario_envio
-            from planilha_arquivos import Aluno
+            from modulos.login import login, confirmar_identidade
+            from modulos.lista_redacoes import ler_lista_redacoes, ler_combo_temas
+            from modulos.formulario_envio import abrir_formulario_envio
+            from modulos.planilha_arquivos import Aluno
             login(page, cfg, email, senha)
             confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE"))
             lista = ler_lista_redacoes(page)
@@ -1222,12 +1225,12 @@ def test_real_leitura_conta_teste():
     Logs em logs/<execucao>/ com e-mail mascarado.
     """
     from playwright.sync_api import sync_playwright
-    from config import Config
-    from planilha_arquivos import Aluno
+    from modulos.config import Config
+    from modulos.planilha_arquivos import Aluno
     import datetime
     
     # Configuração
-    from config import obter_email_teste, obter_senha
+    from modulos.config import obter_email_teste, obter_senha
     # Carregar .env primeiro
     from dotenv import load_dotenv
     load_dotenv()
@@ -1251,12 +1254,12 @@ def test_real_leitura_conta_teste():
         page = context.new_page()
         
         # Importar funções dos módulos novos (mesmo que main.py usa)
-        from config import carregar_config
-        from login import login, confirmar_identidade
-        from lista_redacoes import ler_lista_redacoes, ler_saldo_creditos
-        from formulario_envio import ler_combo_temas, selecionar_tema_por_codigo
-        from confirmacao import logout
-        from planilha_arquivos import Aluno
+        from modulos.config import carregar_config
+        from modulos.login import login, confirmar_identidade
+        from modulos.lista_redacoes import ler_lista_redacoes, ler_saldo_creditos
+        from modulos.formulario_envio import ler_combo_temas, selecionar_tema_por_codigo
+        from modulos.confirmacao import logout
+        from modulos.planilha_arquivos import Aluno
         
         cfg = carregar_config()
         

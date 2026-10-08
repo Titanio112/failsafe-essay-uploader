@@ -26,8 +26,8 @@ from typing import Optional, Set
 import openpyxl
 from rapidfuzz import fuzz
 
-from config import Config
-from estados import (
+from modulos.config import Config
+from modulos.estados import (
     EXATO_UNICO,
     SUGESTAO_FUZZY,
     AMBIGUO,
@@ -44,7 +44,7 @@ from estados import (
 class PlanilhaError(RuntimeError):
     """Planilha ausente ou sem as colunas esperadas."""
 
-from normalizacao import (
+from modulos.normalizacao import (
     normalizar_nome,
     extrair_pessoa,
     extrair_codigo_do_arquivo,

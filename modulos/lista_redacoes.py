@@ -7,9 +7,9 @@ from typing import Optional, Set
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from planilha_arquivos import normalizar_nome
-from excecoes import CaptchaOuBloqueio
-from login import DOMINIO_ESPERADO
+from modulos.planilha_arquivos import normalizar_nome
+from modulos.excecoes import CaptchaOuBloqueio
+from modulos.login import DOMINIO_ESPERADO
 
 
 @dataclass

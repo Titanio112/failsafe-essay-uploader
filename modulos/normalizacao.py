@@ -7,7 +7,7 @@ import unicodedata
 from pathlib import Path
 from typing import Set
 
-from config import Config
+from modulos.config import Config
 
 _PONTUACAO_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _ESPACOS_RE = re.compile(r"\s+")

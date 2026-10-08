@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import pytest
 from playwright.sync_api import Page
 
-from login import login
-from excecoes import LoginFalhou
+from modulos.login import login
+from modulos.excecoes import LoginFalhou
+import modulos.login as login_module
 
 
 class MockLocator:
@@ -37,7 +38,7 @@ def test_login_sucesso_destino_raiz_com_saldo():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         login(mock_page, MagicMock(), "test@test.com", "senha")
     
     # Deve ter navegado para /minhas-redacoes
@@ -57,7 +58,7 @@ def test_login_sucesso_destino_minhas_redacoes():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         login(mock_page, MagicMock(), "test@test.com", "senha")
     
     assert "sign_in" not in mock_page.url
@@ -72,7 +73,7 @@ def test_login_sucesso_destino_alunos_x_com_saldo():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         login(mock_page, MagicMock(), "test@test.com", "senha")
     
     assert "sign_in" not in mock_page.url
@@ -87,7 +88,7 @@ def test_login_falha_permanece_sign_in_com_erro():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         with pytest.raises(LoginFalhou) as exc:
             login(mock_page, MagicMock(), "test@test.com", "senha")
     
@@ -104,7 +105,7 @@ def test_login_falha_minhas_redacoes_redireciona_para_sign_in():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         with pytest.raises(LoginFalhou) as exc:
             login(mock_page, MagicMock(), "test@test.com", "senha")
     
@@ -120,7 +121,7 @@ def test_login_falha_sem_saldo_sem_menu_usuario():
     mock_usuario = MockLocator(should_find=False)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         with pytest.raises(LoginFalhou) as exc:
             login(mock_page, MagicMock(), "test@test.com", "senha")
     
@@ -137,7 +138,7 @@ def test_login_sucesso_apenas_menu_usuario_sem_saldo():
     mock_usuario = MockLocator(should_find=True)
     mock_page.locator.side_effect = [mock_saldo, mock_usuario]
     
-    with patch('login.verificar_dominio_autorizado'):
+    with patch.object(login_module, 'verificar_dominio_autorizado'):
         login(mock_page, MagicMock(), "test@test.com", "senha")
     
     # Não deve ter levantado exceção
