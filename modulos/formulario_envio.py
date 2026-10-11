@@ -114,26 +114,48 @@ def anexar_arquivo(page: Page, caminho_arquivo: str) -> None:
 
 
 def aguardar_upload_aceito(page: Page, timeout_segundos: int = 30) -> bool:
-    """Aguarda o upload ser aceito (botão 'Enviar resposta' habilita).
-    
+    """Aguarda o upload ser aceito — sinal real: .progress .bar visível, width=100%, texto 'Arquivo carregado'.
+
     Retorna True se upload aceito, False se timeout."""
+    from playwright.sync_api import TimeoutError as PWTimeoutError
     import time
-    inicio = time.time()
-    
-    while time.time() - inicio < timeout_segundos:
-        try:
-            # Verificar se botão de enviar está habilitado
-            btn_enviar = page.locator("button:has-text('Enviar resposta'), input[type='submit'][value*='Enviar']").first
-            if btn_enviar.is_enabled():
-                return True
-            
-            # Verificar mensagem de sucesso
-            sucesso = page.locator(".upload-sucesso, .alert-success, [data-testid=upload-ok]").first
-            if sucesso.is_visible():
-                return True
-        except Exception:
-            pass
+
+    progress_bar = page.locator(".progress .bar").first
+
+    try:
+        # 1. Aguardar elemento ficar visível
+        progress_bar.wait_for(state="visible", timeout=timeout_segundos * 1000)
+    except PWTimeoutError:
+        return False
+
+    # 2. Ler style e text_content
+    style = progress_bar.get_attribute("style") or ""
+    texto = progress_bar.text_content() or ""
+
+    # 3. Confirmar sinal: visível + width:100% no style + "Arquivo carregado" no texto
+    if not progress_bar.is_visible():
+        return False
+
+    style_lower = style.lower()
+    width_ok = "width: 100%" in style_lower or "width:100%" in style_lower
+    texto_ok = "arquivo carregado" in texto.lower()
+
+    if width_ok and texto_ok:
+        return True
+
+    # 4. If not complete yet, poll for up to timeout
+    start = time.time()
+    while time.time() - start < timeout_segundos:
+        style = progress_bar.get_attribute("style") or ""
+        texto = progress_bar.text_content() or ""
+
+        style_lower = style.lower()
+        width_ok = "width: 100%" in style_lower or "width:100%" in style_lower
+        texto_ok = "arquivo carregado" in texto.lower()
+
+        if width_ok and texto_ok:
+            return True
         
         time.sleep(1)
-    
+
     return False

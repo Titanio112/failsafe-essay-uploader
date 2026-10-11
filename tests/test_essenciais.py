@@ -478,7 +478,8 @@ def test_launch():
         
         try:
             from modulos.login import login, confirmar_identidade
-            from modulos.lista_redacoes import ler_lista_redacoes, ler_combo_temas
+            from modulos.lista_redacoes import ler_lista_redacoes
+            from modulos.formulario_envio import ler_combo_temas
             from modulos.config import Config
             
             cfg = Config()
@@ -1206,8 +1207,8 @@ def test_real_leitura_conta_teste():
 
         try:
             from modulos.login import login, confirmar_identidade
-            from modulos.lista_redacoes import ler_lista_redacoes, ler_combo_temas
-            from modulos.formulario_envio import abrir_formulario_envio
+            from modulos.lista_redacoes import ler_lista_redacoes
+            from modulos.formulario_envio import abrir_formulario_envio, ler_combo_temas
             from modulos.planilha_arquivos import Aluno
             login(page, cfg, email, senha)
             confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE"))

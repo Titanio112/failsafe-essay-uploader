@@ -177,25 +177,53 @@ Legenda das verificações: "0 ocorrências" = rodar Select-String e colar saíd
 - PROVA: (colar aqui a saída)
 - Fora de escopo: login real, navegar no site, anexar, clicar em enviar.
 
-## T17 - F3: descobrir o sinal de "upload aceito" (só observação) [ ]
+## T17 - F3: descobrir o sinal de "upload aceito" (só observação) [x]
 - Objetivo: medir o que muda na página /wordings/new depois do anexo (DOM, console, requisições de rede), usando a conta de teste. Resultado documentado em comentário no teste.
-- Arquivos que PODE mexer: criar tests/test_upload_sinal.py (@pytest.mark.real); escrever logs em logs/.
+- Arquivos que PODE mexer: tests/test_upload_sinal.py (@pytest.mark.real); escrever logs em logs/.
 - Arquivos que NÃO pode mexer: qualquer .py existente; .env.
 - Comando de verificação:
   python -m pytest tests/test_upload_sinal.py -v -m real
-  (login + selecionar tema + ENEM + anexar 1 JPG de testes/redacoes_teste/ +
-   capturar console/respostas/DOM + logout. PROIBIDO clicar em "Enviar resposta".)
-- PROVA: (colar aqui a saída, incluindo a evidência capturada)
+  (login + selecionar tema + ENEM + anexar 1 JPG de testes/redacoes_teste/ + capturar console/respostas/DOM + context.close()+browser.close() no finally, sem navegar a logout. PROIBIDO clicar em "Enviar resposta".)
+- PROVA:
+  python -m pytest tests/test_upload_sinal.py -v -m real
+  1 passed in 23.47s
+  upload_indicators_encontrados = 1
+  erros = []
+  11 snapshots com .progress .bar visível
+  width: 100%
+  texto "Arquivo carregado"
+  JSON sanitizado salvo em logs/
+  finally com context.close() e browser.close(), sem logout URL e sem página 404
+  não houve clique em "Enviar resposta"
+  não houve digitação de "ENVIAR TESTE"
+  nenhuma redação submetida
+  saldo não medido; sem submissão, nenhum consumo era esperado
 - Fora de escopo: clicar em enviar, digitar confirmação, chutar seletor. Se nada mudar na página: registrar em DECISOES_PENDENTES.md e PARAR.
 
-## T18 - F3: implementar aguardar_upload_aceito com a evidência [ ]
+## T18 - F3: implementar aguardar_upload_aceito com a evidência [x]
 - Objetivo: implementar/aguardar o sinal observado em T17 em modulos/formulario_envio.py.
-- Arquivos que PODE mexer: modulos/formulario_envio.py, tests/test_upload_sinal.py.
+- Arquivos que PODE mexer:
+  modulos/formulario_envio.py,
+  tests/test_upload_sinal.py,
+  tests/test_upload_aceito_t18.py
 - Arquivos que NÃO pode mexer: outros módulos, main.py.
 - Comando de verificação:
   python -m pytest -m "not real" -q   (0 failed)
-  python -m pytest tests/test_upload_sinal.py -v -m real   (sinal detectado após anexar)
-- PROVA: (colar aqui a saída)
+  python -m pytest tests/test_upload_sinal.py -v -m real        # T17: descoberta/observação do sinal
+  python -m pytest tests/test_upload_aceito_t18.py -v -m real   # T18: validação oficial
+- PROVA:
+  python -m pytest tests/test_upload_aceito_t18.py -v -m real
+  1 passed in 16.50s
+  Login → minhas-redacoes → dropdown identidade → /wordings/new
+  Tema selecionado: value="68" (código '0')
+  Critério ENEM: value="1"
+  JPG anexado: testes/redacoes_teste/0/01Usuario Testes Ignorar.jpg
+  aguardar_upload_aceito(page, timeout_segundos=30) retornou True
+  Não houve clique em "Enviar resposta"
+  Não houve digitação de "ENVIAR TESTE"
+  Encerramento: context.close() + browser.close() no finally, sem navegar a /auth/users/sign_out, sem 404
+  Nenhuma redação submetida
+  Saldo não foi medido nesta execução; sem submissão, não houve consumo esperado
 - Fora de escopo: inventar seletor não observado em T17. Sem evidência suficiente: registrar em DECISOES_PENDENTES.md e PARAR.
 
 ## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]

@@ -63,9 +63,10 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
 
 
 def logout(page: Page) -> None:
-    """Faz logout da plataforma."""
-    try:
-        page.goto("https://www.esquemaredacao.com.br/auth/users/sign_out", wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
-    except Exception:
-        pass  # Best effort
+    """Mantém compatibilidade sem navegar para a rota de logout.
+
+    A navegação direta observada para /auth/users/sign_out retornou 404.
+    Não existe seletor de logout confirmado no site real. O chamador deve
+    encerrar o teste com context.close() e browser.close() no finally.
+    """
+    pass
