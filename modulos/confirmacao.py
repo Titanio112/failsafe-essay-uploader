@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from playwright.sync_api import Page, TimeoutError as PWTimeoutError
+from playwright.sync_api import Page
 import time
 
-from modulos.config import Config
 from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 from modulos.login import DOMINIO_ESPERADO
+from modulos.lista_redacoes import ler_lista_redacoes
 
 
 def verificar_dominio_autorizado(page: Page) -> None:
@@ -30,7 +30,6 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
     - Timeout
     
     Retorna True se confirmado, False se timeout/erro."""
-    from lista_redacoes import ler_lista_redacoes
     from datetime import datetime
     
     data_hoje = datetime.now().strftime("%d/%m/%Y")

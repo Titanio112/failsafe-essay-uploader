@@ -457,6 +457,96 @@ $ git status --short
  M modulos/fluxo_envio_teste.py
  M tests/test_fluxo_envio_teste_fail_closed.py
 
+## T18E - F3: corrige leitura da lista /minhas-redacoes (confirmação e duplicidade) [x]
+- Origem: 2ª execução da T19 (21/10 18:38, Antônio). Envio feito no site
+  (lista: 21/10/2026 | 0- Narração | 0.0 | Pendente; saldo 999 -> 998), mas o
+  script quebrou após o clique com
+  `ModuleNotFoundError: No module named 'lista_redacoes'` (confirmacao.py:33).
+  Banco gravou REVISAO_MANUAL ("Excecao: ModuleNotFoundError") — fail-closed ok.
+- Layout observado em /minhas-redacoes (print do Antônio, 21/10; igual à fixture):
+  Data | Tema | Nota | Situação | (botão). Data sem hora: dd/mm/aaaa.
+- Defeitos:
+  - E1: import sem prefixo `modulos.` em confirmacao.py.
+  - E2: ler_lista_redacoes lia a data na 3ª coluna (Nota). Data é a 1ª.
+    Efeito: confirmação nunca acharia a linha e a duplicidade nunca
+    detectaria o envio do dia (T20 reenviaria).
+  - E4: lista ilegível virava "não enviado" em detectar_ja_enviado (fail-open).
+- Decisão D1 (Antônio, 21/10): opção (a) — lista vazia = pode enviar
+  (o saldo já é lido antes na mesma página; sem saldo, aborta).
+  Lista ilegível (cabeçalho diferente, linhas sem dados) = não envia.
+- Arquivos autorizados (Antônio, 21/10): modulos/confirmacao.py,
+  modulos/lista_redacoes.py, testes correspondentes (arquivo novo
+  tests/test_lista_redacoes_layout_real.py), TAREFAS_ATUAIS.md.
+- Fora de escopo: tests/test_essenciais.py, fluxo_envio_teste.py, RAIZ,
+  fallback por value, T19/T20.
+- Feito: ler_lista_redacoes(page) passou a usar ler_lista_redacoes_html
+  (mesmo parser da fixture); cabeçalho presente e diferente -> RuntimeError;
+  linhas com <td> e nenhuma lida -> RuntimeError; detectar_ja_enviado:
+  lista vazia -> (False, ""), lista ilegível -> RuntimeError (no fluxo vira
+  ERRO antes do clique). Import corrigido em confirmacao.py. Removidos 4
+  imports sem uso que já existiam (pyflakes).
+- Limite da prova com stash: o parser HTML antigo já lia as colunas certas;
+  o defeito E2 estava no parser via locator, que agora delega para ele.
+- Ponto em aberto: o HTML de uma conta sem nenhuma redação não foi observado.
+  Se vier uma linha-aviso com <td> (ex.: "Nenhuma redação"), o envio é
+  bloqueado (fail-closed) até observar e ajustar.
+PROVA:
+$ python -m py_compile modulos/lista_redacoes.py modulos/confirmacao.py
+[exit 0]
+$ python -m pyflakes modulos/lista_redacoes.py modulos/confirmacao.py tests/test_lista_redacoes_layout_real.py
+[exit 0]
+$ python -m pytest tests/test_lista_redacoes_layout_real.py -v -m "not real"
+tests/test_lista_redacoes_layout_real.py::test_layout_real_le_data_na_primeira_coluna PASSED [ 11%]
+tests/test_lista_redacoes_layout_real.py::test_ler_lista_redacoes_da_pagina_usa_layout_real PASSED [ 22%]
+tests/test_lista_redacoes_layout_real.py::test_envio_do_dia_detectado_como_ja_enviado PASSED [ 33%]
+tests/test_lista_redacoes_layout_real.py::test_cabecalho_diferente_levanta PASSED [ 44%]
+tests/test_lista_redacoes_layout_real.py::test_linhas_de_dados_ilegiveis_levanta PASSED [ 55%]
+tests/test_lista_redacoes_layout_real.py::test_detectar_lista_com_itens_sem_dados_levanta PASSED [ 66%]
+tests/test_lista_redacoes_layout_real.py::test_tabela_so_com_cabecalho_e_lista_vazia PASSED [ 77%]
+tests/test_lista_redacoes_layout_real.py::test_detectar_lista_vazia_pode_enviar PASSED [ 88%]
+tests/test_lista_redacoes_layout_real.py::test_aguardar_confirmacao_acha_pendente_de_hoje PASSED [100%]
+============================== 9 passed in 0.75s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 72%]
+...........................                                              [100%]
+99 passed, 4 deselected, 8 warnings in 4.89s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat   (o arquivo de teste novo é untracked e não aparece aqui)
+ TAREFAS_ATUAIS.md         | 23 ++++++++++++++++
+ modulos/confirmacao.py    |  5 ++--
+ modulos/lista_redacoes.py | 67 ++++++++++++++++++++---------------------------
+ 3 files changed, 53 insertions(+), 42 deletions(-)
+[exit 0]
+$ git stash push -- modulos/lista_redacoes.py modulos/confirmacao.py
+Saved working directory and index state WIP on limpeza: 2322651 T18D: corrige defeitos pre-clique (criterio, caminho do anexo, upload e tema conferidos)
+$ python -m pytest tests/test_lista_redacoes_layout_real.py -q -m "not real"   (modulos de 2322651, com os defeitos)
+E           AttributeError: 'PaginaFalsa' object has no attribute 'locator'
+E           AttributeError: 'PaginaFalsa' object has no attribute 'locator'
+E       Failed: DID NOT RAISE RuntimeError
+E       Failed: DID NOT RAISE RuntimeError
+E       Failed: DID NOT RAISE RuntimeError
+E       ModuleNotFoundError: No module named 'lista_redacoes'
+FAILED tests/test_lista_redacoes_layout_real.py::test_ler_lista_redacoes_da_pagina_usa_layout_real
+FAILED tests/test_lista_redacoes_layout_real.py::test_envio_do_dia_detectado_como_ja_enviado
+FAILED tests/test_lista_redacoes_layout_real.py::test_cabecalho_diferente_levanta
+FAILED tests/test_lista_redacoes_layout_real.py::test_linhas_de_dados_ilegiveis_levanta
+FAILED tests/test_lista_redacoes_layout_real.py::test_detectar_lista_com_itens_sem_dados_levanta
+FAILED tests/test_lista_redacoes_layout_real.py::test_aguardar_confirmacao_acha_pendente_de_hoje
+6 failed, 3 passed in 1.10s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (aeb063716d42e841235fa1b7e1b6738642d81c6a)
+$ python -m pytest tests/test_lista_redacoes_layout_real.py -q -m "not real"   (corrigido)
+9 passed in 0.85s
+$ git status --short
+ M TAREFAS_ATUAIS.md
+ M modulos/confirmacao.py
+ M modulos/lista_redacoes.py
+?? tests/test_lista_redacoes_layout_real.py
+
 ## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
 - Objetivo: cumprir o critério de pronto da F3 na conta de teste.
 - Arquivos que PODE mexer: nenhum (o Cline só apoia; quem executa é o Antônio).

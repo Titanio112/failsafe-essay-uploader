@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Set
+from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from modulos.planilha_arquivos import normalizar_nome
 from modulos.excecoes import CaptchaOuBloqueio
 from modulos.login import DOMINIO_ESPERADO
+
+
+CABECALHO_ESPERADO = ["data", "tema", "nota", "situação"]
 
 
 @dataclass
@@ -65,39 +67,8 @@ def ler_lista_redacoes(page: Page) -> list[ItemListaRedacao]:
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
 
-    itens = []
-    try:
-        linhas = page.locator("table tbody tr, .redacao-item, [data-testid=redacao-row]").all()
-        for linha in linhas:
-            try:
-                # Extrair células
-                celulas = linha.locator("td, .cell").all()
-                if len(celulas) >= 3:
-                    tema_texto = celulas[1].inner_text()
-                    data_texto = celulas[2].inner_text()
-                    situacao_texto = celulas[3].inner_text() if len(celulas) > 3 else ""
-                    nota_texto = celulas[4].inner_text() if len(celulas) > 4 else ""
-                    botao_texto = celulas[5].inner_text() if len(celulas) > 5 else ""
-
-                    # Extrair código do tema
-                    import re
-                    match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", tema_texto)
-                    codigo = match.group(1) if match else ""
-
-                    itens.append(ItemListaRedacao(
-                        codigo=codigo,
-                        tema=tema_texto.strip(),
-                        data=data_texto.strip(),
-                        situacao=situacao_texto.strip(),
-                        nota=nota_texto.strip(),
-                        botao_texto=botao_texto.strip()
-                    ))
-            except Exception:
-                continue
-    except PWTimeoutError:
-        pass
-
-    return itens
+    # Mesmo parser da fixture auditada: Data | Tema | Nota | Situação | (botão)
+    return ler_lista_redacoes_html(page.content())
 
 
 def contar_linhas_codigo_data(lista: list[ItemListaRedacao], codigo: str, data: str) -> int:
@@ -130,11 +101,17 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
     tabela = soup.find('table')
     if not tabela:
         return itens
-    
+
+    # Cabeçalho observado (21/10/2026): Data | Tema | Nota | Situação.
+    # Cabeçalho presente e diferente -> lista ilegível (fail-closed).
+    cabecalho = [th.get_text(strip=True).lower() for th in tabela.find_all('th')][:4]
+    if cabecalho and cabecalho != CABECALHO_ESPERADO:
+        raise RuntimeError(f"Cabecalho inesperado na lista de redacoes: {cabecalho}")
+
     tbody = tabela.find('tbody')
     if not tbody:
         return itens
-    
+
     linhas = tbody.find_all('tr')
     for linha in linhas:
         celulas = linha.find_all('td')
@@ -180,7 +157,11 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
             nota=nota,
             botao_texto=botao_texto
         ))
-    
+
+    # Há linhas de dados (com <td>) mas nenhuma foi lida -> ilegível (fail-closed)
+    if not itens and any(linha.find('td') for linha in linhas):
+        raise RuntimeError("Linhas da lista de redacoes nao puderam ser lidas")
+
     return itens
 
 
@@ -224,11 +205,19 @@ def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: s
 
 
 def detectar_ja_enviado(lista_redacoes: list[ItemListaRedacao], codigo: str, data_hoje: str | None = None) -> tuple[bool, str]:
-    """Verifica se já foi enviado HOJE - retorna (True, data) ou (False, '')."""
+    """Verifica se já foi enviado HOJE - retorna (True, data) ou (False, '').
+
+    Lista vazia -> (False, '') — decisão D1 (a): conta sem redações pode enviar;
+    o chamador já abortou se o saldo da mesma página não foi lido.
+    Lista com linhas ilegíveis -> RuntimeError (fail-closed, não envia)."""
     from datetime import datetime
+    if not lista_redacoes:
+        return False, ""
     if data_hoje is None:
         data_hoje = datetime.now().strftime("%d/%m/%Y")
     estado, data = verificar_duplicidade(lista_redacoes, codigo, data_hoje)
     if estado == "JA_ENVIADO":
         return True, data or ""
+    if estado != "OK":
+        raise RuntimeError(f"Lista de redacoes ilegivel ({estado}); envio bloqueado")
     return False, ""
