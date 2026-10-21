@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from getpass import getpass
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent
+# Raiz do projeto (este arquivo fica em modulos/)
+RAIZ = Path(__file__).resolve().parent.parent
 
 MENSAGEM_BLOQUEIO = "[BLOQUEADO] Envio real desativado."
 

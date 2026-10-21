@@ -116,7 +116,7 @@ def executar_envio_teste(
 
 if __name__ == "__main__":
     # Execucao direta para teste rapido
-    from progresso_relatorio import configurar_logging
+    from modulos.progresso_relatorio import configurar_logging
 
     configurar_logging()
     cfg = Config()

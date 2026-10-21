@@ -5,8 +5,7 @@ from dataclasses import dataclass
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from modulos.config import Config
-from modulos.excecoes import CaptchaOuBloqueio, UploadNaoConfirmado
+from modulos.excecoes import CaptchaOuBloqueio
 from modulos.login import DOMINIO_ESPERADO
 
 
@@ -57,7 +56,8 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
     """Seleciona o tema no combo pelo código exato (string).
     
     Se codigos_site for fornecido, valida que o código existe e é único.
-    Retorna True se conseguiu selecionar.
+    Retorna True se conseguiu selecionar pelo texto da opção; False se não.
+    Sem fallback por value: o value do combo é o id da proposta, não o código.
     
     Levanta RuntimeError se código duplicado ou inexistente no combo."""
     # Validar códigos do site se fornecidos
@@ -85,15 +85,7 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
                 return True
     except Exception:
         pass
-    
-    # Fallback: tentar por value direto no select
-    try:
-        combo = page.locator("select[name='wording[wording_proposal_id]']").first
-        combo.select_option(value=codigo)
-        return True
-    except Exception:
-        pass
-    
+
     return False
 
 

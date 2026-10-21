@@ -713,6 +713,75 @@ Dropped refs/stash@{0} (e84272aef1725e0f9b1f88ccada1606bdc4803fa)
 $ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real" -k fila   (T21)
 4 passed, 12 deselected in 0.92s
 
+## T22 - Pós-F3: RAIZ, fallback por value, import do __main__ e docs [x]
+- Pedido/autorização do Antônio (21/10).
+- R1: `RAIZ` em modulos/config.py apontava para `modulos/` (sobra da
+  modularização). Efeito: banco/relatórios em modulos/relatorios/, padrão de
+  pasta_raiz em modulos/redacoes_pendentes/, config.ini procurado em modulos/.
+  Corrigir para a raiz do projeto.
+- R2: `selecionar_tema_por_codigo` tentava `select_option(value=codigo)` se a
+  seleção pelo texto falhasse; o value do combo é o id da proposta, não o
+  código. Remover o fallback (a T18D já confere o tema selecionado).
+- R3: bloco `__main__` de fluxo_envio_teste.py: `from progresso_relatorio`
+  sem `modulos.`.
+- R4: PROJECT_MEMORY.md e AGENTS.md com o estado pós-F3.
+- Arquivos: modulos/config.py, modulos/formulario_envio.py,
+  modulos/fluxo_envio_teste.py (só o __main__), teste novo
+  tests/test_pos_f3.py, PROJECT_MEMORY.md, AGENTS.md, TAREFAS_ATUAIS.md.
+- Dados: NÃO mover/apagar bancos. modulos/relatorios/progresso.db tem o
+  histórico de 21/10; relatorios/progresso.db é o antigo (06–07/10). A troca
+  fica para o Antônio (comandos no relatório).
+- Fora de escopo: caminhos relativos ao diretório atual (dados/, diagnosticos/,
+  testes/), F4.
+- Feito: RAIZ = Path(__file__).resolve().parent.parent; fallback por value
+  removido (e 2 imports sem uso de formulario_envio.py); import do __main__
+  com `modulos.`; teste novo varre modulos/*.py e main.py (inclusive dentro
+  de funções) atrás de import interno sem prefixo. PROJECT_MEMORY.md e
+  AGENTS.md atualizados (módulos, lista, upload, D1, seletores, pendências F4).
+PROVA:
+$ python -m py_compile modulos/config.py modulos/formulario_envio.py modulos/fluxo_envio_teste.py
+[exit 0]
+$ python -m pyflakes modulos/config.py modulos/formulario_envio.py modulos/fluxo_envio_teste.py tests/test_pos_f3.py
+[exit 0]
+$ python -m pytest tests/test_pos_f3.py -v -m "not real"
+tests/test_pos_f3.py::test_raiz_e_a_pasta_do_projeto PASSED              [ 20%]
+tests/test_pos_f3.py::test_caminhos_padrao_ficam_na_raiz PASSED          [ 40%]
+tests/test_pos_f3.py::test_selecao_pelo_texto_falha_nao_tenta_value PASSED [ 60%]
+tests/test_pos_f3.py::test_codigo_ausente_no_combo_nao_seleciona_nada PASSED [ 80%]
+tests/test_pos_f3.py::test_nenhum_import_interno_sem_prefixo_modulos PASSED [100%]
+============================== 5 passed in 0.57s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 64%]
+........................................                                 [100%]
+112 passed, 4 deselected, 8 warnings in 4.95s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat   (tests/test_pos_f3.py é novo/untracked e não aparece aqui)
+ AGENTS.md                    | 94 +++++++++++++++++++++++++++-----------------
+ PROJECT_MEMORY.md            | 53 +++++++++++++++++--------
+ TAREFAS_ATUAIS.md            | 21 ++++++++++
+ modulos/config.py            |  3 +-
+ modulos/fluxo_envio_teste.py |  2 +-
+ modulos/formulario_envio.py  | 16 ++------
+ 6 files changed, 124 insertions(+), 65 deletions(-)
+[exit 0]
+$ git stash push -- modulos/config.py modulos/formulario_envio.py modulos/fluxo_envio_teste.py
+Saved working directory and index state WIP on limpeza: ea09e34 T19: registra prova do envio de teste com confirmacao automatica; F3 concluida
+$ python -m pytest tests/test_pos_f3.py -q -m "not real"   (modulos de ea09e34, antes da T22)
+FAILED tests/test_pos_f3.py::test_raiz_e_a_pasta_do_projeto - AssertionError:...
+FAILED tests/test_pos_f3.py::test_caminhos_padrao_ficam_na_raiz - AssertionEr...
+FAILED tests/test_pos_f3.py::test_selecao_pelo_texto_falha_nao_tenta_value - ...
+FAILED tests/test_pos_f3.py::test_codigo_ausente_no_combo_nao_seleciona_nada
+FAILED tests/test_pos_f3.py::test_nenhum_import_interno_sem_prefixo_modulos
+5 failed in 0.75s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (62f0fdfd1a4f5a05987f15b0a2a9c030a457eddd)
+$ python -m pytest tests/test_pos_f3.py -q -m "not real"   (T22)
+5 passed in 0.66s
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
