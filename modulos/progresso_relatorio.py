@@ -211,7 +211,7 @@ def gerar_relatorio_conciliacao(resultado: ResultadoConciliacao, caminho_csv: Pa
     caminho_csv.parent.mkdir(parents=True, exist_ok=True)
     campos = [
         "pasta", "arquivo", "pessoa_arquivo", "estado",
-        "aluno_nome", "aluno_email_mascarado", "sala",
+        "aluno_nome", "aluno_email_mascarado",
         "score_fuzzy", "segundo_score", "candidatos_fuzzy", "observacao",
     ]
     itens = sorted(resultado.itens, key=lambda i: (normalizar_nome(i.pessoa), i.pasta))
@@ -233,7 +233,6 @@ def gerar_relatorio_conciliacao(resultado: ResultadoConciliacao, caminho_csv: Pa
                 "aluno_email_mascarado": (
                     mascarar_email(item.aluno.email) if item.aluno else ""
                 ),
-                "sala": item.aluno.sala if item.aluno else "",
                 "score_fuzzy": item.score_fuzzy or "",
                 "segundo_score": item.segundo_score or "",
                 "candidatos_fuzzy": candidatos,
@@ -254,7 +253,7 @@ def gerar_fila_dry_run(resultado: ResultadoConciliacao, caminho_txt: Path) -> Pa
     ]
     for item in sorted(fila, key=lambda i: (i.aluno.nome_norm, i.pasta)):
         linhas.append(
-            f"[{item.aluno.sala}] {item.aluno.nome} <{mascarar_email(item.aluno.email)}> "
+            f"{item.aluno.nome} <{mascarar_email(item.aluno.email)}> "
             f"<- {item.pasta}/{item.arquivo}"
         )
     with caminho_txt.open("w", encoding="utf-8") as f:

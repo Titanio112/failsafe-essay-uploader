@@ -105,7 +105,6 @@ def _ler_ini(caminho: Path) -> Config:
         cfg.aba_planilha = sec.get("aba", cfg.aba_planilha)
         cfg.coluna_nome = sec.get("coluna_nome", cfg.coluna_nome)
         cfg.coluna_email = sec.get("coluna_email", cfg.coluna_email)
-        cfg.coluna_sala = sec.get("coluna_sala", cfg.coluna_sala)
 
     if parser.has_section("conciliacao"):
         sec = parser["conciliacao"]

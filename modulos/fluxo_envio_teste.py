@@ -54,7 +54,7 @@ def executar_envio_teste(
     email_teste = obter_email_teste()
     senha_teste = obter_senha("ESQUEMA_SENHA_TESTE")
 
-    aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")
+    aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email_teste)
 
     email_mascarado = email_teste[:3] + "***" if len(email_teste) > 3 else "***"
 

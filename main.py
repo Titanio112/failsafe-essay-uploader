@@ -1,4 +1,4 @@
-"""CLI: orquestracao. Padrao: dry-run. NÃO EXISTEM SALAS — entramos como aluno."""
+"""CLI: orquestracao. Padrao: dry-run. Entramos como aluno (e-mail/senha do aluno)."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def main(argv=None) -> int:
         # Apenas aluno virtual
         from modulos.planilha_arquivos import Aluno
         email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
-        alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")]
+        alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste)]
         log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")
     else:
         if args.envio_real:

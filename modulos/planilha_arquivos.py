@@ -8,7 +8,7 @@ Estados de cada arquivo conciliado:
 - ``AMBIGUO``: correspondência exata com mais de um aluno, ou fuzzy com
   margem insuficiente / mais de um candidato no limiar.
 - ``ARQUIVO_SEM_ALUNO``: nenhum candidato acima do limiar.
-- ``ALUNO_SEM_ARQUIVO``: aluno da sala sem nenhum arquivo associado.
+- ``ALUNO_SEM_ARQUIVO``: aluno da planilha sem nenhum arquivo associado.
 - ``SEM_CODIGO``: arquivo sem código no nome nem na pasta.
 - ``CODIGO_INVALIDO``: código extraído não existe no combo do site.
 - ``REVISAO_MANUAL``: casos que exigem revisão humana (duplicatas, conflitos, etc.)
@@ -59,7 +59,6 @@ from modulos.normalizacao import (
 class Aluno:
     nome: str
     email: str
-    sala: str
     creditos: int | None = None
 
     @property
@@ -161,25 +160,17 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
 
     idx_nome = find_col(cfg.coluna_nome)
     idx_email = find_col(cfg.coluna_email)
-    # Sala não é mais obrigatória — usar valor padrão "SEM_SALA" se não existir
-    try:
-        idx_sala = find_col("sala")
-    except PlanilhaError:
-        idx_sala = -1
+    # Só nome e e-mail são lidos; outras colunas da planilha são ignoradas.
 
     alunos = []
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
-        if len(row) <= max(idx_nome, idx_email, idx_sala if idx_sala >= 0 else 0):
+        if len(row) <= max(idx_nome, idx_email):
             continue
         nome = str(row[idx_nome]).strip() if row[idx_nome] else ""
         email = str(row[idx_email]).strip() if row[idx_email] else ""
-        if idx_sala >= 0 and len(row) > idx_sala:
-            sala = str(row[idx_sala]).strip() if row[idx_sala] else "SEM_SALA"
-        else:
-            sala = "SEM_SALA"
         if not nome or not email:
             continue
-        alunos.append(Aluno(nome=nome, email=email, sala=sala))
+        alunos.append(Aluno(nome=nome, email=email))
     return alunos
 
 

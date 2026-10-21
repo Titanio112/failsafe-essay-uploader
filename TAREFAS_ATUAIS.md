@@ -782,6 +782,96 @@ Dropped refs/stash@{0} (62f0fdfd1a4f5a05987f15b0a2a9c030a457eddd)
 $ python -m pytest tests/test_pos_f3.py -q -m "not real"   (T22)
 5 passed in 0.66s
 
+## T23 - Remove todos os restos de "sala" do código [x]
+- Decisão do Antônio (21/10): salas NUNCA existiram — foram alucinação do
+  Cline. Confirmação de produção = `ENVIAR`.
+- Restos encontrados (grep -i sala em modulos/, main.py, tests/):
+  - modulos/config.py:108 `cfg.coluna_sala` — campo não existe; com seção
+    `[planilha]` no config.ini dá AttributeError (testado).
+  - modulos/planilha_arquivos.py: campo `Aluno.sala`, leitura da coluna
+    "sala" com padrão "SEM_SALA", docstring "aluno da sala".
+  - modulos/estados.py: docstring "aluno da sala".
+  - modulos/progresso_relatorio.py: coluna "sala" no CSV e prefixo `[sala]`
+    na fila do dry-run.
+  - modulos/fluxo_envio_teste.py e main.py: `Aluno(..., sala="TESTE")`.
+  - tests/test_essenciais.py: coluna "sala" nas planilhas de teste e
+    filtros `a.sala == "A"` / `"TESTE"`; tests/test_identidade.py: `sala="TESTE"`.
+- Autorização (Antônio, 21/10): mexer em tests/test_essenciais.py só para
+  tirar a sala dos dados de teste, sem enfraquecer nenhum teste. Os filtros
+  por sala viram filtros pelos MESMOS nomes (mesmos subconjuntos de alunos).
+- Planilha real com coluna extra (ex.: "sala") continua sendo lida: coluna
+  ignorada. Teste novo garante isso e barra a palavra "sala" no código.
+- Fora de escopo: docs históricos (DECISOES_PENDENTES.md, INVENTARIO.md),
+  relatórios já gerados em relatorios/.
+- Feito: linha coluna_sala removida; Aluno = (nome, email, creditos);
+  carregar_alunos lê só nome/e-mail e ignora colunas extras; CSV sem coluna
+  "sala" e fila do dry-run sem prefixo `[sala]`; modo teste e main sem
+  sala="TESTE"; docstrings corrigidas. Testes: coluna "sala" tirada das
+  planilhas de teste; filtros `a.sala == "A"/"TESTE"` trocados por
+  NOMES_GRUPO_PRINCIPAL (Ana Lalara, Bruno, Diana — os mesmos da antiga "A")
+  e NOMES_CONTA_TESTE (Usuario Testes Ignorar). Mesma quantidade de testes
+  e de asserts (abaixo).
+- Pendência vista (fora de escopo): pyflakes acusa imports sem uso que já
+  existiam em main.py (32), planilha_arquivos.py (7) e vários testes.
+  tests/test_estatico.py passa assim mesmo. Nenhum aviso novo nesta tarefa.
+PROVA:
+$ python -m py_compile modulos/config.py modulos/planilha_arquivos.py modulos/estados.py modulos/progresso_relatorio.py modulos/fluxo_envio_teste.py main.py
+[exit 0]
+$ python -m pytest tests/test_sem_sala.py -v -m "not real"
+tests/test_sem_sala.py::test_codigo_nao_menciona_sala PASSED             [ 20%]
+tests/test_sem_sala.py::test_aluno_so_tem_nome_email_creditos PASSED     [ 40%]
+tests/test_sem_sala.py::test_config_ini_com_secao_planilha_nao_quebra PASSED [ 60%]
+tests/test_sem_sala.py::test_planilha_com_coluna_extra_e_lida_e_coluna_ignorada PASSED [ 80%]
+tests/test_sem_sala.py::test_relatorios_sem_sala PASSED                  [100%]
+============================== 5 passed in 0.55s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 61%]
+.............................................                            [100%]
+117 passed, 4 deselected, 8 warnings in 5.34s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat   (tests/test_sem_sala.py é novo/untracked e não aparece aqui)
+ TAREFAS_ATUAIS.md              | 22 ++++++++++++
+ main.py                        |  4 +--
+ modulos/config.py              |  1 -
+ modulos/estados.py             |  2 +-
+ modulos/fluxo_envio_teste.py   |  2 +-
+ modulos/planilha_arquivos.py   | 17 +++------
+ modulos/progresso_relatorio.py |  5 ++-
+ tests/test_essenciais.py       | 82 ++++++++++++++++++++++--------------------
+ tests/test_identidade.py       | 14 ++++----
+ 9 files changed, 83 insertions(+), 66 deletions(-)
+[exit 0]
+$ pyflakes: avisos por arquivo, HEAD x agora (sem avisos novos)
+modulos/config.py: HEAD=0 agora=0 novos=0
+modulos/planilha_arquivos.py: HEAD=7 agora=7 novos=0
+modulos/estados.py: HEAD=0 agora=0 novos=0
+modulos/progresso_relatorio.py: HEAD=0 agora=0 novos=0
+modulos/fluxo_envio_teste.py: HEAD=0 agora=0 novos=0
+main.py: HEAD=32 agora=32 novos=0
+tests/test_essenciais.py: HEAD=45 agora=45 novos=0
+tests/test_identidade.py: HEAD=7 agora=7 novos=0
+tests/test_sem_sala.py: [exit 0]
+$ testes e asserts em test_essenciais.py / test_identidade.py: HEAD x agora
+tests/test_essenciais.py: def test_ HEAD=50 agora=50 | assert HEAD=154 agora=154
+tests/test_identidade.py: def test_ HEAD=7 agora=7 | assert HEAD=22 agora=22
+$ git stash push -- modulos/config.py modulos/planilha_arquivos.py modulos/estados.py modulos/progresso_relatorio.py modulos/fluxo_envio_teste.py main.py
+Saved working directory and index state WIP on limpeza: 8b035fe docs: registra decisao 5.3 (confirmacao ENVIAR; salas nunca existiram)
+$ python -m pytest tests/test_sem_sala.py -q -m "not real"   (codigo de 8b035fe, com sala)
+FAILED tests/test_sem_sala.py::test_codigo_nao_menciona_sala - assert ['estad...
+FAILED tests/test_sem_sala.py::test_aluno_so_tem_nome_email_creditos - Assert...
+FAILED tests/test_sem_sala.py::test_config_ini_com_secao_planilha_nao_quebra
+FAILED tests/test_sem_sala.py::test_planilha_com_coluna_extra_e_lida_e_coluna_ignorada
+FAILED tests/test_sem_sala.py::test_relatorios_sem_sala - TypeError: Aluno.__...
+5 failed in 0.73s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (e7b12cdcf80cae0ddc08d4ddef383fbaf364f54f)
+$ python -m pytest tests/test_sem_sala.py -q -m "not real"   (T23)
+5 passed in 0.63s
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.

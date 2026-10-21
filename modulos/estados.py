@@ -8,7 +8,7 @@ Estados de cada arquivo conciliado:
 - ``AMBIGUO``: correspondência exata com mais de um aluno, ou fuzzy com
   margem insuficiente / mais de um candidato no limiar.
 - ``ARQUIVO_SEM_ALUNO``: nenhum candidato acima do limiar.
-- ``ALUNO_SEM_ARQUIVO``: aluno da sala sem nenhum arquivo associado.
+- ``ALUNO_SEM_ARQUIVO``: aluno da planilha sem nenhum arquivo associado.
 - ``SEM_CODIGO``: arquivo sem código no nome nem na pasta.
 - ``CODIGO_INVALIDO``: código extraído não existe no combo do site.
 - ``REVISAO_MANUAL``: casos que exigem revisão humana (duplicatas, conflitos, etc.)

@@ -45,6 +45,12 @@ from modulos.config import Config
 # Fixtures
 # =====================================================================
 
+# Subconjuntos de alunos usados nos testes de conciliação (mesmos alunos de antes:
+# T23 tirou a coluna "sala" dos dados de teste — salas nunca existiram no projeto).
+NOMES_GRUPO_PRINCIPAL = {"Ana Lalara Larili dos Larito", "Bruno Silva", "Diana Sem Arquivo"}
+NOMES_CONTA_TESTE = {"Usuario Testes Ignorar"}
+
+
 @pytest.fixture
 def planilha_temporaria():
     """Cria uma planilha XLSX temporária com alunos de teste (com linha de título na linha 1, header na linha 2)."""
@@ -55,13 +61,13 @@ def planilha_temporaria():
     # Linha 1: título (como na planilha real)
     ws.append(["Lista de Alunos"])
     # Linha 2: header
-    ws.append(["nome", "email", "sala"])
+    ws.append(["nome", "email"])
     # Linha 3+: dados
-    ws.append(["Ana Lalara Larili dos Larito", "anaclara@escola.com", "A"])
-    ws.append(["Bruno Silva", "bruno@escola.com", "A"])
-    ws.append(["Carlos Eduardo", "carlos@escola.com", "B"])
-    ws.append(["Usuario Testes Ignorar", "teste@esquema.com", "TESTE"])
-    ws.append(["Diana Sem Arquivo", "diana@escola.com", "A"])
+    ws.append(["Ana Lalara Larili dos Larito", "anaclara@escola.com"])
+    ws.append(["Bruno Silva", "bruno@escola.com"])
+    ws.append(["Carlos Eduardo", "carlos@escola.com"])
+    ws.append(["Usuario Testes Ignorar", "teste@esquema.com"])
+    ws.append(["Diana Sem Arquivo", "diana@escola.com"])
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     wb.save(tmp.name)
     tmp.close()
@@ -221,8 +227,8 @@ def db_temporario():
 
 def test_conciliacao_exato_unico(alunos_teste, arquivos_por_pasta):
     """Correspondência exata e única -> EXATO_UNICO."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
-    resultado = conciliar(alunos_sala_a, arquivos_por_pasta, codigos_site={"000", "001", "002", "003", "004"})
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
+    resultado = conciliar(alunos_grupo, arquivos_por_pasta, codigos_site={"000", "001", "002", "003", "004"})
     
     estados = {item.arquivo: item.estado for item in resultado.itens if item.arquivo}
     assert estados.get("Ana Lalara Larili dos Larito - Red.jpg") == EXATO_UNICO
@@ -231,8 +237,8 @@ def test_conciliacao_exato_unico(alunos_teste, arquivos_por_pasta):
 
 def test_conciliacao_sugestao_fuzzy(alunos_teste, arquivos_por_pasta):
     """Variação de nome -> SUGESTAO_FUZZY com pontuação, revisão humana obrigatória."""
-    alunos_sala_teste = [a for a in alunos_teste if a.sala == "TESTE"]
-    resultado = conciliar(alunos_sala_teste, arquivos_por_pasta, codigos_site={"000", "001", "002", "003", "004"})
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_CONTA_TESTE]
+    resultado = conciliar(alunos_grupo, arquivos_por_pasta, codigos_site={"000", "001", "002", "003", "004"})
     
     itens_fuzzy = [item for item in resultado.itens if item.estado == SUGESTAO_FUZZY]
     assert len(itens_fuzzy) >= 2
@@ -252,10 +258,10 @@ def test_conciliacao_ambiguo(planilha_temporaria):
     # Linha 1: título
     ws.append(["Lista de Alunos"])
     # Linha 2: header
-    ws.append(["nome", "email", "sala"])
+    ws.append(["nome", "email"])
     # Linha 3+: dados
-    ws.append(["Joao Silva", "joao1@escola.com", "A"])
-    ws.append(["Joao Silva", "joao2@escola.com", "A"])
+    ws.append(["Joao Silva", "joao1@escola.com"])
+    ws.append(["Joao Silva", "joao2@escola.com"])
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     wb.save(tmp.name)
     tmp.close()
@@ -284,7 +290,7 @@ def test_conciliacao_ambiguo(planilha_temporaria):
 
 def test_arquivo_sem_aluno(alunos_teste, planilha_temporaria):
     """Arquivo sem correspondência na planilha -> ARQUIVO_SEM_ALUNO."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
     pasta = tempfile.mkdtemp()
     subpasta = Path(pasta) / "005 - Outro"
     subpasta.mkdir()
@@ -296,7 +302,7 @@ def test_arquivo_sem_aluno(alunos_teste, planilha_temporaria):
         cfg.pasta_raiz = Path(pasta)
         cfg.extensoes = (".jpg", ".JPG")
         arquivos = descobrir_arquivos(cfg)
-        resultado = conciliar(alunos_sala_a, arquivos, codigos_site={"005"})
+        resultado = conciliar(alunos_grupo, arquivos, codigos_site={"005"})
         itens_sem = [item for item in resultado.itens if item.estado == ARQUIVO_SEM_ALUNO]
         assert len(itens_sem) == 1
     finally:
@@ -306,15 +312,15 @@ def test_arquivo_sem_aluno(alunos_teste, planilha_temporaria):
 
 def test_aluno_sem_arquivo(alunos_teste, arquivos_por_pasta):
     """Aluno da planilha sem arquivo -> ALUNO_SEM_ARQUIVO."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
-    resultado = conciliar(alunos_sala_a, arquivos_por_pasta, codigos_site={"000", "001", "002"})
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
+    resultado = conciliar(alunos_grupo, arquivos_por_pasta, codigos_site={"000", "001", "002"})
     itens_sem = [item for item in resultado.itens if item.estado == ALUNO_SEM_ARQUIVO]
     assert any(item.aluno and item.aluno.nome == "Diana Sem Arquivo" for item in itens_sem)
 
 
 def test_codigo_ausente_marcado_sem_codigo(alunos_teste, planilha_temporaria):
     """Arquivo sem código no nome nem na pasta -> SEM_CODIGO."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
     pasta = tempfile.mkdtemp()
     # Criar subpasta SEM código no nome
     subpasta = Path(pasta) / "Sem Codigo Tema"
@@ -327,7 +333,7 @@ def test_codigo_ausente_marcado_sem_codigo(alunos_teste, planilha_temporaria):
         cfg.pasta_raiz = Path(pasta)
         cfg.extensoes = (".jpg", ".JPG")
         arquivos = descobrir_arquivos(cfg)
-        resultado = conciliar(alunos_sala_a, arquivos, codigos_site=set())
+        resultado = conciliar(alunos_grupo, arquivos, codigos_site=set())
         itens_sem = [item for item in resultado.itens if item.estado == SEM_CODIGO]
         assert len(itens_sem) == 1
     finally:
@@ -337,7 +343,7 @@ def test_codigo_ausente_marcado_sem_codigo(alunos_teste, planilha_temporaria):
 
 def test_codigo_invalido_marcado_codigo_invalido(alunos_teste, planilha_temporaria):
     """Código extraído não existe no combo do site -> CODIGO_INVALIDO."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
     pasta = tempfile.mkdtemp()
     subpasta = Path(pasta) / "999 - Invalido"
     subpasta.mkdir()
@@ -349,7 +355,7 @@ def test_codigo_invalido_marcado_codigo_invalido(alunos_teste, planilha_temporar
         cfg.pasta_raiz = Path(pasta)
         cfg.extensoes = (".jpg", ".JPG")
         arquivos = descobrir_arquivos(cfg)
-        resultado = conciliar(alunos_sala_a, arquivos, codigos_site={"000", "001"})
+        resultado = conciliar(alunos_grupo, arquivos, codigos_site={"000", "001"})
         itens_inv = [item for item in resultado.itens if item.estado == CODIGO_INVALIDO]
         assert len(itens_inv) == 1
     finally:
@@ -357,7 +363,7 @@ def test_codigo_invalido_marcado_codigo_invalido(alunos_teste, planilha_temporar
         shutil.rmtree(pasta)
 def test_dois_arquivos_mesmo_tema_mesmo_aluno_revisao_manual(alunos_teste, planilha_temporaria):
     """Dois arquivos do mesmo aluno com mesmo código -> ambos REVISAO_MANUAL."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
     pasta = tempfile.mkdtemp()
     subpasta = Path(pasta) / "000 - Narração"
     subpasta.mkdir()
@@ -370,7 +376,7 @@ def test_dois_arquivos_mesmo_tema_mesmo_aluno_revisao_manual(alunos_teste, plani
         cfg.pasta_raiz = Path(pasta)
         cfg.extensoes = (".jpg", ".JPG")
         arquivos = descobrir_arquivos(cfg)
-        resultado = conciliar(alunos_sala_a, arquivos, codigos_site={"000"})
+        resultado = conciliar(alunos_grupo, arquivos, codigos_site={"000"})
         itens_rev = [item for item in resultado.itens if item.estado == REVISAO_MANUAL]
         assert len(itens_rev) == 2
         for item in itens_rev:
@@ -382,7 +388,7 @@ def test_dois_arquivos_mesmo_tema_mesmo_aluno_revisao_manual(alunos_teste, plani
 
 def test_conflito_pasta_arquivo_revisao_manual(alunos_teste, planilha_temporaria):
     """Arquivo tem código 001, pasta tem 002 -> REVISAO_MANUAL."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
     pasta = tempfile.mkdtemp()
     subpasta = Path(pasta) / "002 - Outro Tema"
     subpasta.mkdir()
@@ -394,7 +400,7 @@ def test_conflito_pasta_arquivo_revisao_manual(alunos_teste, planilha_temporaria
         cfg.pasta_raiz = Path(pasta)
         cfg.extensoes = (".jpg", ".JPG")
         arquivos = descobrir_arquivos(cfg)
-        resultado = conciliar(alunos_sala_a, arquivos, codigos_site={"000", "001", "002"})
+        resultado = conciliar(alunos_grupo, arquivos, codigos_site={"000", "001", "002"})
         itens_rev = [item for item in resultado.itens if item.estado == REVISAO_MANUAL]
         assert len(itens_rev) == 1
     finally:
@@ -402,8 +408,8 @@ def test_conflito_pasta_arquivo_revisao_manual(alunos_teste, planilha_temporaria
         shutil.rmtree(pasta)
 def test_nao_jpg_ignorado_com_aviso(alunos_teste, arquivos_por_pasta, capsys):
     """Arquivos .jpeg, .pdf etc. são ignorados com [AVISO] no terminal e log."""
-    alunos_sala_a = [a for a in alunos_teste if a.sala == "A"]
-    resultado = conciliar(alunos_sala_a, arquivos_por_pasta, codigos_site={"000", "001", "002", "005", "006"})
+    alunos_grupo = [a for a in alunos_teste if a.nome in NOMES_GRUPO_PRINCIPAL]
+    resultado = conciliar(alunos_grupo, arquivos_por_pasta, codigos_site={"000", "001", "002", "005", "006"})
     arquivos_processados = [item.arquivo for item in resultado.itens if item.arquivo]
     assert "005 - Teste.jpeg" not in arquivos_processados
     assert "006 - Teste.pdf" not in arquivos_processados
@@ -424,7 +430,7 @@ def test_modo_teste_recusa_outros_emails(alunos_teste):
 def test_retomada_enviando_sem_duplicar(db_temporario):
     """Se estado ENVIANDO existe no SQLite, não reenviar na retomada."""
     prog = Progresso(db_temporario)
-    aluno = Aluno(nome="Ana Lalara", email="ana@teste.com", sala="A")
+    aluno = Aluno(nome="Ana Lalara", email="ana@teste.com")
     prog.marcar(aluno.id, "teste.jpg", "ENVIANDO")
     existing = prog.obter(aluno.id, "teste.jpg")
     assert existing is not None
@@ -441,7 +447,7 @@ def test_bloqueio_envio_dry_run():
 def test_limite_4_envios_por_aluno(db_temporario):
     """Limite de 4 envios por aluno em produção (configurável em teste)."""
     prog = Progresso(db_temporario)
-    aluno = Aluno(nome="Ana Lalara", email="ana@teste.com", sala="A")
+    aluno = Aluno(nome="Ana Lalara", email="ana@teste.com")
     from modulos.progresso_relatorio import LimiteEnvios
     # Registrar 4 envios usando registrar_envio (que insere na tabela envios)
     for i in range(4):
@@ -487,7 +493,7 @@ def test_launch():
             assert "/minhas-redacoes" in page.url
             
             from modulos.planilha_arquivos import Aluno
-            aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE")
+            aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email)
             confirmar_identidade(page, aluno_teste)
             
             lista = ler_lista_redacoes(page)
@@ -817,8 +823,8 @@ def test_carregar_alunos_header_na_linha_1_sem_titulo(config_teste, tmp_path):
     ws = wb.active
     ws.title = "Alunos"
     # Linha 1: header direto (sem título)
-    ws.append(["nome", "email", "sala"])
-    ws.append(["Aluno Teste", "teste@escola.com", "A"])
+    ws.append(["nome", "email"])
+    ws.append(["Aluno Teste", "teste@escola.com"])
     
     tmp = tmp_path / "sem_titulo.xlsx"
     wb.save(tmp)
@@ -843,7 +849,7 @@ def test_carregar_alunos_erro_sem_colunas_obrigatorias(config_teste, tmp_path):
     ws.title = "Alunos"
     # Header sem nome/email
     ws.append(["aluno", "e-mail", "turma"])
-    ws.append(["Aluno Teste", "teste@escola.com", "A"])
+    ws.append(["Aluno Teste", "teste@escola.com"])
     
     tmp = tmp_path / "sem_colunas.xlsx"
     wb.save(tmp)
@@ -1055,7 +1061,7 @@ def test_confirmar_identidade_sucesso_simulado():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     # Mock verificar_dominio_autorizado
     original_verificar = login_module.verificar_dominio_autorizado
@@ -1107,7 +1113,7 @@ def test_confirmar_identidade_falha_simulado():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     # Mock verificar_dominio_autorizado
     original_verificar = login_module.verificar_dominio_autorizado
@@ -1155,7 +1161,7 @@ def test_confirmar_identidade_nao_encontrado_simulado():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     # Mock verificar_dominio_autorizado
     original_verificar = login_module.verificar_dominio_autorizado
@@ -1211,7 +1217,7 @@ def test_real_leitura_conta_teste():
             from modulos.formulario_envio import abrir_formulario_envio, ler_combo_temas
             from modulos.planilha_arquivos import Aluno
             login(page, cfg, email, senha)
-            confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email, sala="TESTE"))
+            confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email))
             lista = ler_lista_redacoes(page)
             assert isinstance(lista, list)
             abrir_formulario_envio(page)
@@ -1270,7 +1276,7 @@ def test_real_leitura_conta_teste():
             print(f"[LOG] Login realizado: {email_mascarado}")
             
             # 2. Confirmar identidade
-            aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email_teste, sala="TESTE")
+            aluno_teste = Aluno(nome="Usuario Testes Ignorar", email=email_teste)
             confirmado = confirmar_identidade(page, aluno_teste, modo_teste=True)
             assert confirmado, "Identidade não confirmada"
             print(f"[LOG] Identidade confirmada: Usuario Testes Ignorar")

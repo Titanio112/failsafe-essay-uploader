@@ -52,7 +52,7 @@ def test_confirmar_identidade_sucesso():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     # Mock verificar_dominio_autorizado
     original_verificar = login_module.verificar_dominio_autorizado
@@ -77,7 +77,7 @@ def test_confirmar_identidade_sucesso():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     # Mock verificar_dominio_autorizado
     original_verificar = login_module.verificar_dominio_autorizado
@@ -129,7 +129,7 @@ def test_confirmar_identidade_acentos_maiusculas():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     original_verificar = login_module.verificar_dominio_autorizado
     login_module.verificar_dominio_autorizado = MagicMock()
@@ -171,7 +171,7 @@ def test_confirmar_identidade_elemento_ausente():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     original_verificar = login_module.verificar_dominio_autorizado
     login_module.verificar_dominio_autorizado = MagicMock()
@@ -220,7 +220,7 @@ def test_confirmar_identidade_texto_vazio():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     original_verificar = login_module.verificar_dominio_autorizado
     login_module.verificar_dominio_autorizado = MagicMock()
@@ -276,7 +276,7 @@ def test_confirmar_identidade_fallback():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     original_verificar = login_module.verificar_dominio_autorizado
     login_module.verificar_dominio_autorizado = MagicMock()
@@ -329,7 +329,7 @@ def test_confirmar_identidade_nome_diferente():
 
     page.locator.side_effect = locator_side_effect
 
-    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com", sala="TESTE")
+    aluno = Aluno(nome="Usuario Testes Ignorar", email="teste@esquema.com")
 
     original_verificar = login_module.verificar_dominio_autorizado
     login_module.verificar_dominio_autorizado = MagicMock()
