@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 from modulos.progresso_relatorio import (
-    ENVIADO, ERRO, REVISAO_MANUAL, Progresso
+    ENVIADO, ERRO, JA_ENVIADO, REVISAO_MANUAL, Progresso
 )
 from modulos.config import Config
 
@@ -58,24 +58,24 @@ class TestFailClosedPosClique:
     def mocks_completos(self, codigo_tema):
         """Configura todos os mocks necessários para executar_envio_teste."""
         with patch("modulos.fluxo_envio_teste.sync_playwright") as mock_pw, \
-             patch("builtins.input", return_value="ENVIAR TESTE"), \
+             patch("builtins.input", return_value="ENVIAR TESTE") as mock_input, \
              patch("modulos.fluxo_envio_teste.obter_email_teste", return_value="teste@teste.com"), \
              patch("modulos.fluxo_envio_teste.obter_senha", return_value="senha123"), \
-             patch("modulos.fluxo_envio_teste.descobrir_arquivos", autospec=True, return_value={"0": ["redacao_0.jpg"]}), \
+             patch("modulos.fluxo_envio_teste.descobrir_arquivos", autospec=True, return_value={"0": ["redacao_0.jpg"]}) as mock_descobrir, \
              patch("modulos.fluxo_envio_teste.verificar_dominio_autorizado", autospec=True) as mock_dominio, \
              patch("modulos.fluxo_envio_teste.login", autospec=True) as mock_login, \
              patch("modulos.fluxo_envio_teste.confirmar_identidade", autospec=True) as mock_identidade, \
-             patch("modulos.fluxo_envio_teste.ler_saldo_creditos", autospec=True) as mock_saldo, \
-             patch("modulos.fluxo_envio_teste.ler_lista_redacoes", autospec=True) as mock_lista, \
-             patch("modulos.fluxo_envio_teste.detectar_ja_enviado", autospec=True) as mock_dup, \
-             patch("modulos.fluxo_envio_teste.abrir_formulario_envio", autospec=True) as mock_abrir, \
-             patch("modulos.fluxo_envio_teste.ler_combo_temas", autospec=True) as mock_combo, \
-             patch("modulos.fluxo_envio_teste.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
-             patch("modulos.fluxo_envio_teste.selecionar_criterio", autospec=True) as mock_sel_crit, \
-             patch("modulos.fluxo_envio_teste.anexar_arquivo", autospec=True) as mock_anexar, \
-             patch("modulos.fluxo_envio_teste.aguardar_upload_aceito", autospec=True) as mock_upload, \
-             patch("modulos.fluxo_envio_teste.clicar_enviar", autospec=True) as mock_clicar, \
-             patch("modulos.fluxo_envio_teste.aguardar_confirmacao", autospec=True) as mock_confirma, \
+             patch("modulos.envio_teste_item.ler_saldo_creditos", autospec=True) as mock_saldo, \
+             patch("modulos.envio_teste_item.ler_lista_redacoes", autospec=True) as mock_lista, \
+             patch("modulos.envio_teste_item.detectar_ja_enviado", autospec=True) as mock_dup, \
+             patch("modulos.envio_teste_item.abrir_formulario_envio", autospec=True) as mock_abrir, \
+             patch("modulos.envio_teste_item.ler_combo_temas", autospec=True) as mock_combo, \
+             patch("modulos.envio_teste_item.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
+             patch("modulos.envio_teste_item.selecionar_criterio", autospec=True) as mock_sel_crit, \
+             patch("modulos.envio_teste_item.anexar_arquivo", autospec=True) as mock_anexar, \
+             patch("modulos.envio_teste_item.aguardar_upload_aceito", autospec=True) as mock_upload, \
+             patch("modulos.envio_teste_item.clicar_enviar", autospec=True) as mock_clicar, \
+             patch("modulos.envio_teste_item.aguardar_confirmacao", autospec=True) as mock_confirma, \
              patch("modulos.fluxo_envio_teste.logout", autospec=True) as mock_logout:
 
             # Configurar playwright mock
@@ -119,6 +119,8 @@ class TestFailClosedPosClique:
                 "clicar": mock_clicar,
                 "confirma": mock_confirma,
                 "logout": mock_logout,
+                "input": mock_input,
+                "descobrir": mock_descobrir,
             }
 
     def _ler_estado_banco(self, progresso, aluno_id, arquivo):
@@ -314,6 +316,77 @@ class TestFailClosedPosClique:
         assert "Tema selecionado diferente" in estado["detalhe"]
         assert self._contar_clicar_enviar(mocks) == 0
         assert mocks["anexar"].call_count == 0
+
+    # ---- Fila com vários itens (T21) ----
+
+    def _fila_dois_itens(self, cfg, mocks):
+        """Itens: tema "0" (redacao_0.jpg) e tema "00" (redacao_00.jpg)."""
+        (cfg.pasta_raiz / "00").mkdir()
+        (cfg.pasta_raiz / "00" / "redacao_00.jpg").write_bytes(b"jpg-falso")
+        mocks["descobrir"].return_value = {"0": ["redacao_0.jpg"], "00": ["redacao_00.jpg"]}
+        mocks["combo"].return_value = [("0", "0 - Tema Teste"), ("00", "00 - Outro")]
+
+    def test_fila_pula_ja_enviado_e_envia_o_proximo(
+        self, progresso_mock, cfg, arquivo_teste, mocks_completos
+    ):
+        """T21: 1º já enviado hoje -> pula e segue; 2º é enviado; 1 confirmação só"""
+        mocks = mocks_completos
+        self._fila_dois_itens(cfg, mocks)
+        mocks["dup"].side_effect = [(True, "21/10/2026"), (False, "")]
+        mocks["page"].locator.return_value.first.inner_text.return_value = "00 - Outro"
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 0
+
+        assert mocks["input"].call_count == 1
+        assert self._contar_clicar_enviar(mocks) == 1
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == JA_ENVIADO
+        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg")
+        assert estado["estado"] == ENVIADO
+        assert estado["pasta"] == "00"
+
+    def test_fila_para_no_primeiro_inconclusivo(
+        self, progresso_mock, cfg, arquivo_teste, mocks_completos
+    ):
+        """T21: 1º fica REVISAO_MANUAL -> execução para; 2º nem é tentado"""
+        mocks = mocks_completos
+        self._fila_dois_itens(cfg, mocks)
+        mocks["confirma"].return_value = False
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 1
+
+        assert self._contar_clicar_enviar(mocks) == 1
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == REVISAO_MANUAL
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg") is None
+
+    def test_fila_para_no_primeiro_erro_pre_clique(
+        self, progresso_mock, cfg, arquivo_teste, mocks_completos
+    ):
+        """T21: 1º com código fora do combo -> ERRO, execução para, 0 cliques"""
+        mocks = mocks_completos
+        self._fila_dois_itens(cfg, mocks)
+        mocks["combo"].return_value = [("00", "00 - Outro")]  # "0" não existe
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 1
+
+        assert self._contar_clicar_enviar(mocks) == 0
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == ERRO
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg") is None
+
+    def test_fila_cancelada_nao_faz_login(
+        self, progresso_mock, cfg, mocks_completos
+    ):
+        """T21: texto diferente de ENVIAR TESTE -> retorna 2, sem login, sem clique"""
+        mocks = mocks_completos
+        mocks["input"].return_value = "enviar teste"
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 2
+
+        assert mocks["login"].call_count == 0
+        assert self._contar_clicar_enviar(mocks) == 0
 
     # ---- Caso SUCESSO ----
 

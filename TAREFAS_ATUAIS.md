@@ -594,6 +594,94 @@ Banco (leitura somente, modulos/relatorios/progresso.db):
 Nenhum clique: o fluxo retorna antes de abrir o formulário.
 - Fora de escopo: produção, outras contas.
 
+## T21 - F3: modo teste percorre todos os arquivos de teste [x]
+- Pedido do Antônio (21/10): em vez de parar no 1º arquivo (já enviado -> pula
+  e termina), seguir para os próximos e enviar os liberados.
+- Decisões do Antônio (21/10):
+  - todos os liberados numa execução, um de cada vez, cada um esperando o
+    Pendente; qualquer problema (ERRO ou REVISAO_MANUAL) para a execução toda;
+  - ENVIAR TESTE digitado uma vez para a lista inteira, que é mostrada antes.
+- Regras mantidas: mesmo dia + mesmo tema no site = JA_ENVIADO (pula e segue);
+  1 arquivo por código por execução — no modo teste todos os arquivos são do
+  mesmo aluno virtual, então só o 1º arquivo (ordem alfabética) de cada código
+  entra; os demais ficam fora da fila (código repetido -> revisão manual);
+  pasta sem código fica fora. Nenhum retry, nenhum 2º clique no mesmo item.
+- Arquivos: modulos/fluxo_envio_teste.py (orquestra), novos
+  modulos/fila_teste.py (monta a fila) e modulos/envio_teste_item.py
+  (envio de 1 item, com o fail-closed da T18B–T18D), testes, TAREFAS_ATUAIS.md.
+- Fora de escopo: produção, RAIZ, fallback por value, main.py.
+- Feito: fluxo_envio_teste.py (300 -> 127 linhas) monta a fila, mostra a
+  lista, pede ENVIAR TESTE uma vez, faz login uma vez e chama
+  enviar_item_teste para cada item; para no 1º estado que não seja
+  ENVIADO/JA_ENVIADO. O fail-closed de cada item (T18B–T18D) foi movido sem
+  mudança de regra para envio_teste_item.py. Com a pasta de teste atual a
+  fila é: 0/01..., 00/004..., 000/0001... (5 arquivos ficam fora por código repetido).
+- Limite da prova com stash: com o fluxo antigo, os patches de
+  envio_teste_item não se aplicam; os 2 testes que "passam" ali passam
+  porque o fluxo antigo para antes de clicar, não porque percorre a fila.
+- Pendência vista no caminho (fora de escopo): o bloco `if __name__ == "__main__"`
+  de fluxo_envio_teste.py usa `from progresso_relatorio import` sem `modulos.`.
+PROVA:
+$ python -m py_compile modulos/fluxo_envio_teste.py modulos/envio_teste_item.py modulos/fila_teste.py
+[exit 0]
+$ python -m pyflakes modulos/fluxo_envio_teste.py modulos/envio_teste_item.py modulos/fila_teste.py tests/test_fila_teste.py tests/test_fluxo_envio_teste_fail_closed.py
+[exit 0]
+$ python -m pytest tests/test_fila_teste.py tests/test_fluxo_envio_teste_fail_closed.py -v -m "not real"
+tests/test_fila_teste.py::test_layout_da_pasta_de_teste PASSED           [  5%]
+tests/test_fila_teste.py::test_pasta_sem_codigo_fica_fora PASSED         [ 10%]
+tests/test_fila_teste.py::test_arquivo_inexistente_fica_fora_e_proximo_do_codigo_entra PASSED [ 15%]
+tests/test_fila_teste.py::test_codigos_sao_strings_distintas PASSED      [ 20%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_retorna_false_revisao_manual PASSED [ 25%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_confirmacao_inconclusiva_revisao_manual PASSED [ 30%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_clicar_enviar_levanta_captcha_bloqueio_revisao_manual PASSED [ 35%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_exception_generica_revisao_manual PASSED [ 40%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_falha_antes_do_clique_saldo_indisponivel_erro PASSED [ 45%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_falha_antes_do_clique_codigo_invalido_erro PASSED [ 50%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_criterio_e_anexo_com_argumentos_corretos PASSED [ 55%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_arquivo_inexistente_aborta_sem_login PASSED [ 60%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_upload_nao_aceito_erro_sem_clique PASSED [ 65%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_tema_nao_selecionado_erro_sem_clique PASSED [ 70%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_tema_selecionado_diferente_erro_sem_clique PASSED [ 75%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_pula_ja_enviado_e_envia_o_proximo PASSED [ 80%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_para_no_primeiro_inconclusivo PASSED [ 85%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_para_no_primeiro_erro_pre_clique PASSED [ 90%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_cancelada_nao_faz_login PASSED [ 95%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_confirmacao_ok_enviado PASSED [100%]
+============================= 20 passed in 1.57s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 67%]
+...................................                                      [100%]
+107 passed, 4 deselected, 8 warnings in 5.21s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat   (arquivos novos são untracked e não aparecem aqui)
+ TAREFAS_ATUAIS.md                           |  17 ++
+ modulos/fluxo_envio_teste.py                | 240 ++++------------------------
+ tests/test_fluxo_envio_teste_fail_closed.py | 101 ++++++++++--
+ 3 files changed, 138 insertions(+), 220 deletions(-)
+[exit 0]
+$ git status --short
+ M TAREFAS_ATUAIS.md
+ M modulos/fluxo_envio_teste.py
+ M tests/test_fluxo_envio_teste_fail_closed.py
+?? modulos/envio_teste_item.py
+?? modulos/fila_teste.py
+?? tests/test_fila_teste.py
+[exit 0]
+$ git stash push -- modulos/fluxo_envio_teste.py
+Saved working directory and index state WIP on limpeza: c3ffcd8 T20: registra prova de reexecucao idempotente e andamento da T19
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real" -k fila   (fluxo de c3ffcd8: só o 1º arquivo)
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_pula_ja_enviado_e_envia_o_proximo
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_fila_para_no_primeiro_inconclusivo
+2 failed, 2 passed, 12 deselected in 1.01s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (e84272aef1725e0f9b1f88ccada1606bdc4803fa)
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real" -k fila   (T21)
+4 passed, 12 deselected in 0.92s
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
