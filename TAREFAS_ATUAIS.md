@@ -558,15 +558,40 @@ $ git status --short
   "Processando arquivo" e depois "Pendente".
 - PROVA: (colar aqui a saída do terminal + a situação vista no site)
 - Fora de escopo: retry automático, 2º envio na mesma execução, alunos reais.
+- Andamento (21/10, ainda [ ]):
+  - 1ª execução 18:28: TypeError em selecionar_criterio antes do clique;
+    nada enviado; banco ERRO. Corrigido na T18D.
+  - 2ª execução 18:38: envio feito. Site /minhas-redacoes (print do Antônio):
+    21/10/2026 | 0- Narração | 0.0 | Pendente | Aguarde a correção; saldo 999 -> 998.
+    Confirmação automática quebrou após o clique (ModuleNotFoundError);
+    banco REVISAO_MANUAL, sem reenvio. Corrigido na T18E.
+  - Falta: ver a confirmação automática (Pendente) funcionando no script,
+    num envio novo de outro tema/arquivo, para fechar a T19.
 
-## T20 - F3: reexecução idempotente [ ]
+## T20 - F3: reexecução idempotente [x]
 - Objetivo: rodar de novo com os mesmos arquivos e confirmar que todos são pulados como duplicados (mesmo dia + mesmo tema).
 - Arquivos que PODE mexer: nenhum (Antônio executa; o Cline só lê a saída).
 - Arquivos que NÃO pode mexer: todos.
 - Comando de verificação (Antônio roda e cola):
   python main.py --modo-teste --envio-real
   (saída: item(ns) marcados JA_ENVIADO / pulados; nenhum novo clique)
-- PROVA: (colar aqui a saída)
+- PROVA (execução do Antônio, 21/10/2026 18:53, após T18E commit ff392b1):
+PS ...\automacao-redacoes> python main.py --modo-teste --envio-real
+2026-10-21 18:53:45,431 INFO Modo teste: processando aluno virtual Usuario Testes Ignorar
+Pastas de temas: 3 | JPGs encontrados: 8
+(... resumo da conciliação igual ao da T19 ...)
+Arquivo: 01Usuario Testes Ignorar.jpg
+Codigo do tema: 0
+Conta: ***
+
+Digite ENVIAR TESTE para confirmar (qualquer outro texto cancela): ENVIAR TESTE
+2026-10-21 18:54:08,531 INFO Fazendo login com conta de teste...
+2026-10-21 18:54:14,586 INFO Login realizado: ***
+2026-10-21 18:54:16,674 INFO Tema 0 ja enviado em 21/10/2026. Pulando.
+
+Banco (leitura somente, modulos/relatorios/progresso.db):
+('teste@example.com', '01Usuario Testes Ignorar.jpg', '0', 'JA_ENVIADO', 'Ja enviado na lista remota', '2026-10-21T21:54:16+00:00')
+Nenhum clique: o fluxo retorna antes de abrir o formulário.
 - Fora de escopo: produção, outras contas.
 
 ---
