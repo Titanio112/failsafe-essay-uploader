@@ -226,7 +226,7 @@ Legenda das verificações: "0 ocorrências" = rodar Select-String e colar saíd
   Saldo não foi medido nesta execução; sem submissão, não houve consumo esperado
 - Fora de escopo: inventar seletor não observado em T17. Sem evidência suficiente: registrar em DECISOES_PENDENTES.md e PARAR.
 
-## T18B - F3: fail-closed após tentativa de envio [x]
+## T18B - F3: fail-closed após tentativa de envio [x] (corrigida na T18C)
 - Objetivo: depois de iniciar a tentativa de clique em "Enviar resposta",
   qualquer resultado inconclusivo deve registrar REVISAO_MANUAL,
   sem retry automático.
@@ -313,6 +313,79 @@ git log --oneline -1
   - alterar `tests/test_essenciais.py`;
   - criar qualquer outro arquivo além de
     `tests/test_fluxo_envio_teste_fail_closed.py`.
+- Reaberta: bug de ordem de argumentos em marcar() nos ramos Captcha/Exception; corrigido na T18C.
+
+## T18C - F3: corrige ordem de argumentos de marcar e torna o teste fail-closed real [x]
+- Objetivo: nos ramos `except CaptchaOuBloqueio` e `except Exception` de
+  `executar_envio_teste`, `progresso.marcar()` recebia
+  (aluno_id, arquivo, codigo_tema, estado) em vez de
+  (aluno_id, arquivo, estado, pasta=codigo_tema), gravando estado="0".
+  Corrigir a chamada e fazer o teste ler o estado real do banco (7 casos).
+- Arquivos mexidos:
+  modulos/fluxo_envio_teste.py
+  tests/test_fluxo_envio_teste_fail_closed.py
+  TAREFAS_ATUAIS.md
+- Nenhum teste real, nenhum main.py, nenhum login, nenhum clique de envio.
+PROVA (passo 2 - verificação, código corrigido):
+$ python -m py_compile modulos/fluxo_envio_teste.py
+[exit 0]
+$ python -m pyflakes modulos/fluxo_envio_teste.py tests/test_fluxo_envio_teste_fail_closed.py
+[exit 0]
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -v -m "not real"
+collecting ... collected 7 items
+
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_retorna_false_revisao_manual PASSED [ 14%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_confirmacao_inconclusiva_revisao_manual PASSED [ 28%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_clicar_enviar_levanta_captcha_bloqueio_revisao_manual PASSED [ 42%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_exception_generica_revisao_manual PASSED [ 57%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_falha_antes_do_clique_saldo_indisponivel_erro PASSED [ 71%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_falha_antes_do_clique_codigo_invalido_erro PASSED [ 85%]
+tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_confirmacao_ok_enviado PASSED [100%]
+
+============================== 7 passed in 0.87s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 84%]
+.............                                                            [100%]
+(8 warnings de test_essenciais.py:192 - arquivos .jpeg/.pdf ignorados, esperados)
+85 passed, 4 deselected, 8 warnings in 4.24s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat
+ modulos/fluxo_envio_teste.py                |   4 +-
+ tests/test_fluxo_envio_teste_fail_closed.py | 286 ++++++++++++++++++++--------
+ 2 files changed, 206 insertions(+), 84 deletions(-)
+[exit 0]
+
+PROVA (passo 3 - o teste pega o bug):
+$ git stash push -- modulos/fluxo_envio_teste.py
+Saved working directory and index state WIP on limpeza: c00d208 T18B: fail-closed após tentativa de envio
+[exit 0]
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -v -m "not real"   (código com o bug, versão c00d208)
+>       assert estado["estado"] == REVISAO_MANUAL
+E       AssertionError: assert '0' == 'REVISAO_MANUAL'
+E         
+E         - REVISAO_MANUAL
+E         + 0
+
+tests\test_fluxo_envio_teste_fail_closed.py:191: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_clicar_enviar_levanta_captcha_bloqueio_revisao_manual
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_exception_generica_revisao_manual
+========================= 2 failed, 5 passed in 1.09s =========================
+[exit 1]
+$ git stash pop
+	modified:   modulos/fluxo_envio_teste.py
+	modified:   tests/test_fluxo_envio_teste_fail_closed.py
+Dropped refs/stash@{0} (8cd5489fa238c1be846c1b4b96c8dca0201bff53)
+[exit 0]
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -v -m "not real"   (código corrigido restaurado)
+============================== 7 passed in 0.95s ==============================
+[exit 0]
+$ git status --short
+ M modulos/fluxo_envio_teste.py
+ M tests/test_fluxo_envio_teste_fail_closed.py
 
 ## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
 - Objetivo: cumprir o critério de pronto da F3 na conta de teste.

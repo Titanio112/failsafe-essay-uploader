@@ -205,8 +205,8 @@ def executar_envio_teste(
                 progresso.marcar(
                     aluno_teste.id,
                     arquivo,
-                    codigo_tema,
                     estado,
+                    pasta=codigo_tema,
                     detalhe=f"Captcha/bloqueio: {e}",
                 )
             return 1
@@ -228,8 +228,8 @@ def executar_envio_teste(
                 progresso.marcar(
                     aluno_teste.id,
                     arquivo,
-                    codigo_tema,
                     estado,
+                    pasta=codigo_tema,
                     detalhe=f"Excecao: {type(e).__name__}",
                 )
             return 1
