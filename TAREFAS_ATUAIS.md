@@ -547,7 +547,7 @@ $ git status --short
  M modulos/lista_redacoes.py
 ?? tests/test_lista_redacoes_layout_real.py
 
-## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
+## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [x]
 - Objetivo: cumprir o critério de pronto da F3 na conta de teste.
 - Arquivos que PODE mexer: nenhum (o Cline só apoia; quem executa é o Antônio).
 - Arquivos que NÃO pode mexer: todos — proibido o Cline digitar ENVIAR TESTE ou clicar.
@@ -567,6 +567,37 @@ $ git status --short
     banco REVISAO_MANUAL, sem reenvio. Corrigido na T18E.
   - Falta: ver a confirmação automática (Pendente) funcionando no script,
     num envio novo de outro tema/arquivo, para fechar a T19.
+  - 3ª execução 19:03 (após T21, commit 6ad08a4): fechou a T19.
+PROVA (execução do Antônio, 21/10/2026 19:03):
+PS ...\automacao-redacoes> python main.py --modo-teste --envio-real
+(... conciliação igual às anteriores ...)
+2026-10-21 19:03:55,281 WARNING Fora da fila: 0/02Usuario Testes .jpg (codigo 0 repetido (revisao manual))
+2026-10-21 19:03:55,281 WARNING Fora da fila: 0/03Usuario Testes Ignorar.jpg (codigo 0 repetido (revisao manual))
+2026-10-21 19:03:55,281 WARNING Fora da fila: 0/04Usuario Testes Ignorar.jpg (codigo 0 repetido (revisao manual))
+2026-10-21 19:03:55,281 WARNING Fora da fila: 0/05Usuario Testes Ignorar.jpg (codigo 0 repetido (revisao manual))
+2026-10-21 19:03:55,281 WARNING Fora da fila: 00/005Usuario Ignorar.jpg (codigo 00 repetido (revisao manual))
+Conta: ***
+Fila de teste (3), na ordem; ja enviados hoje serao pulados:
+  1. tema 0: 0/01Usuario Testes Ignorar.jpg
+  2. tema 00: 00/004Usuario Ignorar.jpg
+  3. tema 000: 000/0001Usuario Testes Ignorar.jpg
+Qualquer erro ou resultado inconclusivo para a execucao.
+
+Digite ENVIAR TESTE para confirmar a fila (qualquer outro texto cancela): ENVIAR TESTE
+2026-10-21 19:04:40,762 INFO Fazendo login com conta de teste...
+2026-10-21 19:04:46,773 INFO Login realizado: ***
+2026-10-21 19:04:46,801 INFO Item 1/3: tema 0 (01Usuario Testes Ignorar.jpg)
+2026-10-21 19:04:48,691 INFO Tema 0 ja enviado em 21/10/2026. Pulando.
+2026-10-21 19:04:48,699 INFO Item 2/3: tema 00 (004Usuario Ignorar.jpg)
+2026-10-21 19:04:58,305 INFO Envio confirmado: tema 00 -> Pendente
+2026-10-21 19:04:58,314 INFO Item 3/3: tema 000 (0001Usuario Testes Ignorar.jpg)
+2026-10-21 19:05:07,614 INFO Envio confirmado: tema 000 -> Pendente
+2026-10-21 19:05:07,623 INFO Fila de teste concluida (3 item(ns)).
+
+Banco (leitura somente, modulos/relatorios/progresso.db):
+('teste@example.com', '0001Usuario Testes Ignorar.jpg', '000', 'ENVIADO', 'Confirmado na lista remota', '2026-10-21T22:05:07+00:00')
+('teste@example.com', '004Usuario Ignorar.jpg', '00', 'ENVIADO', 'Confirmado na lista remota', '2026-10-21T22:04:58+00:00')
+('teste@example.com', '01Usuario Testes Ignorar.jpg', '0', 'JA_ENVIADO', 'Ja enviado na lista remota', '2026-10-21T22:04:48+00:00')
 
 ## T20 - F3: reexecução idempotente [x]
 - Objetivo: rodar de novo com os mesmos arquivos e confirmar que todos são pulados como duplicados (mesmo dia + mesmo tema).
@@ -685,6 +716,7 @@ $ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real" 
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
+- ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 
 ## Pendências de decisão (não implementar sem resposta do Antônio)
 - D1: a lista /minhas-redacoes da conta de teste está vazia ou mostra as 2
