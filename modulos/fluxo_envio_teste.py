@@ -10,10 +10,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import sync_playwright
 
 from modulos.config import Config, obter_email_teste, obter_senha
-from modulos.planilha_arquivos import Aluno, descobrir_arquivos, extrair_codigo_do_arquivo
+from modulos.planilha_arquivos import Aluno, descobrir_arquivos
 from modulos.login import login, confirmar_identidade, DOMINIO_ESPERADO
 from modulos.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, detectar_ja_enviado
 from modulos.formulario_envio import (
@@ -27,7 +27,7 @@ from modulos.formulario_envio import (
 )
 from modulos.confirmacao import clicar_enviar, aguardar_confirmacao, logout
 from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
-from modulos.excecoes import CaptchaOuBloqueio
+from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 
 
 log = logging.getLogger("automacao_redacoes")
@@ -83,6 +83,7 @@ def executar_envio_teste(
         browser = pw.chromium.launch(headless=cfg.headless, slow_mo=cfg.slow_mo_ms)
         context = browser.new_context()
         page = context.new_page()
+        clique_iniciado = False
 
         try:
             # 1. Verificar dominio autorizado
@@ -168,6 +169,7 @@ def executar_envio_teste(
                 )
 
             # 11. Clicar em enviar
+            clique_iniciado = True
             clicar_enviar(page)
 
             # 12. Aguardar confirmacao (status "Pendente", timeout 120s)
@@ -190,31 +192,44 @@ def executar_envio_teste(
                     progresso.marcar(
                         aluno_teste.id,
                         arquivo,
-                        ERRO,
+                        REVISAO_MANUAL,
                         pasta=codigo_tema,
-                        detalhe="Timeout/erro na confirmacao",
+                        detalhe="Confirmacao inconclusiva apos clique",
                     )
                 return 1
 
         except CaptchaOuBloqueio as e:
             log.error("Captcha ou dominio bloqueado: %s", e)
+            estado = REVISAO_MANUAL if clique_iniciado else ERRO
             if progresso:
                 progresso.marcar(
                     aluno_teste.id,
                     arquivo,
                     codigo_tema,
-                    ERRO,
+                    estado,
                     detalhe=f"Captcha/bloqueio: {e}",
+                )
+            return 1
+        except ConfirmacaoInconclusiva as e:
+            log.error("Confirmacao inconclusiva apos clique: %s", e)
+            if progresso:
+                progresso.marcar(
+                    aluno_teste.id,
+                    arquivo,
+                    REVISAO_MANUAL,
+                    pasta=codigo_tema,
+                    detalhe=f"Confirmacao inconclusiva apos clique: {e}",
                 )
             return 1
         except Exception as e:
             log.exception("Erro inesperado durante envio de teste: %s", e)
+            estado = REVISAO_MANUAL if clique_iniciado else ERRO
             if progresso:
                 progresso.marcar(
                     aluno_teste.id,
                     arquivo,
                     codigo_tema,
-                    ERRO,
+                    estado,
                     detalhe=f"Excecao: {type(e).__name__}",
                 )
             return 1

@@ -226,6 +226,94 @@ Legenda das verificações: "0 ocorrências" = rodar Select-String e colar saíd
   Saldo não foi medido nesta execução; sem submissão, não houve consumo esperado
 - Fora de escopo: inventar seletor não observado em T17. Sem evidência suficiente: registrar em DECISOES_PENDENTES.md e PARAR.
 
+## T18B - F3: fail-closed após tentativa de envio [x]
+- Objetivo: depois de iniciar a tentativa de clique em "Enviar resposta",
+  qualquer resultado inconclusivo deve registrar REVISAO_MANUAL,
+  sem retry automático.
+- Arquivos que PODE mexer:
+  modulos/fluxo_envio_teste.py
+  e criar exclusivamente o novo arquivo offline
+  `tests/test_fluxo_envio_teste_fail_closed.py`,
+  com mocks necessários para testar `executar_envio_teste`
+  sem navegador, sem login e sem envio.
+- Arquivos que NÃO pode mexer:
+  main.py, .env, seletores confirmados, timeout de confirmação,
+  T19, e documentação não necessária.
+- Regras obrigatórias:
+  - clique_iniciado=False antes do try;
+  - clique_iniciado=True imediatamente antes de clicar_enviar(page);
+  - ConfirmacaoInconclusiva depois da tentativa → REVISAO_MANUAL;
+  - retorno False de aguardar_confirmacao depois da tentativa
+    → REVISAO_MANUAL;
+  - CaptchaOuBloqueio ou Exception após tentativa
+    → REVISAO_MANUAL;
+  - falha antes da tentativa → ERRO;
+  - Pendente confirmado → ENVIADO;
+  - nenhum retry;
+  - nenhum segundo clique;
+  - T19 continua executada somente por Antônio.
+- Provas exigidas:
+  - py_compile;
+  - testes offline exclusivamente em
+    `tests/test_fluxo_envio_teste_fail_closed.py`,
+    sem navegador, sem login e sem envio;
+  - git diff --check;
+  - Git limpo após commit;
+  - nenhum teste real;
+  -
+PROVA:
+python -m py_compile modulos\fluxo_envio_teste.py
+<exit code 0>
+
+python -m pyflakes modulos\fluxo_envio_teste.py tests\test_fluxo_envio_teste_fail_closed.py
+<exit code 0>
+
+python -m pytest tests\test_fluxo_envio_teste_fail_closed.py -q -m "not real"
+....
+4 passed in 0.82s
+
+python -m pytest tests\ -q -m "not real"
+........................................................................ [ 87%]
+..........                                                               [100%]
+============================== warnings summary ===============================
+tests/test_essenciais.py::test_conciliacao_exato_unico
+tests/test_essenciais.py::test_conciliacao_sugestao_fuzzy
+tests/test_essenciais.py::test_aluno_sem_arquivo
+tests/test_essenciais.py::test_nao_jpg_ignorado_com_aviso
+  d:\%USERNAME%\Documents\VS-CODE\Ambientes\esquema\automacao-redacoes\tests\test_essenciais.py:192: UserWarning: [AVISO] Arquivo ignorado (extens�o n�o permitida): 000 - Narra��o/005 - Teste.jpeg (ext: .jpeg)
+    return descobrir_arquivos(config_teste)
+
+tests/test_essenciais.py::test_conciliacao_exato_unico
+tests/test_essenciais.py::test_conciliacao_sugestao_fuzzy
+tests/test_essenciais.py::test_aluno_sem_arquivo
+tests/test_essenciais.py::test_nao_jpg_ignorado_com_aviso
+  d:\%USERNAME%\Documents\VS-CODE\Ambientes\esquema\automacao-redacoes\tests\test_essenciais.py:192: UserWarning: [AVISO] Arquivo ignorado (extens�o n�o permitida): 001 - Carta/006 - Teste.pdf (ext: .pdf)
+    return descobrir_arquivos(config_teste)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+82 passed, 4 deselected, 8 warnings in 4.20s
+
+git diff --check
+warning: in the working copy of 'TAREFAS_ATUAIS.md', LF will be replaced by CRLF the next time Git touches it
+
+git diff --stat
+ modulos/fluxo_envio_teste.py    | 17 ++++++++++++----
+ tests/test_fluxo_envio_teste_fail_closed.py |  56 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+), 4 deletions(-)
+
+git log --oneline -1
+0a20919 F3: validar sinal real de upload T17/T18 nenhuma execução de main.py;
+  - nenhum clique de envio.
+- Fora de escopo:
+  - envio real;
+  - clique no botão;
+  - digitar ENVIAR TESTE;
+  - alterar saldo, seletores, timeout, regras de duplicidade,
+    login, browser ou logout;
+  - alterar `tests/test_essenciais.py`;
+  - criar qualquer outro arquivo além de
+    `tests/test_fluxo_envio_teste_fail_closed.py`.
+
 ## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
 - Objetivo: cumprir o critério de pronto da F3 na conta de teste.
 - Arquivos que PODE mexer: nenhum (o Cline só apoia; quem executa é o Antônio).
