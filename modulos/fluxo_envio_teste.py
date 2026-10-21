@@ -7,6 +7,7 @@ Nao duplica logica.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -31,6 +32,15 @@ from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 
 
 log = logging.getLogger("automacao_redacoes")
+
+
+def _codigo_tema_selecionado(page) -> Optional[str]:
+    """Le o codigo (string exata) da opcao selecionada no combo de temas."""
+    texto = page.locator(
+        "select[name='wording[wording_proposal_id]'] option:checked"
+    ).first.inner_text().strip()
+    match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", texto)
+    return match.group(1) if match else None
 
 
 def executar_envio_teste(
@@ -59,6 +69,12 @@ def executar_envio_teste(
 
     if not codigo_tema:
         log.error("Pasta sem codigo de tema no nome: %s", pasta_tema)
+        return 1
+
+    # Caminho completo do JPG (descobrir_arquivos devolve so o nome)
+    caminho_arquivo = Path(cfg.pasta_raiz) / pasta_tema / arquivo
+    if not caminho_arquivo.is_file():
+        log.error("Arquivo de teste nao encontrado: %s", caminho_arquivo)
         return 1
 
     # Conta de teste
@@ -150,15 +166,40 @@ def executar_envio_teste(
                     )
                 return 1
 
-            # 8. Selecionar tema, criterio ENEM, anexar arquivo
-            selecionar_tema_por_codigo(page, codigo_tema)
-            selecionar_criterio(page, "ENEM")
-            anexar_arquivo(page, arquivo)
+            # 8. Selecionar tema e conferir o codigo selecionado (fail-closed)
+            selecionado = selecionar_tema_por_codigo(page, codigo_tema)
+            codigo_selecionado = _codigo_tema_selecionado(page) if selecionado else None
+            if codigo_selecionado != codigo_tema:
+                log.error("Tema nao selecionado/conferido: esperado %s, obtido %s",
+                          codigo_tema, codigo_selecionado)
+                if progresso:
+                    progresso.marcar(
+                        aluno_teste.id,
+                        arquivo,
+                        ERRO,
+                        pasta=codigo_tema,
+                        detalhe=f"Tema selecionado diferente: {codigo_selecionado}",
+                    )
+                return 1
 
-            # 9. Aguardar upload aceito
-            aguardar_upload_aceito(page)
+            # 9. Criterio ENEM (fixo em selecionar_criterio) e anexo
+            selecionar_criterio(page)
+            anexar_arquivo(page, str(caminho_arquivo))
 
-            # 10. Registrar ENVIANDO ANTES do clique (progresso)
+            # 10. Aguardar upload aceito (fail-closed: sem sinal, nao clica)
+            if not aguardar_upload_aceito(page):
+                log.error("Upload nao aceito para %s. Abortando sem enviar.", arquivo)
+                if progresso:
+                    progresso.marcar(
+                        aluno_teste.id,
+                        arquivo,
+                        ERRO,
+                        pasta=codigo_tema,
+                        detalhe="Upload nao aceito (sem sinal Arquivo carregado)",
+                    )
+                return 1
+
+            # 11. Registrar ENVIANDO ANTES do clique (progresso)
             if progresso:
                 progresso.marcar(
                     aluno_teste.id,
@@ -168,11 +209,11 @@ def executar_envio_teste(
                     detalhe="Upload aceito, clicando em enviar",
                 )
 
-            # 11. Clicar em enviar
+            # 12. Clicar em enviar
             clique_iniciado = True
             clicar_enviar(page)
 
-            # 12. Aguardar confirmacao (status "Pendente", timeout 120s)
+            # 13. Aguardar confirmacao (status "Pendente", timeout 120s)
             confirmado = aguardar_confirmacao(page, codigo_tema, timeout_segundos=120)
 
             if confirmado:
@@ -234,7 +275,7 @@ def executar_envio_teste(
                 )
             return 1
         finally:
-            # 13. Logout SEMPRE (mesmo em erro)
+            # 14. Logout SEMPRE (mesmo em erro)
             try:
                 logout(page)
             except Exception:

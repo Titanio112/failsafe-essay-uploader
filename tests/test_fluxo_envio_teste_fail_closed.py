@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Testes offline fail-closed pós-clique (T18C).
+"""Testes offline fail-closed pós-clique (T18C) e pré-clique (T18D).
 
 Testam a lógica de marcação REVISAO_MANUAL vs ERRO
 exercitando o código de produção executar_envio_teste
@@ -44,9 +44,12 @@ class TestFailClosedPosClique:
         return "0"
 
     @pytest.fixture
-    def cfg(self, arquivo_teste):
+    def cfg(self, arquivo_teste, codigo_tema, tmp_path):
+        # JPG falso real em disco: o fluxo exige o caminho completo existente (T18D-B)
+        (tmp_path / codigo_tema).mkdir()
+        (tmp_path / codigo_tema / arquivo_teste).write_bytes(b"jpg-falso")
         cfg = Config()
-        cfg.pasta_raiz = Path("testes/redacoes_teste")
+        cfg.pasta_raiz = tmp_path
         cfg.headless = True
         cfg.slow_mo_ms = 0
         return cfg
@@ -58,22 +61,22 @@ class TestFailClosedPosClique:
              patch("builtins.input", return_value="ENVIAR TESTE"), \
              patch("modulos.fluxo_envio_teste.obter_email_teste", return_value="teste@teste.com"), \
              patch("modulos.fluxo_envio_teste.obter_senha", return_value="senha123"), \
-             patch("modulos.fluxo_envio_teste.descobrir_arquivos", return_value={"0": ["redacao_0.jpg"]}), \
-             patch("modulos.fluxo_envio_teste.verificar_dominio_autorizado") as mock_dominio, \
-             patch("modulos.fluxo_envio_teste.login") as mock_login, \
-             patch("modulos.fluxo_envio_teste.confirmar_identidade") as mock_identidade, \
-             patch("modulos.fluxo_envio_teste.ler_saldo_creditos") as mock_saldo, \
-             patch("modulos.fluxo_envio_teste.ler_lista_redacoes") as mock_lista, \
-             patch("modulos.fluxo_envio_teste.detectar_ja_enviado") as mock_dup, \
-             patch("modulos.fluxo_envio_teste.abrir_formulario_envio") as mock_abrir, \
-             patch("modulos.fluxo_envio_teste.ler_combo_temas") as mock_combo, \
-             patch("modulos.fluxo_envio_teste.selecionar_tema_por_codigo") as mock_sel_tema, \
-             patch("modulos.fluxo_envio_teste.selecionar_criterio") as mock_sel_crit, \
-             patch("modulos.fluxo_envio_teste.anexar_arquivo") as mock_anexar, \
-             patch("modulos.fluxo_envio_teste.aguardar_upload_aceito") as mock_upload, \
-             patch("modulos.fluxo_envio_teste.clicar_enviar") as mock_clicar, \
-             patch("modulos.fluxo_envio_teste.aguardar_confirmacao") as mock_confirma, \
-             patch("modulos.fluxo_envio_teste.logout") as mock_logout:
+             patch("modulos.fluxo_envio_teste.descobrir_arquivos", autospec=True, return_value={"0": ["redacao_0.jpg"]}), \
+             patch("modulos.fluxo_envio_teste.verificar_dominio_autorizado", autospec=True) as mock_dominio, \
+             patch("modulos.fluxo_envio_teste.login", autospec=True) as mock_login, \
+             patch("modulos.fluxo_envio_teste.confirmar_identidade", autospec=True) as mock_identidade, \
+             patch("modulos.fluxo_envio_teste.ler_saldo_creditos", autospec=True) as mock_saldo, \
+             patch("modulos.fluxo_envio_teste.ler_lista_redacoes", autospec=True) as mock_lista, \
+             patch("modulos.fluxo_envio_teste.detectar_ja_enviado", autospec=True) as mock_dup, \
+             patch("modulos.fluxo_envio_teste.abrir_formulario_envio", autospec=True) as mock_abrir, \
+             patch("modulos.fluxo_envio_teste.ler_combo_temas", autospec=True) as mock_combo, \
+             patch("modulos.fluxo_envio_teste.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
+             patch("modulos.fluxo_envio_teste.selecionar_criterio", autospec=True) as mock_sel_crit, \
+             patch("modulos.fluxo_envio_teste.anexar_arquivo", autospec=True) as mock_anexar, \
+             patch("modulos.fluxo_envio_teste.aguardar_upload_aceito", autospec=True) as mock_upload, \
+             patch("modulos.fluxo_envio_teste.clicar_enviar", autospec=True) as mock_clicar, \
+             patch("modulos.fluxo_envio_teste.aguardar_confirmacao", autospec=True) as mock_confirma, \
+             patch("modulos.fluxo_envio_teste.logout", autospec=True) as mock_logout:
 
             # Configurar playwright mock
             mock_page = MagicMock()
@@ -90,6 +93,12 @@ class TestFailClosedPosClique:
             mock_lista.return_value = []
             mock_dup.return_value = (False, None)
             mock_combo.return_value = [(codigo_tema, f"{codigo_tema} - Tema Teste")]
+            mock_sel_tema.return_value = True
+            # Opção selecionada no combo, lida por _codigo_tema_selecionado
+            mock_page.locator.return_value.first.inner_text.return_value = (
+                f"{codigo_tema} - Tema Teste"
+            )
+            mock_upload.return_value = True  # upload aceito
             mock_confirma.return_value = True  # confirmação OK
 
             yield {
@@ -224,6 +233,87 @@ class TestFailClosedPosClique:
         assert estado is not None
         assert estado["estado"] == ERRO
         assert self._contar_clicar_enviar(mocks) == 0  # NÃO deve ter clicado
+
+    # ---- Casos PRÉ-CLIQUE achados na 1ª execução da T19 (T18D) ----
+
+    def test_criterio_e_anexo_com_argumentos_corretos(
+        self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
+    ):
+        """T18D A/B: selecionar_criterio(page) e anexo com caminho completo"""
+        mocks = mocks_completos
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        executar_envio_teste(cfg, progresso=progresso_mock)
+
+        mocks["sel_crit"].assert_called_once_with(mocks["page"])
+        caminho = str(cfg.pasta_raiz / codigo_tema / arquivo_teste)
+        mocks["anexar"].assert_called_once_with(mocks["page"], caminho)
+
+    def test_arquivo_inexistente_aborta_sem_login(
+        self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
+    ):
+        """T18D B: JPG não existe no disco -> retorna 1, sem login e sem clique"""
+        mocks = mocks_completos
+        (cfg.pasta_raiz / codigo_tema / arquivo_teste).unlink()
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 1
+
+        assert mocks["login"].call_count == 0
+        assert self._contar_clicar_enviar(mocks) == 0
+
+    def test_upload_nao_aceito_erro_sem_clique(
+        self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
+    ):
+        """T18D C: aguardar_upload_aceito retorna False -> ERRO, sem clique"""
+        mocks = mocks_completos
+        mocks["upload"].return_value = False
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        executar_envio_teste(cfg, progresso=progresso_mock)
+
+        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)
+        assert estado is not None
+        assert estado["estado"] == ERRO
+        assert estado["pasta"] == codigo_tema
+        assert "Upload nao aceito" in estado["detalhe"]  # parou no upload, não antes
+        assert mocks["anexar"].call_count == 1
+        assert self._contar_clicar_enviar(mocks) == 0
+
+    def test_tema_nao_selecionado_erro_sem_clique(
+        self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
+    ):
+        """T18D D: selecionar_tema_por_codigo retorna False -> ERRO, sem clique"""
+        mocks = mocks_completos
+        mocks["sel_tema"].return_value = False
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        executar_envio_teste(cfg, progresso=progresso_mock)
+
+        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)
+        assert estado is not None
+        assert estado["estado"] == ERRO
+        assert "Tema selecionado diferente" in estado["detalhe"]
+        assert self._contar_clicar_enviar(mocks) == 0
+        assert mocks["anexar"].call_count == 0
+
+    def test_tema_selecionado_diferente_erro_sem_clique(
+        self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
+    ):
+        """T18D D: combo ficou com outro tema (ex.: fallback por value) -> ERRO, sem clique"""
+        mocks = mocks_completos
+        # "00" != "0": códigos são strings distintas
+        mocks["page"].locator.return_value.first.inner_text.return_value = "00 - Outro Tema"
+
+        from modulos.fluxo_envio_teste import executar_envio_teste
+        executar_envio_teste(cfg, progresso=progresso_mock)
+
+        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)
+        assert estado is not None
+        assert estado["estado"] == ERRO
+        assert "Tema selecionado diferente" in estado["detalhe"]
+        assert self._contar_clicar_enviar(mocks) == 0
+        assert mocks["anexar"].call_count == 0
 
     # ---- Caso SUCESSO ----
 

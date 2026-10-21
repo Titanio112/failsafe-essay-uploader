@@ -387,6 +387,76 @@ $ git status --short
  M modulos/fluxo_envio_teste.py
  M tests/test_fluxo_envio_teste_fail_closed.py
 
+## T18D - F3: corrige defeitos pré-clique achados na 1ª execução da T19 [x]
+- Origem: 1ª execução da T19 (21/10, Antônio) parou com
+  `TypeError: selecionar_criterio() takes 1 positional argument but 2 were given`
+  antes do clique (nada enviado; banco gravou ERRO, "Excecao: TypeError").
+- Defeitos (todos antes do clique, em modulos/fluxo_envio_teste.py):
+  - A: `selecionar_criterio(page, "ENEM")` — a função só aceita `page` (ENEM fixo value=1).
+  - B: `anexar_arquivo(page, arquivo)` recebe só o nome do arquivo, não o caminho completo.
+  - C: retorno de `aguardar_upload_aceito` ignorado — upload não aceito ainda clicava.
+  - D: retorno de `selecionar_tema_por_codigo` ignorado, e o fallback por
+    `value=codigo` pode escolher tema errado; o tema selecionado não era conferido.
+- Regras: falha em A–D → ERRO, sem clique. Tema conferido lendo a opção
+  selecionada do combo `wording[wording_proposal_id]` e comparando o código (string exata).
+- Arquivos autorizados (Antônio, 21/10): modulos/fluxo_envio_teste.py
+  (mesmo acima de 200 linhas), tests/test_fluxo_envio_teste_fail_closed.py,
+  TAREFAS_ATUAIS.md.
+- Testes: mocks com `autospec=True` (pega erro de assinatura como o A) + casos novos.
+- Fora de escopo: RAIZ em modulos/config.py (banco/relatórios em modulos/relatorios/),
+  fallback por value em modulos/formulario_envio.py, T19.
+- Casos novos (5): criterio/anexo com argumentos corretos, arquivo inexistente
+  (sem login), upload não aceito, tema não selecionado, tema selecionado diferente
+  ("00" != "0"). Todos exigem ERRO e 0 cliques.
+- Limite da prova com stash: no código antigo o TypeError de A aborta antes,
+  então C e D falham por A (detalhe "Excecao: TypeError" em vez do detalhe
+  esperado), não isoladamente.
+PROVA:
+$ python -m py_compile modulos/fluxo_envio_teste.py
+[exit 0]
+$ python -m pyflakes modulos/fluxo_envio_teste.py tests/test_fluxo_envio_teste_fail_closed.py
+[exit 0]
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real"
+............                                                             [100%]
+12 passed in 1.24s
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 80%]
+..................                                                       [100%]
+90 passed, 4 deselected, 8 warnings in 5.02s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git diff --stat
+ TAREFAS_ATUAIS.md                           |  19 +++++
+ modulos/fluxo_envio_teste.py                |  61 ++++++++++---
+ tests/test_fluxo_envio_teste_fail_closed.py | 128 +++++++++++++++++++++++-----
+ 3 files changed, 179 insertions(+), 29 deletions(-)
+[exit 0]
+$ git stash push -- modulos/fluxo_envio_teste.py
+Saved working directory and index state WIP on limpeza: 2ac15be T18C: corrige ordem de argumentos de marcar e torna o teste fail-closed real
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real"   (fluxo de 2ac15be, com os defeitos)
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_retorna_false_revisao_manual
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_confirmacao_inconclusiva_revisao_manual
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_clicar_enviar_levanta_captcha_bloqueio_revisao_manual
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_aguardar_confirmacao_levanta_exception_generica_revisao_manual
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_criterio_e_anexo_com_argumentos_corretos
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_arquivo_inexistente_aborta_sem_login
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_upload_nao_aceito_erro_sem_clique
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_tema_nao_selecionado_erro_sem_clique
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_tema_selecionado_diferente_erro_sem_clique
+FAILED tests/test_fluxo_envio_teste_fail_closed.py::TestFailClosedPosClique::test_confirmacao_ok_enviado
+10 failed, 2 passed in 1.64s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (ffcbad8fa6c1a556f5a2703b8d6c7fc258cf3344)
+$ python -m pytest tests/test_fluxo_envio_teste_fail_closed.py -q -m "not real"   (corrigido)
+12 passed in 1.33s
+$ git status --short
+ M TAREFAS_ATUAIS.md
+ M modulos/fluxo_envio_teste.py
+ M tests/test_fluxo_envio_teste_fail_closed.py
+
 ## T19 - F3: envio de teste de ponta a ponta (1 arquivo) — executado pelo Antônio [ ]
 - Objetivo: cumprir o critério de pronto da F3 na conta de teste.
 - Arquivos que PODE mexer: nenhum (o Cline só apoia; quem executa é o Antônio).
