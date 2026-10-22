@@ -350,3 +350,18 @@ def test_traceback_com_segredo_nao_vai_para_o_log():
         registro = logging.LogRecord("x", logging.ERROR, __file__, 1, "Erro inesperado", (), sys.exc_info())
     _FiltroSanitizador().filter(registro)
     assert registro.exc_info is None and "traceback suprimido" in registro.msg
+
+
+def test_clique_espera_sair_do_formulario_e_nao_trava_se_nao_sair():
+    from playwright.sync_api import TimeoutError as PWTimeoutError
+    page = MagicMock()
+    confirmacao.clicar_enviar(page)
+    page.locator.return_value.first.click.assert_called_once_with()
+    espera = page.wait_for_url.call_args
+    assert espera.kwargs["timeout"] == 30000
+    assert espera.args[0]("https://www.esquemaredacao.com.br/minhas-redacoes") is True
+    assert espera.args[0]("https://www.esquemaredacao.com.br/wordings/new") is False
+
+    page.wait_for_url.side_effect = PWTimeoutError("ficou no formulario")
+    confirmacao.clicar_enviar(page)  # não levanta: a lista decide
+    assert page.locator.return_value.first.click.call_count == 2  # um clique por chamada, sem retry
