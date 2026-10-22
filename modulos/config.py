@@ -65,10 +65,13 @@ class Config:
 
     banco_progresso: Path = field(default_factory=lambda: RAIZ / "relatorios" / "progresso.db")
     pasta_relatorios: Path = field(default_factory=lambda: RAIZ / "relatorios")
+    # Nomes de arquivo aprovados por humano -> aluno (T26)
+    arquivo_nomes_aprovados: Path = field(default_factory=lambda: RAIZ / "dados" / "nomes_aprovados.csv")
 
     def __post_init__(self) -> None:
         if not self.planilha or str(self.planilha) == ".":
-            self.planilha = self.pasta_raiz / "Alunos para corrigir redacoes.xlsx"
+            # Lista de alunos (T26): CSV em dados/ com Nome;Email (Senha é ignorada)
+            self.planilha = RAIZ / "dados" / "dados_alunos.csv"
 
 
 def _ler_ini(caminho: Path) -> Config:

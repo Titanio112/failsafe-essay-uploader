@@ -125,7 +125,40 @@ def _sugerir_fuzzy(norm: str, alunos: list, limiar: float, margem: float):
     return SUGESTAO_FUZZY, melhor_aluno, [melhor_aluno], melhor_score, segundo_score
 
 
+def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
+    """Lista de alunos em CSV (``;`` ou ``,``), colunas nome/e-mail sem
+    diferenciar maiúsculas. Coluna de senha é ignorada: a senha vem só do
+    .env (ESQUEMA_SENHA_PADRAO) e nunca é lida de arquivo."""
+    import csv
+    with open(cfg.planilha, encoding="utf-8-sig", newline="") as f:
+        cabecalho = f.readline()
+        f.seek(0)
+        delimitador = ";" if cabecalho.count(";") >= cabecalho.count(",") else ","
+        leitor = csv.reader(f, delimiter=delimitador)
+        colunas = [c.strip().lower() for c in next(leitor, [])]
+        if cfg.coluna_nome.lower() not in colunas or cfg.coluna_email.lower() not in colunas:
+            raise PlanilhaError(
+                f"Cabeçalho do CSV sem as colunas '{cfg.coluna_nome}' e '{cfg.coluna_email}'. "
+                f"Colunas encontradas: {colunas}"
+            )
+        if "senha" in colunas:
+            _emitir_aviso("Coluna 'Senha' da lista de alunos ignorada; a senha vem de "
+                          "ESQUEMA_SENHA_PADRAO no .env.")
+        idx_nome = colunas.index(cfg.coluna_nome.lower())
+        idx_email = colunas.index(cfg.coluna_email.lower())
+        alunos = []
+        for row in leitor:
+            if len(row) <= max(idx_nome, idx_email):
+                continue
+            nome, email = row[idx_nome].strip(), row[idx_email].strip()
+            if nome and email:
+                alunos.append(Aluno(nome=nome, email=email))
+    return alunos
+
+
 def carregar_alunos(cfg: Config) -> list[Aluno]:
+    if Path(cfg.planilha).suffix.lower() == ".csv":
+        return _carregar_alunos_csv(cfg)
     wb = openpyxl.load_workbook(cfg.planilha, data_only=True)
     ws = wb[cfg.aba_planilha] if cfg.aba_planilha else wb.active
 
@@ -199,13 +232,42 @@ def descobrir_arquivos(cfg: Config) -> dict[str, list[str]]:
     return resultado
 
 
+def candidatos_nome_parcial(norm: str, alunos: list[Aluno]) -> list[Aluno]:
+    """Alunos cujo nome contém TODAS as palavras do nome do arquivo (T26).
+
+    Só para SUGERIR em dados/nomes_aprovados.csv; nunca envia sozinho.
+    Exige ao menos 2 palavras e a mesma 1ª palavra."""
+    palavras = norm.split()
+    if len(palavras) < 2:
+        return []
+    return [
+        a for a in alunos
+        if a.nome_norm.split()[:1] == palavras[:1] and set(palavras) <= set(a.nome_norm.split())
+    ]
+
+
+def _resolver_alunos(norm: str, por_norm: dict,
+                     nomes_aprovados: Optional[dict] = None) -> tuple[list[Aluno], bool]:
+    """(candidatos, aprovado): nome exato primeiro; sem exato, o nome do
+    arquivo aprovado por humano em dados/nomes_aprovados.csv (T26)."""
+    exatos = por_norm.get(norm, [])
+    if exatos:
+        return exatos, False
+    if nomes_aprovados and norm in nomes_aprovados:
+        return [nomes_aprovados[norm]], True
+    return [], False
+
+
 def conciliar(
     alunos: list[Aluno],
     arquivos_por_pasta: dict[str, list[str]],
     codigos_site: Set[str],
     limiar: float = 95.0,
     margem: float = 8.0,
+    nomes_aprovados: Optional[dict] = None,
 ) -> ResultadoConciliacao:
+    """``nomes_aprovados``: {nome normalizado do arquivo: Aluno}, aprovado por
+    humano em dados/nomes_aprovados.csv; conta como nome exato."""
     por_norm = {}
     for a in alunos:
         por_norm.setdefault(a.nome_norm, []).append(a)
@@ -230,7 +292,7 @@ def conciliar(
             norm = normalizar_nome(pessoa)
             codigo = extrair_codigo_tema(nome_arquivo, pasta)
             if codigo and codigo != "":
-                exatos = por_norm.get(norm, [])
+                exatos, _ = _resolver_alunos(norm, por_norm, nomes_aprovados)
                 if len(exatos) == 1:
                     aluno_match = exatos[0]
                     key = (aluno_match.id, codigo)
@@ -282,21 +344,21 @@ def conciliar(
             else:
                 estado_inicial = ""
 
-            exatos = por_norm.get(norm, [])
+            exatos, aprovado = _resolver_alunos(norm, por_norm, nomes_aprovados)
 
             if len(exatos) == 1:
                 aluno_match = exatos[0]
                 # Verificar se há duplicatas para este aluno+código
                 key = (aluno_match.id, codigo) if codigo and codigo != "" else None
                 tem_duplicata = key and contagem_aluno_codigo.get(key, 0) > 1
-                
+
                 if tem_duplicata:
                     estado = REVISAO_MANUAL
                 else:
                     estado = EXATO_UNICO
                     if key:
                         vistos_por_aluno_codigo[key] = 1
-                
+
                 # Sobrescrever com estado_inicial se houver (SEM_CODIGO, CODIGO_INVALIDO)
                 if estado_inicial:
                     estado = estado_inicial
@@ -304,14 +366,16 @@ def conciliar(
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
                     estado=estado, aluno=aluno_match,
+                    observacao=f"nome aprovado: arquivo -> {aluno_match.nome}" if aprovado else "",
                     codigo_tema=codigo or "", codigo_valido=codigo_valido,
                 ))
 
             elif len(exatos) > 1:
+                obs = f"{len(exatos)} alunos com o mesmo nome normalizado"
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
                     estado=AMBIGUO, candidatos=list(exatos),
-                    observacao=f"{len(exatos)} alunos com o mesmo nome normalizado",
+                    observacao=obs,
                     codigo_tema=codigo or "", codigo_valido=codigo_valido,
                 ))
 

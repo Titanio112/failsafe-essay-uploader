@@ -973,17 +973,22 @@ $ (mesmo comando, T24)
 5 passed, 59 deselected in 1.08s
 
 ## T25 - F4: primeiro envio real de produção (1 aluno) — executado pelo Antônio [ ]
-- Pré-requisitos (Antônio):
-  1. Planilha em `redacoes_pendentes/Alunos para corrigir redacoes.xlsx`
-     (aba "Planilha1", colunas `nome` e `email`; outras colunas são ignoradas)
-     e as redações em `redacoes_pendentes/<código> - <tema>/<Nome do aluno> - Red.jpg`.
-     Em 22/10 a planilha NÃO existia nesse caminho.
+- Pré-requisitos (Antônio) — atualizado na T26:
+  1. Lista de alunos: `dados/dados_alunos.csv` (já existe; Nome;Email; a
+     coluna Senha é ignorada e pode ser apagada).
   2. `.env` com `ESQUEMA_SENHA_PADRAO` (senão o script pergunta a senha).
-  3. `dados/temas_site.csv` com os códigos do combo (já tem 107).
-  4. (Recomendado) a troca do banco de progresso explicada na T22.
+  3. Redações em `redacoes_pendentes/<código> - <título>/<Nome>.JPG`.
+     Hoje `redacoes_pendentes/` tem cópias de TESTE (0, 00, 000, 88) — tirar
+     de lá antes. As reais estão em `Redações plataforma/3B - <título>/`:
+     copiar para `redacoes_pendentes/` trocando "3B" pelo código do tema
+     (o dry-run sugere o código).
+  4. `dados/temas_site.csv` com os códigos do combo (tem 108, de 01/10).
+  5. (Recomendado) a troca do banco de progresso explicada na T22.
 - Passo 1, dry-run (não envia, não abre navegador):
   python main.py
-  Conferir `relatorios/relatorio_conciliacao.csv`: só `EXATO_UNICO` entra.
+  Conferir `relatorios/relatorio_conciliacao.csv` e, em
+  `dados/nomes_aprovados.csv`, escrever `sim` nas sugestões certas;
+  rodar o dry-run de novo e ver a fila crescer.
 - Passo 2, envio real de 1 aluno e 1 redação:
   python main.py --envio-real --limite-alunos 1 --limite-redacoes 1
   Conferir a lista mostrada; digitar ENVIAR; ver no site
@@ -992,6 +997,92 @@ $ (mesmo comando, T24)
   já registrado (fora do lote) ou JA_ENVIADO, sem novo clique.
 - PROVA: (colar a saída dos 3 passos + a situação vista no site)
 - Fora de escopo: lote grande antes deste passar.
+
+## T26 - F4: produção com os dados reais (lista em dados/, nomes aprovados, senha só no .env) [x]
+- Pedido do Antônio (22/10): lista de alunos em `dados/` (nome, e-mail, senha
+  padrão); senha só no .env ("mais seguro"); analisar o que impede a
+  produção de funcionar na prática e corrigir; perguntar o que for ambíguo.
+- Segurança feita antes (commit e0bd23e): `dados/dados_alunos.csv` no .gitignore
+  (nunca tinha sido versionado — `git log --all` vazio).
+- Análise com os dados reais (só leitura; nada enviado):
+  - `dados/dados_alunos.csv`: 70 alunos, `Nome;Email;Senha`, sem nome repetido.
+    O código não lia esse arquivo (lia um XLSX em redacoes_pendentes/ que não existe).
+  - `Redações plataforma/`: 4 pastas, 130 JPGs (extensão `.JPG`), arquivo = nome
+    do aluno (ex.: "Alice Lalato.JPG").
+  - Nomes: só **4/130** batem exato com a lista (regra atual). **107** são nome
+    curto que cabe em um único aluno (ex.: "Ana Lalara Larili" -> "Ana Lalara
+    Larili dos Larito"); 2 cabem em vários; 17 sem candidato (erros de digitação
+    como "Isabela Larulii", "Gilherme", sufixos "2"/"impactos", e "X em branco").
+  - Temas: as pastas são "3B - <título>": "3B" NÃO é código (regra), então
+    hoje TODAS dariam SEM_CODIGO. Só 1 dos 4 títulos existe em
+    dados/temas_site.csv (código 100, filiação; CSV lido em 01/10).
+- Mudanças desta tarefa:
+  - R1 Lista de alunos padrão = `dados/dados_alunos.csv` (`;` ou `,`, colunas
+    Nome/Email; XLSX continua aceito pelo config). Coluna Senha é IGNORADA
+    (aviso na tela); senha só de `ESQUEMA_SENHA_PADRAO` no .env.
+  - R2 (1ª tentativa descartada) Um estado `NOME_PARCIAL_UNICO` que mandava
+    nome curto direto para a fila quebrou o teste protegido
+    `test_conciliacao_sugestao_fuzzy` ("variação de nome -> revisão humana
+    obrigatória"). A regra está certa (aluno errado é grave): revertido.
+  - R2 (feito) `dados/nomes_aprovados.csv` (`;`, no .gitignore):
+    nome_no_arquivo;aluno_nome;aluno_email;aprovado;motivo. O dry-run ACRESCENTA
+    sugestões (nome parcial único, ou parecido >= 70%) com `aprovado` vazio e
+    nunca mexe no que já existe. Linha com `aprovado=sim` faz aquele nome de
+    arquivo valer como nome exato do aluno (EXATO_UNICO, observação
+    "nome aprovado"). E-mail fora da lista ou mesmo nome aprovado para 2
+    alunos -> ignorado com aviso. Folha "em branco" nunca vira sugestão.
+    Revisão humana continua obrigatória, mas é feita UMA vez por nome.
+  - R3 Pasta sem código: o dry-run lista as pastas sem código e o tema mais
+    parecido do dados/temas_site.csv ("provavel" >= 85%, "FRACO, conferir"
+    60–85%, nenhum < 60%). Só sugere; renomear a pasta é com o Antônio.
+- Simulação offline com os dados reais (sem gravar em dados/, pastas
+  renomeadas em memória para 100–103): sem nomes aprovados -> fila 4/130;
+  65 sugestões (37 "nome parcial", 28 "parecido"); aprovando só as 37
+  "nome parcial" -> **fila 87/130**. Com as pastas originais "3B - ..." a fila
+  é 0 (falta código). Sobra: só primeiro nome ("Douglas"), erros de
+  digitação (sugeridos para aprovar), 2 ambíguos, 17 sem candidato.
+- Limite da prova com stash: os testes novos importam funções novas; com o
+  código antigo a coleta falha (ImportError), não um assert por assert.
+- Fora de escopo (perguntar ao Antônio): análise remota para atualizar
+  temas_site.csv (3 dos 4 temas reais não estão nele).
+PROVA:
+$ python -m py_compile main.py modulos/config.py modulos/planilha_arquivos.py modulos/nomes_aprovados.py modulos/sugestao_temas.py
+[exit 0]
+$ python -m pyflakes main.py modulos/config.py modulos/nomes_aprovados.py modulos/sugestao_temas.py tests/test_dados_reais_t26.py tests/test_fluxo_envio_producao.py
+[exit 0]
+$ python -m pytest tests/test_dados_reais_t26.py -v -m "not real"
+tests/test_dados_reais_t26.py::test_padrao_e_dados_alunos_csv PASSED     [ 11%]
+tests/test_dados_reais_t26.py::test_csv_com_senha_le_nome_email_e_ignora_senha[;] PASSED [ 22%]
+tests/test_dados_reais_t26.py::test_csv_com_senha_le_nome_email_e_ignora_senha[,] PASSED [ 33%]
+tests/test_dados_reais_t26.py::test_csv_sem_colunas_obrigatorias_da_erro_claro PASSED [ 44%]
+tests/test_dados_reais_t26.py::test_sem_aprovacao_nome_curto_nao_entra_na_fila PASSED [ 55%]
+tests/test_dados_reais_t26.py::test_sugestoes_gravadas_sem_aprovar_nada PASSED [ 66%]
+tests/test_dados_reais_t26.py::test_nome_aprovado_entra_na_fila_como_exato PASSED [ 77%]
+tests/test_dados_reais_t26.py::test_aprovacao_com_email_fora_da_lista_ou_em_conflito_e_ignorada PASSED [ 88%]
+tests/test_dados_reais_t26.py::test_sugere_codigo_so_para_pasta_sem_codigo PASSED [100%]
+============================== 9 passed in 0.53s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 48%]
+........................................................................ [ 97%]
+....                                                                     [100%]
+148 passed, 4 deselected, 8 warnings in 6.75s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ pyflakes planilha_arquivos.py: HEAD x agora
+HEAD=7 agora=6
+$ git stash push -- modulos/config.py modulos/planilha_arquivos.py main.py
+Saved working directory and index state WIP on f4-producao: e0bd23e chore: ignora dados/dados_alunos.csv (tem senhas)
+$ python -m pytest tests/test_dados_reais_t26.py -q -m "not real"   (codigo de e0bd23e)
+ERROR tests/test_dados_reais_t26.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.91s
+[exit 2]
+$ git stash pop
+Dropped refs/stash@{0} (1640594de31c33172e9ea1c7420c6e65728e09e9)
+$ (mesmo comando, T26)
+9 passed in 0.62s
 
 ---
 

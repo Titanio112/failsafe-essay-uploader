@@ -28,6 +28,7 @@ BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
 def cfg(tmp_path):
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "pend"
+    cfg.arquivo_nomes_aprovados = tmp_path / "nomes_aprovados.csv"
     cfg.headless = True
     cfg.slow_mo_ms = 0
     return cfg

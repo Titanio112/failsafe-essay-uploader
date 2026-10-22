@@ -28,6 +28,11 @@ from modulos.progresso_relatorio import (
 )
 from modulos.fluxo_envio_teste import executar_envio_teste
 from modulos.fluxo_envio_producao import executar_envio_producao
+from modulos.nomes_aprovados import (
+    carregar_nomes_aprovados,
+    registrar_sugestoes,
+)
+from modulos.sugestao_temas import SCORE_PROVAVEL, ler_temas_site, sugerir_codigos
 
 
 TEMAS_SITE_CSV = Path("dados/temas_site.csv")
@@ -40,6 +45,27 @@ def ler_codigos_site_csv(caminho: Path) -> set[str]:
         return set()
     with open(caminho, newline="", encoding="utf-8-sig") as f:
         return {row["codigo"] for row in csv.DictReader(f) if row.get("codigo")}
+
+
+def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes) -> None:
+    """Sugestões para o humano resolver (T26): nomes e códigos de tema. Só sugere."""
+    novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
+    if novas:
+        print()
+        print(f"{novas} sugestao(oes) nova(s) de nome em {arquivo_nomes}.")
+        print("Abra o arquivo e escreva 'sim' na coluna 'aprovado' das que estiverem certas;")
+        print("na proxima execucao esses arquivos entram na fila como nome exato.")
+
+    sugestoes = sugerir_codigos(list(arquivos), ler_temas_site(TEMAS_SITE_CSV))
+    if sugestoes:
+        print()
+        print("Pastas SEM codigo de tema (nada delas sera enviado). Renomeie para '<codigo> - <titulo>':")
+        for pasta, codigo, texto, score in sugestoes:
+            if not codigo:
+                print(f"  {pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)")
+            else:
+                nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
+                print(f"  {pasta}: {nivel} -> {texto} ({score:.0f}%)")
 
 
 def parse_args(argv=None):
@@ -118,10 +144,16 @@ def main(argv=None) -> int:
         else:
             print("[AVISO] Dry-run: dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
 
+    # Nomes de arquivo aprovados por humano (T26); não vale no modo teste
+    nomes_aprovados = {} if args.modo_teste else carregar_nomes_aprovados(cfg.arquivo_nomes_aprovados, alunos)
+    if nomes_aprovados:
+        print(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
+
     resultado = conciliar(
         alunos, arquivos,
         codigos_site=codigos_site,
         limiar=cfg.limiar_fuzzy, margem=cfg.margem_minima,
+        nomes_aprovados=nomes_aprovados,
     )
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
@@ -169,6 +201,9 @@ def main(argv=None) -> int:
     print()
     print("Revise o CSV antes de autorizar qualquer envio. Fuzzy/ambiguo/sem par")
     print("exigem revisao humana e nao entram na fila real.")
+
+    if not args.modo_teste:
+        _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados)
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:
