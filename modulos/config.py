@@ -17,6 +17,19 @@ RAIZ = Path(__file__).resolve().parent.parent
 
 MENSAGEM_BLOQUEIO = "[BLOQUEADO] Envio real desativado."
 
+# Pasta padrão das redações (T38): o Antônio guarda as redações aqui.
+PASTA_REDACOES = "Redações plataforma"
+RAIZ_PASTA_REDACOES_LEIAME = """Coloque aqui as redações que serão enviadas.
+
+- Uma subpasta por tema. Ex.: "3B - Impactos da invisibilidade da filiação".
+  Se o nome da pasta começar com o código do tema do site ("100 - ..."), o
+  script já sabe o tema; senão, rode `python main.py --revisar` e escolha o
+  tema (ou g = tema genérico 000).
+- Dentro de cada subpasta, um JPG por aluno, com o NOME do aluno
+  (ex.: "Ana Lalara Larili.JPG"). Nome curto ou com erro: a revisão pergunta.
+- Folha sem redação: coloque "em branco" no nome; ela nunca é enviada.
+"""
+
 # Regra do Antônio (22/10/2026): por enquanto NENHUMA redação é enviada nas
 # contas dos alunos de verdade. Só o modo teste (conta de teste) envia.
 # Liberar = trocar para False, só com ordem expressa do Antônio.
@@ -32,7 +45,8 @@ class EnvioBloqueado(RuntimeError):
 
 
 def exigir_envio_real(envio_real: bool) -> None:
-    """Trava central de envio. Qualquer envio real deve passar por aqui."""
+    """Trava antiga (F1), mantida pelo teste protegido. As travas de verdade
+    são a confirmação digitada e PRODUCAO_BLOQUEADA (main e fluxo)."""
     if not envio_real:
         raise EnvioBloqueado(MENSAGEM_BLOQUEIO)
 
@@ -43,14 +57,10 @@ class ConfigInvalida(RuntimeError):
 
 @dataclass
 class Config:
-    base_url: str = "https://www.esquemaredacao.com.br"
-    login_path: str = "/auth/users/sign_in"
-    tema: str = "000 dissertação"
-    estilo_correcao: str = "ENEM"
     headless: bool = False
     slow_mo_ms: int = 500
 
-    pasta_raiz: Path = field(default_factory=lambda: RAIZ / "redacoes_pendentes")
+    pasta_raiz: Path = field(default_factory=lambda: RAIZ / PASTA_REDACOES)
     planilha: Path = field(default_factory=Path)
     extensoes: tuple[str, ...] = (".jpg", ".jpeg")
 
@@ -60,15 +70,7 @@ class Config:
 
     limiar_fuzzy: float = 95.0
     margem_minima: float = 8.0
-    max_envios_por_aluno: int = 4
-    max_envios_teste: int = 1  # config.ini pode sobrescrever
-    exigir_aprovacao_fuzzy: bool = True
 
-    max_envios_por_aluno: int = 4
-
-    upload_timeout_segundos: int = 120
-    confirmacao_timeout_segundos: int = 120
-    poll_lista_segundos: int = 10
     pausa_envio_min_segundos: int = 8
     pausa_envio_max_segundos: int = 15
 
@@ -92,10 +94,6 @@ def _ler_ini(caminho: Path) -> Config:
 
     if parser.has_section("plataforma"):
         sec = parser["plataforma"]
-        cfg.base_url = sec.get("base_url", cfg.base_url)
-        cfg.login_path = sec.get("login_path", cfg.login_path)
-        cfg.tema = sec.get("tema", cfg.tema)
-        cfg.estilo_correcao = sec.get("estilo_correcao", cfg.estilo_correcao)
         cfg.headless = sec.getboolean("headless", cfg.headless)
         cfg.slow_mo_ms = sec.getint("slow_mo_ms", cfg.slow_mo_ms)
 
@@ -124,26 +122,9 @@ def _ler_ini(caminho: Path) -> Config:
         sec = parser["conciliacao"]
         cfg.limiar_fuzzy = sec.getfloat("limiar_fuzzy", cfg.limiar_fuzzy)
         cfg.margem_minima = sec.getfloat("margem_minima", cfg.margem_minima)
-        cfg.max_envios_por_aluno = sec.getint("max_envios_por_aluno", cfg.max_envios_por_aluno)
-        cfg.max_envios_teste = sec.getint("max_envios_teste", cfg.max_envios_teste)
-        cfg.exigir_aprovacao_fuzzy = sec.getboolean(
-            "exigir_aprovacao_fuzzy", cfg.exigir_aprovacao_fuzzy
-        )
-
-    if parser.has_section("seguranca"):
-        cfg.max_envios_por_aluno = parser["seguranca"].getint(
-            "max_envios_por_aluno", cfg.max_envios_por_aluno
-        )
 
     if parser.has_section("esperas"):
         sec = parser["esperas"]
-        cfg.upload_timeout_segundos = sec.getint(
-            "upload_timeout_segundos", cfg.upload_timeout_segundos
-        )
-        cfg.confirmacao_timeout_segundos = sec.getint(
-            "confirmacao_timeout_segundos", cfg.confirmacao_timeout_segundos
-        )
-        cfg.poll_lista_segundos = sec.getint("poll_lista_segundos", cfg.poll_lista_segundos)
         cfg.pausa_envio_min_segundos = sec.getint(
             "pausa_envio_min_segundos", cfg.pausa_envio_min_segundos
         )

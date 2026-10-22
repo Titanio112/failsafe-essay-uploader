@@ -19,7 +19,7 @@ def test_import_lista_redacoes():
         verificar_duplicidade,
         contar_linhas_codigo_data,
         ler_lista_redacoes_html,
-        detectar_ja_enviado,
+        contar_tema_hoje,
     )
 
 def test_import_formulario_envio():

@@ -75,16 +75,17 @@ def test_erro_anterior_pode_tentar_de_novo(tmp_path, progresso):
     assert [i.arquivo for i in lotes[0].itens] == ["a.jpg"]
 
 
-def test_limite_de_envios_por_aluno_nesta_execucao(tmp_path):
+def test_sem_limite_de_redacoes_por_aluno(tmp_path):
+    """Antônio, 22/10: não há limite por aluno (antes eram 4 por execução)."""
     raiz = tmp_path / "pend"
     resultado = ResultadoConciliacao(itens=[
-        _item(raiz, ANA, f"{n} - Tema", "a.jpg", str(n)) for n in range(1, 6)
+        _item(raiz, ANA, f"{n} - Tema", "a.jpg", str(n)) for n in range(1, 7)
     ])
 
-    lotes, ignorados = montar_lote_producao(resultado, raiz, max_por_aluno=4)
+    lotes, ignorados = montar_lote_producao(resultado, raiz)
 
-    assert [i.codigo for i in lotes[0].itens] == ["1", "2", "3", "4"]
-    assert ignorados == [("5 - Tema/a.jpg", "limite de 4 envios por aluno nesta execucao")]
+    assert [i.codigo for i in lotes[0].itens] == ["1", "2", "3", "4", "5", "6"]
+    assert ignorados == []
 
 
 def test_codigo_repetido_arquivo_inexistente_e_sem_codigo_ficam_fora(tmp_path):

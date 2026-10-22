@@ -37,5 +37,33 @@ Pedido do Antônio: "pode fazer as limpezas".
   FLUXO_FASE3, INVENTARIO, PROMPT_CLINE, HANDOFF, COMO_TESTAR_DRYRUN.
   Referências corrigidas em AGENTS.md, PROJECT_MEMORY.md, REGRAS e fila_producao.py.
 
-## T38 - Fase 2: repetições, sobras, sem limite por aluno, pasta padrão e primeiro uso [ ]
+## T38 - Fase 2: repetições, sobras, sem limite por aluno, pasta padrão e primeiro uso [x]
+
+Pedidos do Antônio (22/10): "não era pra ter limite do aluno"; pasta padrão
+= a dele; primeira vez: mostrar onde colocar cada coisa; tirar repetições.
+- Sem limite por aluno: saiu `max_por_aluno` do lote e `max_envios_por_aluno`
+  do Config. `Progresso.registrar_envio`/`LimiteEnvios` ficam só porque o
+  teste protegido usa (marcados "não usado pelo fluxo").
+- Pasta padrão: `Redações plataforma/` (constante `PASTA_REDACOES`).
+  `redacoes_pendentes/` removida.
+- Primeiro uso: `python main.py --preparar` (modulos/primeiro_uso.py) cria a
+  pasta com LEIA-ME.txt, `dados/dados_alunos.csv` (Nome;Email) e `.env` a partir
+  do `.env.example`, sem sobrescrever nada, e mostra ✔/✘ do que falta. O
+  dry-run sem lista de alunos ou sem pasta mostra o guia (antes: erro do Python).
+- README.md novo na raiz (como usar).
+- Repetições: `verificar_dominio_autorizado` ficou só em login.py (era 4x).
+  `detectar_ja_enviado` removida (trocada por `contar_tema_hoje` na T35).
+  Config: 9 campos sem uso removidos (base_url, login_path, tema,
+  estilo_correcao, max_envios_teste, exigir_aprovacao_fuzzy, 3 esperas).
+  Funções antigas usadas só pelo teste protegido ficaram (exigir_envio_real,
+  verificar_duplicidade, contar_linhas_codigo_data, validar_codigo_site).
+- Dicas do dry-run apontam para `--revisar`.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+219 passed, 4 deselected
+$ python main.py        (sem --pasta: lê "Redações plataforma")
+Pastas de temas: 4 | JPGs encontrados: 130
+```
 ## T39 - Fase 3: módulos em subpastas [ ]

@@ -6,17 +6,11 @@ from playwright.sync_api import Page
 import logging
 import time
 
-from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
-from modulos.login import DOMINIO_ESPERADO
+from modulos.excecoes import ConfirmacaoInconclusiva
+from modulos.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
 from modulos.lista_redacoes import ler_lista_redacoes
 
 log = logging.getLogger("automacao_redacoes")
-
-def verificar_dominio_autorizado(page: Page) -> None:
-    dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
-    if DOMINIO_ESPERADO not in dominio_atual:
-        raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")
-
 
 def clicar_enviar(page: Page) -> None:
     """Clica uma única vez no botão 'Enviar resposta'."""

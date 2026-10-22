@@ -30,7 +30,7 @@ def test_caminhos_padrao_ficam_na_raiz():
     cfg = Config()
     assert cfg.banco_progresso == RAIZ_PROJETO / "relatorios" / "progresso.db"
     assert cfg.pasta_relatorios == RAIZ_PROJETO / "relatorios"
-    assert cfg.pasta_raiz == RAIZ_PROJETO / "redacoes_pendentes"
+    assert cfg.pasta_raiz == RAIZ_PROJETO / "Redações plataforma"  # T38
 
 
 # ---- R2: sem fallback por value no combo de temas ----

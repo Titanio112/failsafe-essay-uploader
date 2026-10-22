@@ -7,7 +7,7 @@ Regras (T24, ver docs/historico/TAREFAS_T1_a_T36.md):
 - vários arquivos do mesmo aluno no mesmo código entram se estiverem em
   pastas diferentes (T35: ex. tema genérico 000); o envio confere pela
   contagem do dia; na mesma pasta a conciliação já mandou para revisão;
-- no máximo ``max_por_aluno`` itens por aluno nesta execução;
+- sem limite de redações por aluno (Antônio, 22/10);
 - ``limite_alunos`` / ``limite_redacoes`` cortam o lote no fim.
 """
 
@@ -35,7 +35,6 @@ def montar_lote_producao(
     resultado: ResultadoConciliacao,
     pasta_raiz: Path,
     progresso: Optional[Progresso] = None,
-    max_por_aluno: int = 4,
     limite_alunos: Optional[int] = None,
     limite_redacoes: Optional[int] = None,
 ) -> tuple[list[LoteAluno], list[tuple[str, str]]]:
@@ -66,9 +65,6 @@ def montar_lote_producao(
         else:
             vistos.add((aluno.id, codigo, item.pasta))
             lote = lotes.setdefault(aluno.id, LoteAluno(aluno))
-            if len(lote.itens) >= max_por_aluno:
-                ignorados.append((chave, f"limite de {max_por_aluno} envios por aluno nesta execucao"))
-                continue
             lote.itens.append(ItemFilaTeste(item.pasta, item.arquivo, codigo, caminho, chave,
                                             total_mesmo_tema=total_por_tema[(aluno.id, codigo)]))
 

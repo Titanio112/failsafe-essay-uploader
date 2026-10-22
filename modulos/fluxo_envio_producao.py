@@ -122,7 +122,6 @@ def executar_envio_producao(
         return 2
     lotes, ignorados = montar_lote_producao(
         resultado, Path(cfg.pasta_raiz), progresso,
-        max_por_aluno=cfg.max_envios_por_aluno,
         limite_alunos=limite_alunos, limite_redacoes=limite_redacoes,
     )
     for chave, motivo in ignorados:

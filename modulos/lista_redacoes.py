@@ -7,8 +7,7 @@ from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from modulos.excecoes import CaptchaOuBloqueio
-from modulos.login import DOMINIO_ESPERADO
+from modulos.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
 
 
 CABECALHO_ESPERADO = ["data", "tema", "nota", "situação"]
@@ -22,12 +21,6 @@ class ItemListaRedacao:
     situacao: str = ""
     nota: str = ""
     botao_texto: str = ""
-
-
-def verificar_dominio_autorizado(page: Page) -> None:
-    dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
-    if DOMINIO_ESPERADO not in dominio_atual:
-        raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")
 
 
 def ler_saldo_creditos(page: Page) -> int | None:
@@ -226,21 +219,3 @@ def contar_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,
             total += 1
     return total
 
-
-def detectar_ja_enviado(lista_redacoes: list[ItemListaRedacao], codigo: str, data_hoje: str | None = None) -> tuple[bool, str]:
-    """Verifica se já foi enviado HOJE - retorna (True, data) ou (False, '').
-
-    Lista vazia -> (False, '') — decisão D1 (a): conta sem redações pode enviar;
-    o chamador já abortou se o saldo da mesma página não foi lido.
-    Lista com linhas ilegíveis -> RuntimeError (fail-closed, não envia)."""
-    from datetime import datetime
-    if not lista_redacoes:
-        return False, ""
-    if data_hoje is None:
-        data_hoje = datetime.now().strftime("%d/%m/%Y")
-    estado, data = verificar_duplicidade(lista_redacoes, codigo, data_hoje)
-    if estado == "JA_ENVIADO":
-        return True, data or ""
-    if estado != "OK":
-        raise RuntimeError(f"Lista de redacoes ilegivel ({estado}); envio bloqueado")
-    return False, ""

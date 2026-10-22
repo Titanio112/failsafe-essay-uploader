@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from modulos.login import DOMINIO_ESPERADO
 from modulos.lista_redacoes import (
     ItemListaRedacao,
-    detectar_ja_enviado,
+    contar_tema_hoje,
     ler_lista_redacoes,
     ler_lista_redacoes_html,
 )
@@ -82,11 +82,11 @@ def test_ler_lista_redacoes_da_pagina_usa_layout_real():
 def test_envio_do_dia_detectado_como_ja_enviado():
     """Era o risco da T20: o envio de hoje precisa ser visto como duplicado."""
     itens = ler_lista_redacoes(PaginaFalsa(_html_lista(LINHA_REAL)))
-    assert detectar_ja_enviado(itens, "0", data_hoje="21/10/2026") == (True, "21/10/2026")
+    assert contar_tema_hoje(itens, "0", data_hoje="21/10/2026") == 1
     # "00" é outro código: não é duplicado
-    assert detectar_ja_enviado(itens, "00", data_hoje="21/10/2026") == (False, "")
+    assert contar_tema_hoje(itens, "00", data_hoje="21/10/2026") == 0
     # Outro dia: pode enviar
-    assert detectar_ja_enviado(itens, "0", data_hoje="22/10/2026") == (False, "")
+    assert contar_tema_hoje(itens, "0", data_hoje="22/10/2026") == 0
 
 
 # ---- Lista ilegível -> fail-closed ----
@@ -109,7 +109,7 @@ def test_linhas_de_dados_ilegiveis_levanta():
 def test_detectar_lista_com_itens_sem_dados_levanta():
     lista = [ItemListaRedacao(data="", tema="", situacao="Pendente")]
     with pytest.raises(RuntimeError, match="ilegivel"):
-        detectar_ja_enviado(lista, "0", data_hoje="21/10/2026")
+        contar_tema_hoje(lista, "0", data_hoje="21/10/2026")
 
 
 # ---- D1 opção (a): lista vazia pode enviar ----
@@ -119,7 +119,7 @@ def test_tabela_so_com_cabecalho_e_lista_vazia():
 
 
 def test_detectar_lista_vazia_pode_enviar():
-    assert detectar_ja_enviado([], "0", data_hoje="21/10/2026") == (False, "")
+    assert contar_tema_hoje([], "0", data_hoje="21/10/2026") == 0
 
 
 # ---- E1: confirmacao importa e usa a lista real ----

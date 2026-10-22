@@ -193,7 +193,8 @@ class Progresso:
         return int(row[0])
 
     def registrar_envio(self, aluno_id: str, arquivo: str, max_envios: int = 4) -> int:
-        """Registra um envio para o aluno, respeitando o limite máximo.
+        """NÃO usado pelo fluxo (sem limite por aluno desde 22/10); mantido
+        pelo teste protegido. Registra um envio, respeitando o limite.
 
         Levanta :class:`LimiteEnvios` ao atingir o teto; nesse caso o aluno
         deve ser parado.

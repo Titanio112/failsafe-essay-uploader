@@ -5,8 +5,7 @@ from dataclasses import dataclass
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from modulos.excecoes import CaptchaOuBloqueio
-from modulos.login import DOMINIO_ESPERADO
+from modulos.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
 
 
 @dataclass
@@ -14,12 +13,6 @@ class TemaCombo:
     """Uma opção do combo 'Informe o tema da redação'."""
     codigo: str
     texto_completo: str
-
-
-def verificar_dominio_autorizado(page: Page) -> None:
-    dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
-    if DOMINIO_ESPERADO not in dominio_atual:
-        raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")
 
 
 def abrir_formulario_envio(page: Page) -> None:

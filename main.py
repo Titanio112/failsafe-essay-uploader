@@ -31,6 +31,7 @@ from modulos.fluxo_envio_teste import executar_envio_teste
 from modulos.fluxo_envio_producao import executar_envio_producao
 from modulos.analise_remota import executar_analise_remota
 from modulos.revisao_interativa import desfazer_renomeacoes, executar_revisao
+from modulos.primeiro_uso import mostrar_guia, preparar
 from modulos.nomes_aprovados import (
     carregar_nomes_aprovados,
     registrar_sugestoes,
@@ -64,8 +65,7 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
     if novas:
         print()
         print(f"{novas} sugestao(oes) nova(s) de nome em {arquivo_nomes}.")
-        print("Abra o arquivo e escreva 'sim' na coluna 'aprovado' das que estiverem certas;")
-        print("na proxima execucao esses arquivos entram na fila como nome exato.")
+        print("Para confirmar os nomes: python main.py --revisar")
 
     pastas = [p for p in arquivos if p not in codigos_pasta]
     sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
@@ -79,8 +79,8 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
             else:
                 nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
                 print(f"  {pasta}: {nivel} -> {texto} ({score:.0f}%)")
-        print(f"Em {arquivo_pastas} ({novas_pastas} linha(s) nova(s)): confira/corrija o")
-        print("codigo e escreva 'sim' em 'aprovado'. Nao precisa renomear a pasta.")
+        print("Para escolher o tema de cada pasta: python main.py --revisar")
+        print(f"(ou edite {arquivo_pastas} e escreva 'sim' em 'aprovado').")
 
 
 def parse_args(argv=None):
@@ -101,7 +101,9 @@ def parse_args(argv=None):
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
     p.add_argument("--pasta", default=None,
-                   help="pasta com as redacoes (ex.: \"Redações plataforma\"); padrao: redacoes_pendentes/")
+                   help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
+    p.add_argument("--preparar", action="store_true",
+                   help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
     return p.parse_args(argv)
 
 
@@ -113,6 +115,8 @@ def main(argv=None) -> int:
         if not cfg.pasta_raiz.is_dir():
             print(f"[ERRO] Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
             return 2
+    if args.preparar:
+        return preparar(cfg, config_mod.RAIZ)
     # Os [AVISO] já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
@@ -170,6 +174,12 @@ def main(argv=None) -> int:
             log.info("Iniciando conciliacao (dry-run).")
         if args.envio_real and not Path(cfg.planilha).is_file():
             print(f"[ERRO] Planilha de alunos nao encontrada: {cfg.planilha}")
+            return 2
+        if not Path(cfg.planilha).is_file() or not Path(cfg.pasta_raiz).is_dir():
+            # Primeiro uso (T38): explicar em vez de quebrar
+            print("[AVISO] Falta a lista de alunos ou a pasta das redacoes.")
+            mostrar_guia(cfg, config_mod.RAIZ / ".env")
+            print("Para criar o que falta: python main.py --preparar")
             return 2
         alunos = carregar_alunos(cfg)
         print(f"Alunos carregados: {len(alunos)}")
