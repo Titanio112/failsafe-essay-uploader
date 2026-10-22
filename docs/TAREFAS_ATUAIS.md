@@ -14,8 +14,8 @@ Bugs: `docs/qa-issues/`. Regra de cada tarefa: só vira [x] com PROVA colada.
 
 ## Pendências do Antônio
 
-- [ ] Testar na conta de teste (T40): `python main.py --modo-teste --revisar`
-      (g, g, Enter, nomes) e depois `--modo-teste --envio-real` (4 redações).
+- [x] Testar na conta de teste (T40): feito em 22/10 18:27–18:29, 4 ENVIADO
+      (temas 0, 000, 000, 100), todas "Pendente". Contagem do 000 confirmada.
 - [ ] Rodar `--revisar`: Enter na filiação, `g` na discriminação e na
       tecnologia, depois os nomes.
 - [ ] Decidir quando liberar o envio para alunos reais (T25 suspensa).
@@ -123,3 +123,25 @@ Simulação numa cópia (sem site, sem envio): dry-run -> fila 1; --revisar
 (g, g, Enter, Enter, Enter) -> 3 pastas aprovadas, 2 renomeados; dry-run ->
 fila 4 (0, 000, 000, 100); --envio-real respondendo "nao" -> mostra o lote de
 teste e cancela, sem login.
+
+## T41 - Visual do terminal padronizado num arquivo só [x]
+
+Pedido do Antônio (22/10): o visual "polido" da revisão em todas as telas, e
+um arquivo único para mudar o visual.
+- `modulos/base/tela.py`: cores, papéis (ok/aviso/erro/info/fraco/bloqueado),
+  símbolos, largura, linhas, barras, `titulo`, `cabecalho`, `secao`, `status`,
+  `contagens`, `menu`, `comando`, `perguntar`, `caminho` e `FormatoTerminal`
+  (log no terminal "  18:27:41 • mensagem"; o arquivo de log não muda).
+- Aplicado em: dry-run (título, Dados, Resumo, Detalhes por tema com ✔/⚠/✘ por
+  estado, Arquivos gerados, O que falta revisar), envio (título, lote, regras,
+  confirmação, resumo colorido), análise remota, --preparar, revisão (passou a
+  usar tela.py), avisos de planilha_arquivos e log.
+- Caminhos aparecem curtos (relativos à pasta do projeto).
+- `tests/test_t41.py`: nenhum arquivo além do tela.py tem código de cor;
+  sem terminal não sai cor; mudar SIMBOLOS/LARGURA no tela.py muda a saída.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+228 passed, 4 deselected
+```

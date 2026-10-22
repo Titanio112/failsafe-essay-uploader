@@ -55,7 +55,8 @@ def configurar_logging(pasta_logs: Path | None = None) -> logging.Logger:
     logger.setLevel(logging.INFO)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     console = logging.StreamHandler(sys.stdout)
-    console.setFormatter(fmt)
+    from modulos.base.tela import FormatoTerminal
+    console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
     console.addFilter(_FiltroSanitizador())
     logger.addHandler(console)
     if pasta_logs is not None:

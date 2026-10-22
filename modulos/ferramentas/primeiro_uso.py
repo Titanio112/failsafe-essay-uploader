@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
+from modulos.base import tela
 from modulos.base.config import Config, RAIZ_PASTA_REDACOES_LEIAME
 
 CABECALHO_ALUNOS = "Nome;Email\n"
@@ -56,11 +57,12 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
         shutil.copy(exemplo, env)
         criados.append(str(env))
 
-    saida("=== Preparar (primeiro uso) ===")
+    tela.titulo("PREPARAR  ·  primeiro uso", saida)
+    tela.secao("Criado agora", saida)
     for c in criados:
-        saida(f"  criado: {c}")
+        tela.ok(f"criado: {c}", saida)
     if not criados:
-        saida("  nada a criar: tudo ja existe.")
+        tela.info("nada a criar: tudo ja existe.", saida)
     mostrar_guia(cfg, env, saida)
     return 0
 
@@ -68,14 +70,13 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
 def mostrar_guia(cfg: Config, env: Path, saida: Callable = print) -> bool:
     """Mostra o que está pronto e o que falta. Retorna True se está tudo pronto."""
     itens = verificar(cfg, env)
-    saida("")
-    saida("O que o script precisa:")
+    tela.secao("O que o script precisa", saida)
     for ok, item, fazer in itens:
-        saida(f"  {'✔' if ok else '✘'} {item}")
+        tela.status("ok" if ok else "erro", item, saida)
         if not ok:
-            saida(f"      -> {fazer}")
+            tela.status("fraco", fazer, saida, recuo=6)
     pronto = all(ok for ok, _, _ in itens[:2])  # .env só é preciso para entrar no site
     saida("")
-    saida("Pronto para o dry-run: python main.py" if pronto
-          else "Depois de resolver o que tem ✘, rode: python main.py")
+    tela.comando("python main.py", "pronto para o dry-run" if pronto
+                 else "depois de resolver o que tem ✘", saida)
     return pronto

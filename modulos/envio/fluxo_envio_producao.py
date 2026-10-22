@@ -19,6 +19,7 @@ from typing import Optional
 
 from playwright.sync_api import sync_playwright
 
+from modulos.base import tela
 from modulos.base.config import Config, obter_senha
 from modulos.site.login import login, confirmar_identidade, DOMINIO_ESPERADO
 from modulos.site.formulario_envio import verificar_dominio_autorizado
@@ -123,7 +124,7 @@ def executar_envio_producao(
     ESQUEMA_SENHA_TESTE. Assim a trava de produção não se aplica a ele."""
     from modulos.base import config as config_mod
     if not conta_teste and config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
-        print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
+        tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
         return 2
     lotes, ignorados = montar_lote_producao(
         resultado, Path(cfg.pasta_raiz), progresso,
@@ -133,29 +134,30 @@ def executar_envio_producao(
         log.warning("Fora do lote: %s (%s)", chave, motivo)
     total = sum(len(lote.itens) for lote in lotes)
     if not total:
-        print("Nada para enviar nesta execucao.")
+        tela.info("Nada para enviar nesta execucao.")
         return 0
     if conta_teste and any(l.aluno.email.casefold() != conta_teste.casefold() for l in lotes):
-        print("[ERRO] Lote de teste com aluno que nao e a conta de teste. Nada foi enviado.")
+        tela.erro("Lote de teste com aluno que nao e a conta de teste. Nada foi enviado.")
         return 2
 
     rotulo = "teste" if conta_teste else "producao"
     palavra = "ENVIAR TESTE" if conta_teste else "ENVIAR"
-    print(f"Lote de {rotulo}: {len(lotes)} aluno(s), {total} redacao(oes).")
-    print("Ja enviados hoje (mesmo tema) serao pulados. ERRO para so o aluno;")
-    print("resultado inconclusivo apos o clique para a execucao inteira.")
+    tela.titulo(f"ENVIO DE {rotulo.upper()}  ·  {len(lotes)} aluno(s), {total} redacao(oes)")
+    tela.secao(f"Lote de {rotulo}")
     for lote in lotes:
-        print(f"  {lote.aluno.nome} <{mascarar_email(lote.aluno.email)}>")
+        print(f"  {tela.c(lote.aluno.nome, 'titulo')} {tela.c(f'<{mascarar_email(lote.aluno.email)}>', 'fraco')}")
         for item in lote.itens:
-            print(f"    tema {item.codigo}: {item.chave_progresso}")
+            tela.status("info", f"tema {item.codigo}: {item.chave_progresso}", recuo=4)
+    tela.secao("Regras")
+    tela.status("fraco", "Ja enviados hoje (mesmo tema) serao pulados. ERRO para so o aluno;")
+    tela.status("fraco", "resultado inconclusivo apos o clique para a execucao inteira.")
     print()
-    try:
-        confirmacao = input(f"Digite {palavra} para confirmar o lote (qualquer outro texto cancela): ").strip()
-    except (EOFError, OSError):
-        confirmacao = ""  # sem terminal para digitar: cancela
+    confirmacao = tela.perguntar(
+        f"  Digite {tela.c(palavra, 'tecla')} para confirmar o lote (qualquer outro texto cancela): ")
     if confirmacao != palavra:
-        print("Cancelado pelo usuario.")
+        tela.aviso("Cancelado pelo usuario.")
         return 2
+    tela.secao("Enviando")
 
     senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
@@ -184,12 +186,13 @@ def executar_envio_producao(
         finally:
             browser.close()
 
-    print()
-    print(f"Resumo do envio de {rotulo}:")
-    for estado in (ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL):
-        print(f"  {estado}: {contagem.get(estado, 0)}")
+    tela.secao(f"Resumo do envio de {rotulo}")
+    tela.contagens([(estado, contagem.get(estado, 0), tela.PAPEL_DO_ESTADO[estado])
+                    for estado in (ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL)])
     if parou:
-        print("Execucao PARADA antes do fim. Confira REVISAO_MANUAL no site antes de rodar de novo.")
+        tela.erro("Execucao PARADA antes do fim. Confira REVISAO_MANUAL no site antes de rodar de novo.")
+    elif not contagem[ERRO] and not contagem[REVISAO_MANUAL]:
+        tela.ok("Tudo certo.")
     if progresso:
-        print(f"Relatorio do envio: {gravar_relatorio_envio(lotes, progresso, cfg.pasta_relatorios)}")
+        tela.info(f"Relatorio do envio: {tela.caminho(gravar_relatorio_envio(lotes, progresso, cfg.pasta_relatorios))}")
     return 1 if parou or contagem[ERRO] or contagem[REVISAO_MANUAL] else 0

@@ -350,7 +350,7 @@ def test_sem_terminal_nao_sai_codigo_de_cor(tmp_path):
 
 
 def test_com_cores_a_barra_fica_verde_quando_provavel(monkeypatch):
-    from modulos.ferramentas import revisao_interativa as ri
-    monkeypatch.setitem(ri._cores, "ativas", True)
-    assert "\033[32m" in ri._barra(95.0)
-    assert "\033[33m" in ri._barra(65.0)
+    from modulos.base import tela  # T41: o visual mora em tela.py
+    monkeypatch.setitem(tela._cores, "ativas", True)
+    assert "\033[32m" in tela.barra(95.0)
+    assert "\033[33m" in tela.barra(65.0)

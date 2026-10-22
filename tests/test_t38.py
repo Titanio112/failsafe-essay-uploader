@@ -37,7 +37,7 @@ def test_preparar_cria_o_que_falta_sem_sobrescrever(tmp_path):
     saidas.clear()
     preparar(cfg, tmp_path, saida=saidas.append)
     assert cfg.planilha.read_text(encoding="utf-8") == "Nome;Email\nAna;ana@x.com\n"
-    assert "  nada a criar: tudo ja existe." in saidas
+    assert any("nada a criar: tudo ja existe." in s for s in saidas)
 
 
 def test_guia_aponta_o_que_falta(tmp_path):
@@ -74,4 +74,4 @@ def test_main_preparar(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: Config())
     assert main_mod.main(["--preparar"]) == 0
     assert (config_mod.RAIZ / "Redações plataforma" / "LEIA-ME.md").is_file()
-    assert "=== Preparar (primeiro uso) ===" in capsys.readouterr().out
+    assert "PREPARAR  ·  primeiro uso" in capsys.readouterr().out

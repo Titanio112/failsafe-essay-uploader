@@ -102,9 +102,9 @@ class ResultadoConciliacao:
 
 
 def _emitir_aviso(mensagem: str) -> None:
-    aviso = f"[AVISO] {mensagem}"
-    print(aviso)
-    warnings.warn(aviso, UserWarning, stacklevel=3)
+    from modulos.base import tela
+    tela.aviso(mensagem)
+    warnings.warn(f"[AVISO] {mensagem}", UserWarning, stacklevel=3)
 
 
 def _sugerir_fuzzy(norm: str, alunos: list, limiar: float, margem: float):

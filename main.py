@@ -14,6 +14,7 @@ except (AttributeError, ValueError):
     pass
 
 from modulos.base import config as config_mod
+from modulos.base import tela
 from modulos.base.config import MENSAGEM_BLOQUEIO, NOME_CONTA_TESTE, carregar_config, configurar_modo_teste
 from modulos.dados.planilha_arquivos import Aluno, carregar_alunos
 from modulos.base.progresso_relatorio import (
@@ -45,25 +46,23 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
                        revisar: str = "python main.py --revisar") -> None:
     """Sugestões para o humano resolver (T26/T28): nomes e códigos de tema. Só sugere."""
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
-    if novas:
-        print()
-        print(f"{novas} sugestao(oes) nova(s) de nome em {arquivo_nomes}.")
-        print(f"Para confirmar os nomes: {revisar}")
-
     pastas = [p for p in arquivos if p not in codigos_pasta]
     sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
+    if not novas and not sugestoes:
+        return
+    tela.secao("O que falta revisar")
+    if novas:
+        tela.aviso(f"{novas} sugestao(oes) nova(s) de nome em {tela.caminho(arquivo_nomes)}.")
     if sugestoes:
         registrar_sugestoes_pasta(sugestoes, arquivo_pastas)
-        print()
-        print("Pastas SEM codigo de tema aprovado (nada delas sera enviado):")
+        tela.aviso("Pastas SEM codigo de tema aprovado (nada delas sera enviado):")
         for pasta, codigo, texto, score in sugestoes:
             if not codigo:
-                print(f"  {pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)")
+                tela.status("fraco", f"{pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)", recuo=4)
             else:
                 nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
-                print(f"  {pasta}: {nivel} -> {texto} ({score:.0f}%)")
-        print(f"Para escolher o tema de cada pasta: {revisar}")
-        print(f"(ou edite {arquivo_pastas} e escreva 'sim' em 'aprovado').")
+                print(f"    {tela.porcentagem(score)} {pasta}: {nivel} -> {texto}")
+    tela.comando(revisar, "escolher os temas e confirmar os nomes")
 
 
 def parse_args(argv=None):
@@ -93,14 +92,15 @@ def parse_args(argv=None):
 def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = carregar_config(args.config)
+    tela.ativar_cores()
     if args.pasta and not args.modo_teste:
         cfg.pasta_raiz = Path(args.pasta)
         if not cfg.pasta_raiz.is_dir():
-            print(f"[ERRO] Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
+            tela.erro(f"Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
             return 2
     if args.preparar:
         return preparar(cfg, config_mod.RAIZ)
-    # Os [AVISO] já saem na tela; não repetir como UserWarning do Python
+    # Os avisos já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
     log = configurar_logging()
@@ -108,11 +108,12 @@ def main(argv=None) -> int:
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     if (args.revisar or args.desfazer_renomeacao) and args.envio_real:
-        print("[ERRO] --revisar/--desfazer-renomeacao nao combinam com --envio-real.")
+        tela.erro("--revisar/--desfazer-renomeacao nao combinam com --envio-real.")
         return 2
     if args.modo_teste:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
     if args.desfazer_renomeacao:
+        tela.titulo("DESFAZER RENOMEAÇÃO")
         desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz)
         return 0
 
@@ -126,9 +127,14 @@ def main(argv=None) -> int:
             aluno_conta = next((a for a in carregar_alunos(cfg)
                                 if a.email.casefold() == args.conta_aluno.strip().casefold()), None)
             if aluno_conta is None:
-                print(f"[ERRO] {args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
+                tela.erro(f"{args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
                 return 2
         return executar_analise_remota(cfg, TEMAS_SITE_CSV, aluno=aluno_conta)
+
+    modo = "MODO TESTE (conta de teste)" if args.modo_teste else "alunos da lista"
+    if not args.revisar:
+        tela.titulo(f"CONFERÊNCIA  ·  {modo}  ·  " + ("depois envia" if args.envio_real else "nada é enviado"))
+    tela.secao("Dados")
 
     # Modo teste: usa conta de teste e pasta de teste
     if args.modo_teste:
@@ -138,61 +144,59 @@ def main(argv=None) -> int:
         # T40: mesmo caminho da produção; o único aluno é a conta de teste
         email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
         alunos = [Aluno(nome=NOME_CONTA_TESTE, email=email_teste)]
-        log.info("Modo teste: conta de teste, pasta %s", cfg.pasta_raiz)
+        tela.ok(f"Conta de teste: {NOME_CONTA_TESTE}  ·  pasta {tela.caminho(cfg.pasta_raiz)}")
     else:
         if args.envio_real:
             # Produção (F4/T24): fail-closed sem a referência de códigos do site
             if not ler_codigos_site_csv(TEMAS_SITE_CSV):
-                print(f"[ERRO] Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
-                print("[ERRO] Nada foi enviado.")
+                tela.erro(f"Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
+                tela.erro("Nada foi enviado.")
                 return 2
             if config_mod.PRODUCAO_BLOQUEADA:
-                print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
+                tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
                 return 2
             # Senha padrão vem do .env (ou getpass)
             from dotenv import load_dotenv
             load_dotenv()
             log.info("Iniciando conciliacao para envio de producao.")
-        else:
-            log.info("Iniciando conciliacao (dry-run).")
         if args.envio_real and not Path(cfg.planilha).is_file():
-            print(f"[ERRO] Planilha de alunos nao encontrada: {cfg.planilha}")
+            tela.erro(f"Planilha de alunos nao encontrada: {cfg.planilha}")
             return 2
         if not Path(cfg.planilha).is_file() or not Path(cfg.pasta_raiz).is_dir():
             # Primeiro uso (T38): explicar em vez de quebrar
-            print("[AVISO] Falta a lista de alunos ou a pasta das redacoes.")
+            tela.aviso("Falta a lista de alunos ou a pasta das redacoes.")
             mostrar_guia(cfg, config_mod.RAIZ / ".env")
-            print("Para criar o que falta: python main.py --preparar")
+            tela.comando("python main.py --preparar", "cria o que falta")
             return 2
         alunos = carregar_alunos(cfg)
-        print(f"Alunos carregados: {len(alunos)}")
+        tela.ok(f"Alunos carregados: {len(alunos)}  ·  pasta {tela.caminho(cfg.pasta_raiz)}")
 
-
-    # Determinar codigos_site com fail-closed
-    codigos_site: list[str] = []
     # O CSV é só referência; a trava real é o combo da conta logada,
     # conferido item a item antes do clique (T18D).
+    codigos_site: list[str] = []
     if TEMAS_SITE_CSV.exists():
         codigos_site = ler_codigos_site_csv(TEMAS_SITE_CSV)
         if codigos_site:
-            print(f"[AVISO] Usando {len(set(codigos_site))} códigos de dados/temas_site.csv (referência; atualize com --analise-remota)")
+            tela.info(f"Temas do site: {len(set(codigos_site))} códigos em dados/temas_site.csv "
+                      "(atualize com --analise-remota)")
         else:
-            print("[AVISO] dados/temas_site.csv existe mas sem códigos válidos")
+            tela.aviso("dados/temas_site.csv existe mas sem códigos válidos")
     else:
-        print("[AVISO] dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
+        tela.aviso("dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
 
     # Conciliação com as aprovações do humano (T26/T28); T40: vale também no modo teste
     conciliacao = conciliar_com_aprovacoes(cfg, alunos, codigos_site)
     resultado, arquivos = conciliacao.resultado, conciliacao.arquivos
     nomes_aprovados, codigos_pasta = conciliacao.nomes_aprovados, conciliacao.codigos_pasta
-    print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {sum(len(v) for v in arquivos.values())}")
+    tela.ok(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {sum(len(v) for v in arquivos.values())}")
     if nomes_aprovados:
-        print(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
+        tela.ok(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
     for pasta, codigo in sorted(codigos_pasta.items()):
         if pasta in arquivos:
-            aviso = "" if not codigos_site or codigo in codigos_site else "  [AVISO] codigo fora do temas_site.csv"
-            print(f"Pasta aprovada: {pasta} -> tema {codigo}{aviso}")
-
+            if not codigos_site or codigo in codigos_site:
+                tela.ok(f"Pasta aprovada: {pasta} -> tema {codigo}")
+            else:
+                tela.aviso(f"Pasta aprovada: {pasta} -> tema {codigo}  (codigo fora do temas_site.csv)")
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
     if args.revisar:
@@ -214,37 +218,36 @@ def main(argv=None) -> int:
                 prog.marcar(item.aluno.id, item.chave, "A_ENVIAR", pasta=item.pasta)
 
     resumo = resultado.resumo()
-    print()
-    print("Resumo da conciliacao:")
-    print(f"  Exatos unicos (fila real): {resumo['EXATO_UNICO']}")
-    print(f"  Sugestoes fuzzy (revisao): {resumo['SUGESTAO_FUZZY']}")
-    print(f"  Ambiguos:                  {resumo['AMBIGUO']}")
-    print(f"  Arquivos sem aluno:        {resumo['ARQUIVO_SEM_ALUNO']}")
-    print(f"  Alunos sem arquivo:        {resumo['ALUNO_SEM_ARQUIVO']}")
-    print(f"  Sem codigo na pasta:       {resumo.get('SEM_CODIGO', 0)}")
-    print(f"  Codigo invalido:           {resumo.get('CODIGO_INVALIDO', 0)}")
-    print(f"  Simulados (codigo duplicado no site): {resumo.get('SIMULADO', 0)}")
-    print(f"  Revisao manual:            {resumo.get('REVISAO_MANUAL', 0)}")
-    print()
+    tela.secao("Resumo da conciliacao")
+    tela.contagens([
+        ("Exatos unicos (fila real)", resumo["EXATO_UNICO"], "ok"),
+        ("Sugestoes fuzzy (revisao)", resumo["SUGESTAO_FUZZY"], "aviso"),
+        ("Ambiguos", resumo["AMBIGUO"], "aviso"),
+        ("Arquivos sem aluno", resumo["ARQUIVO_SEM_ALUNO"], "aviso"),
+        ("Alunos sem arquivo", resumo["ALUNO_SEM_ARQUIVO"], "fraco"),
+        ("Sem codigo na pasta", resumo.get("SEM_CODIGO", 0), "aviso"),
+        ("Codigo invalido", resumo.get("CODIGO_INVALIDO", 0), "erro"),
+        ("Codigo repetido no site", resumo.get("SIMULADO", 0), "erro"),
+        ("Revisao manual", resumo.get("REVISAO_MANUAL", 0), "aviso"),
+    ])
 
     # Tabela por tema
-    if resultado.itens:
-        print("Detalhes por tema:")
-        temas_ordenados = sorted(set(i.pasta for i in resultado.itens if i.pasta))
-        for tema in temas_ordenados:
+    if any(i.pasta for i in resultado.itens):
+        tela.secao("Detalhes por tema")
+        for tema in sorted(set(i.pasta for i in resultado.itens if i.pasta)):
             itens_tema = [i for i in resultado.itens if i.pasta == tema]
-            print(f"  Tema {tema}: {len(itens_tema)} arquivo(s)")
+            print(f"  {tela.SIMBOLOS['pasta']} {tela.c(tema, 'pasta')}  {tela.c(f'({len(itens_tema)} arquivo(s))', 'fraco')}")
             for item in itens_tema:
                 aluno_nome = item.aluno.nome if item.aluno else "N/A"
-                obs = f" ({item.observacao})" if item.observacao else ""
-                print(f"    {item.estado}: {item.arquivo} -> {aluno_nome}{obs}")
+                obs = tela.c(f"  ({item.observacao})", "fraco") if item.observacao else ""
+                papel = tela.PAPEL_DO_ESTADO.get(item.estado, "info")
+                tela.status(papel, f"{item.estado}: {item.arquivo} -> {aluno_nome}", recuo=5,
+                            saida=lambda linha, obs=obs: print(linha + obs))
 
-    print()
-    print(f"Relatorio CSV: {csv_path}")
-    print(f"Fila dry-run:  {txt_path}")
-    print()
-    print("Revise o CSV antes de autorizar qualquer envio. Fuzzy/ambiguo/sem par")
-    print("exigem revisao humana e nao entram na fila real.")
+    tela.secao("Arquivos gerados")
+    tela.info(f"Relatorio CSV: {tela.caminho(csv_path)}")
+    tela.info(f"Fila dry-run:  {tela.caminho(txt_path)}")
+    tela.status("fraco", "Fuzzy/ambiguo/sem par exigem revisao humana e nao entram na fila real.")
 
     _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
                        cfg.arquivo_pastas_aprovadas, codigos_pasta,
@@ -264,7 +267,8 @@ def main(argv=None) -> int:
                 limite_redacoes=args.limite_redacoes,
             )
 
-    print(MENSAGEM_BLOQUEIO + " (dry-run; use --envio-real para enviar)")
+    print()
+    tela.bloqueado(MENSAGEM_BLOQUEIO + " (dry-run; use --envio-real para enviar)")
     return 0
 
 

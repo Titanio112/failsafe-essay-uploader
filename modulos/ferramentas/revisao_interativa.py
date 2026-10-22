@@ -20,10 +20,8 @@ caminho para reenvio.
 from __future__ import annotations
 
 import csv
-import os
 import re
 import sqlite3
-import sys
 import textwrap
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +29,7 @@ from typing import Callable
 
 from rapidfuzz import fuzz
 
+from modulos.base import tela
 from modulos.base.estados import REVISAO_MANUAL
 from modulos.dados.nomes_aprovados import _sugestoes_para
 from modulos.dados.normalizacao import PADRAO_CODIGO_ARQUIVO, extrair_codigo_tema, normalizar_nome
@@ -90,61 +89,15 @@ def _sem_codigo(texto: str) -> str:
 # ─── Pastas ──────────────────────────────────────────────────
 
 TEMA_GENERICO = "000"  # "000- DISSERTATIVO ARGUMENTATIVO": tema que não está na plataforma (22/10)
-LARGURA = 80
-
-
-# Cores ANSI só no terminal de verdade (nunca em teste/arquivo); NO_COLOR desliga.
-_ESTILOS = {"verde": "32", "amarelo": "33", "vermelho": "31", "cinza": "90",
-            "ciano": "36", "negrito": "1"}
-_cores = {"ativas": False}
-
-
-def ativar_cores() -> None:
-    if os.environ.get("NO_COLOR") or not sys.stdout.isatty():
-        return
-    if os.name == "nt":
-        os.system("")  # liga as sequências ANSI no console do Windows
-    _cores["ativas"] = True
-
-
-def _c(texto: str, estilo: str) -> str:
-    if not _cores["ativas"]:
-        return texto
-    return f"\033[{_ESTILOS[estilo]}m{texto}\033[0m"
-
-
-def _estilo_score(score: float) -> str:
-    return "verde" if score >= SCORE_PROVAVEL else "amarelo" if score >= 60 else "cinza"
-
-
-def _barra(score: float, largura: int = 10) -> str:
-    cheio = round(max(0.0, min(score, 100.0)) / 100 * largura)
-    return _c("█" * cheio, _estilo_score(score)) + _c("░" * (largura - cheio), "cinza")
-
-
-def _cabecalho(saida: Callable, titulo: str) -> None:
-    saida("")
-    saida(_c("─" * LARGURA, "ciano"))
-    saida(_c(f" {titulo}", "negrito"))
-    saida(_c("─" * LARGURA, "ciano"))
-
-
 def _linha_tema(codigo: str, tema: str, score: float | None) -> list[str]:
     """Nome inteiro do tema, quebrado em linhas alinhadas abaixo do texto."""
     prefixo = f"   [{codigo:>6}]  "
     recuo = len(prefixo)
     if score is not None:
-        prefixo += f"{_barra(score)} {_c(f'{score:3.0f}%', _estilo_score(score))}  "
-        recuo += 10 + 1 + 4 + 2
-    linhas = textwrap.wrap(_sem_codigo(tema), width=max(30, LARGURA - recuo)) or [""]
+        prefixo += f"{tela.barra(score)} {tela.porcentagem(score)}  "
+        recuo += tela.BARRA_TAMANHO + 1 + 4 + 2
+    linhas = textwrap.wrap(_sem_codigo(tema), width=max(30, tela.LARGURA - recuo)) or [""]
     return [prefixo + linhas[0]] + [" " * recuo + linha for linha in linhas[1:]]
-
-
-def _menu(saida: Callable, opcoes: list[tuple[str, str]]) -> None:
-    saida("")
-    saida(_c("  O que fazer?", "negrito"))
-    for tecla, texto in opcoes:
-        saida(f"    {_c(f'{tecla:<8}', 'ciano')} = {texto}")
 
 
 def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_aprovadas: Path,
@@ -163,7 +116,7 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
             opcoes = buscar_temas(busca or pasta, temas, n=len(temas) if busca else 5,
                                   por_palavras=bool(busca))
             melhor = opcoes[0] if not busca and opcoes and opcoes[0][2] >= SCORE_PROVAVEL else None
-            _cabecalho(saida, f"PASTA {n} de {len(pastas)}:  {pasta}")
+            tela.cabecalho(f"PASTA {n} de {len(pastas)}:  {pasta}", saida)
             if busca == "t":
                 saida("  Todos os temas do site:")
                 for codigo, tema, _ in sorted(opcoes, key=lambda t: (len(t[0]), t[0])):
@@ -183,10 +136,10 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
                 saida("")
                 if melhor:
                     for linha in textwrap.wrap(f"✔ Provavelmente e o tema {melhor[0]}: {_sem_codigo(melhor[1])}",
-                                               width=LARGURA - 2, initial_indent="  ", subsequent_indent="    "):
-                        saida(_c(linha, "verde"))
+                                               width=tela.LARGURA - 2, initial_indent="  ", subsequent_indent="    "):
+                        saida(tela.c(linha, "ok"))
                 elif not busca:
-                    saida(_c("  ⚠ Nenhum tema e bem parecido. Se o tema nao existe no site,", "amarelo"))
+                    saida(tela.c("  ⚠ Nenhum tema e bem parecido. Se o tema nao existe no site,", "aviso"))
                     saida(f"    use g = tema generico ({TEMA_GENERICO})." if tem_generico
                           else "    pule (p) e decida depois.")
             menu = [("Enter", f"confirmar o tema {melhor[0]}")] if melhor else []
@@ -195,26 +148,26 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
                 menu.append(("g", f"tema generico: {_sem_codigo(texto_de[TEMA_GENERICO])} ({TEMA_GENERICO})"))
             menu += [("palavra", "procurar tema (ex.: rua)"), ("t", "ver todos os temas"),
                      ("p", "pular esta pasta"), ("q", "sair (o que ja fez fica salvo)")]
-            _menu(saida, menu)
+            tela.menu(menu, saida)
             resp = _perguntar(entrada, "  > ")
             low = resp.lower()
             if low == "q":
                 return aprovadas, True
             if low == "p" or (not resp and not melhor):
-                saida(_c("  Pulada (nada desta pasta sera enviado).", "amarelo"))
+                saida(tela.c("  Pulada (nada desta pasta sera enviado).", "aviso"))
                 break
             if low == "g" and tem_generico:
                 resp = TEMA_GENERICO
             codigo = melhor[0] if not resp else resp
             if codigo.isdigit():
                 if codigo not in contagem:
-                    saida(_c(f"  ✘ Tema {codigo} nao existe na lista do site (dados/temas_site.csv).", "vermelho"))
+                    saida(tela.c(f"  ✘ Tema {codigo} nao existe na lista do site (dados/temas_site.csv).", "erro"))
                     continue
                 if contagem[codigo] > 1:
-                    saida(_c(f"  ✘ Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.", "vermelho"))
+                    saida(tela.c(f"  ✘ Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.", "erro"))
                     continue
                 aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
-                saida(_c(f"  ✔ OK: {pasta} -> tema {codigo} ({_sem_codigo(texto_de[codigo])})", "verde"))
+                saida(tela.c(f"  ✔ OK: {pasta} -> tema {codigo} ({_sem_codigo(texto_de[codigo])})", "ok"))
                 aprovadas += 1
                 break
             busca = low if low == "t" else resp
@@ -304,34 +257,34 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
         opcoes = [(a, "sugerido") for a in sugestoes] or buscar_alunos(nome, alunos, n=3)
         escolhido = None
         while escolhido is None:
-            _cabecalho(saida, f"NOME {n} de {len(grupos)}:  \"{nome}\"  ({len(itens)} arquivo(s))")
+            tela.cabecalho(f"NOME {n} de {len(grupos)}:  \"{nome}\"  ({len(itens)} arquivo(s))", saida)
             saida("  Arquivos:")
             for item in itens:
-                saida(_c(f"    {item.pasta}/{item.arquivo}", "cinza"))
+                saida(tela.c(f"    {item.pasta}/{item.arquivo}", "fraco"))
             saida("")
             saida("  Alunos da lista:")
             for i, (aluno, info) in enumerate(opcoes, 1):
-                extra = (f"{_barra(info)} {_c(f'{info:3.0f}%', _estilo_score(info))}" if isinstance(info, float)
-                         else _c("✔ sugerido", "verde"))
-                saida(f"    {_c(f'{i})', 'ciano')} {extra}  {aluno.nome}")
+                extra = (f"{tela.barra(info)} {tela.porcentagem(info)}" if isinstance(info, float)
+                         else tela.c("✔ sugerido", "ok"))
+                saida(f"    {tela.c(f'{i})', 'tecla')} {extra}  {aluno.nome}")
             unico = len(sugestoes) == 1 and opcoes[0][0] is sugestoes[0]
             menu = [("Enter", f"confirmar 1 ({opcoes[0][0].nome})")] if unico else []
             menu += [("numero", "escolher o aluno da lista"), ("texto", "procurar outro aluno (ex.: luiza)"),
                      ("p", "pular este nome"), ("q", "sair (o que ja fez fica salvo)")]
-            _menu(saida, menu)
+            tela.menu(menu, saida)
             resp = _perguntar(entrada, "  > ")
             low = resp.lower()
             if low == "q":
                 return renomeados, True
             if low == "p" or (not resp and not unico):
-                saida(_c("  Pulado (esses arquivos nao serao enviados).", "amarelo"))
+                saida(tela.c("  Pulado (esses arquivos nao serao enviados).", "aviso"))
                 break
             if not resp:
                 escolhido = opcoes[0][0]
             elif resp.isdigit() and 1 <= int(resp) <= len(opcoes):
                 escolhido = opcoes[int(resp) - 1][0]
             elif resp.isdigit():
-                saida(_c("  ✘ Numero fora da lista.", "vermelho"))
+                saida(tela.c("  ✘ Numero fora da lista.", "erro"))
             else:
                 opcoes = buscar_alunos(resp, alunos)
         if escolhido is None:
@@ -340,9 +293,9 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
             novo, motivo = renomear(pasta_raiz, item.pasta, item.arquivo, escolhido, banco, log_csv)
             if novo:
                 renomeados += 1
-                saida(_c(f"  ✔ Renomeado: {item.pasta}/{item.arquivo} -> {novo}", "verde"))
+                saida(tela.c(f"  ✔ Renomeado: {item.pasta}/{item.arquivo} -> {novo}", "ok"))
             else:
-                saida(_c(f"  ✘ NAO renomeado: {item.pasta}/{item.arquivo}: {motivo}", "vermelho"))
+                saida(tela.c(f"  ✘ NAO renomeado: {item.pasta}/{item.arquivo}: {motivo}", "erro"))
     return renomeados, False
 
 
@@ -353,32 +306,29 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
                      caminho_pastas: Path, banco: Path, pasta_relatorios: Path,
                      nomes_aprovados: dict | None = None,
                      entrada: Entrada | None = None, saida: Callable = print) -> int:
-    if saida is print:
-        ativar_cores()
     log_csv = Path(pasta_relatorios) / f"renomeacoes_{datetime.now():%Y%m%d_%H%M%S}.csv"
-    saida("")
-    saida("=== Revisao interativa (nada e enviado) ===")
+    tela.titulo("REVISÃO NO TERMINAL  ·  nada é enviado", saida)
     pastas = sorted(p for p in arquivos if p not in codigos_pasta and not extrair_codigo_tema("", p))
     aprovadas, saiu = (0, False)
     if pastas and temas:
-        saida(f"Parte 1: {len(pastas)} pasta(s) sem codigo de tema.")
+        tela.secao(f"Parte 1: {len(pastas)} pasta(s) sem codigo de tema", saida)
         aprovadas, saiu = revisar_pastas(pastas, temas, caminho_pastas, entrada, saida)
     elif pastas:
-        saida("Parte 1 pulada: dados/temas_site.csv vazio (rode --analise-remota).")
+        tela.aviso("Parte 1 pulada: dados/temas_site.csv vazio (rode --analise-remota).", saida)
     renomeados = 0
     grupos = grupos_para_revisar(resultado, alunos)
     if not saiu and grupos:
-        saida("")
-        saida(f"Parte 2: {len(grupos)} nome(s) de arquivo que nao sao o nome exato de um aluno.")
+        tela.secao(f"Parte 2: {len(grupos)} nome(s) que nao sao o nome exato de um aluno", saida)
         renomeados, saiu = revisar_nomes(grupos, alunos, pasta_raiz, banco, log_csv,
                                          nomes_aprovados, entrada, saida)
-    saida("")
-    saida(f"Fim da revisao{' (interrompida)' if saiu else ''}: {aprovadas} pasta(s) aprovada(s), "
-          f"{renomeados} arquivo(s) renomeado(s).")
+    tela.secao("Fim da revisao" + (" (interrompida)" if saiu else ""), saida)
+    tela.status("aviso" if saiu else "ok",
+                f"{aprovadas} pasta(s) aprovada(s), {renomeados} arquivo(s) renomeado(s).", saida)
     if renomeados:
-        saida(f"Log das renomeacoes: {log_csv}")
-        saida(f'Para desfazer: python main.py --desfazer-renomeacao "{log_csv}" --pasta "{pasta_raiz}"')
-    saida("Rode o dry-run de novo para conferir a fila.")
+        tela.info(f"Log das renomeacoes: {tela.caminho(log_csv)}", saida)
+        tela.comando(f'python main.py --desfazer-renomeacao "{log_csv}" --pasta "{pasta_raiz}"',
+                     "para desfazer", saida)
+    tela.comando("python main.py", "rode o dry-run de novo para conferir a fila", saida)
     return 0
 
 
@@ -394,6 +344,7 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
             atual.rename(antigo)
             voltaram += 1
         else:
-            saida(f"  Nao desfeito: {linha['pasta']}/{linha['depois']}")
-    saida(f"{voltaram} de {len(linhas)} arquivo(s) voltaram ao nome antigo.")
+            tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']}", saida)
+    tela.status("ok" if voltaram == len(linhas) else "aviso",
+                f"{voltaram} de {len(linhas)} arquivo(s) voltaram ao nome antigo.", saida)
     return voltaram

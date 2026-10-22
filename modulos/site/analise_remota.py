@@ -18,6 +18,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from modulos.base import tela
 from modulos.base.config import Config, obter_email_teste, obter_senha
 from modulos.site.formulario_envio import abrir_formulario_envio, ler_combo_temas
 from modulos.site.login import DOMINIO_ESPERADO, confirmar_identidade, login, verificar_dominio_autorizado
@@ -47,14 +48,14 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
     """0 = CSV atualizado; 1 = falhou (CSV intacto); 2 = cancelado.
     ``aluno``: entra na conta desse aluno (senha ESQUEMA_SENHA_PADRAO)."""
     qual = f"do aluno {aluno.nome}" if aluno else "de TESTE"
-    print(f"Analise remota: login na conta {qual}, leitura do combo de temas e")
-    print(f"regravacao de {caminho_csv} (o atual vira backup). Nada e enviado.")
-    try:
-        confirmacao = input("Digite ANALISAR para confirmar (qualquer outro texto cancela): ").strip()
-    except (EOFError, OSError):
-        confirmacao = ""  # sem terminal para digitar: cancela
+    tela.titulo("ANÁLISE REMOTA  ·  só leitura, nada é enviado")
+    tela.info(f"Login na conta {qual} e leitura do combo de temas.")
+    tela.info(f"Regrava {caminho_csv} (o atual vira backup).")
+    print()
+    confirmacao = tela.perguntar(
+        f"  Digite {tela.c('ANALISAR', 'tecla')} para confirmar (qualquer outro texto cancela): ")
     if confirmacao != "ANALISAR":
-        print("Cancelado pelo usuario.")
+        tela.aviso("Cancelado pelo usuario.")
         return 2
 
     if aluno:
@@ -91,15 +92,16 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
         return 1
     backup = gravar_temas_csv(temas, caminho_csv, conta)
     repetidos = sorted({c for c, _ in temas if [x for x, _ in temas].count(c) > 1})
-    print(f"{len(temas)} tema(s) gravado(s) em {caminho_csv}.")
+    tela.secao("Resultado")
+    tela.ok(f"{len(temas)} tema(s) gravado(s) em {caminho_csv}.")
     if backup:
-        print(f"Backup do anterior: {backup}")
+        tela.info(f"Backup do anterior: {backup}")
     if repetidos:
-        print(f"Codigos repetidos no combo (nunca enviados automaticamente): {repetidos}")
+        tela.aviso(f"Codigos repetidos no combo (nunca enviados automaticamente): {repetidos}")
     agora = {c for c, _ in temas}
     if antes:
-        print(f"Codigos novos em relacao ao CSV anterior: {sorted(agora - antes, key=_ordem) or 'nenhum'}")
-        print(f"Codigos que sumiram: {sorted(antes - agora, key=_ordem) or 'nenhum'}")
+        tela.info(f"Codigos novos em relacao ao CSV anterior: {sorted(agora - antes, key=_ordem) or 'nenhum'}")
+        tela.info(f"Codigos que sumiram: {sorted(antes - agora, key=_ordem) or 'nenhum'}")
     return 0
 
 

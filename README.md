@@ -78,6 +78,12 @@ de teste (`Usuario Testes Ignorar`) ou algo parecido, para a revisão perguntar.
 | `python main.py --pasta "outra pasta"` | Usa outra pasta de redações |
 | `python -m pytest -q` | Testes (offline, sem site) |
 
+## Mudar o visual do terminal
+
+Todo o visual (cores, símbolos ✔ ⚠ ✘, largura, linhas dos títulos, barras de
+%) fica em **`modulos/base/tela.py`**, na parte de cima do arquivo. Mude lá e
+a saída inteira muda junto. Sem cores: defina a variável `NO_COLOR=1`.
+
 ## Segurança
 
 - Sem `--envio-real` nada é enviado. Com ele, só depois de digitar a confirmação.
