@@ -44,10 +44,8 @@ def ler_saldo_creditos(page: Page) -> int | None:
         match = re.search(r"(\d+)\s+crédito\(s\)", full_text, re.IGNORECASE)
         if match:
             return int(match.group(1))
-        # Fallback: qualquer número seguido de "crédito"
-        match = re.search(r"(\d+)\s+crédito", full_text, re.IGNORECASE)
-        if match:
-            return int(match.group(1))
+        # T46: sem o fallback "qualquer número + crédito" (pegaria "1 crédito
+        # por redação" de um texto de ajuda); sem o padrão conhecido -> None.
     except PWTimeoutError:
         pass
     

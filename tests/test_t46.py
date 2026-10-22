@@ -34,3 +34,18 @@ def test_aprovacao_antiga_cai_quando_entra_aluno_com_nome_parecido(tmp_path):
     nova = Aluno("Ana Lalara Lima", "lima@x.com")
     with pytest.warns(UserWarning, match="mais de um"):
         assert carregar_nomes_aprovados(caminho, [ana, nova]) == {}
+
+
+@pytest.mark.parametrize("texto, saldo", [
+    ("Olá! Você tem 999 crédito(s) disponíveis", 999),
+    ("Você tem 1 crédito", 1),
+    ("Saldo: 0 crédito(s)", 0),
+    ("Cada envio usa 1 crédito por redação", None),
+    ("Minhas redações", None),
+])
+def test_saldo_so_com_o_texto_conhecido(texto, saldo):
+    from unittest.mock import MagicMock
+    from modulos.site.lista_redacoes import ler_saldo_creditos
+    page = MagicMock(url="https://www.esquemaredacao.com.br/minhas-redacoes")
+    page.locator.return_value.inner_text.return_value = texto
+    assert ler_saldo_creditos(page) == saldo
