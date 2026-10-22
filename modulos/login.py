@@ -42,7 +42,6 @@ def login(page: Page, cfg: Config, email: str, senha: str) -> None:
         raise LoginFalhou(f"Permaneceu na página de login: {page.url}")
     
     # Verificar saldo ("Você tem N crédito(s)") ou menu do usuário
-    from playwright.sync_api import Locator
     saldo_locator = page.locator('text=Você tem').first
     usuario_locator = page.locator('a[href="#"] >> text=Testes').first
     try:

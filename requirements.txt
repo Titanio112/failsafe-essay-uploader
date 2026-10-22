@@ -2,5 +2,7 @@ playwright>=1.50,<2
 openpyxl>=3.1,<4
 rapidfuzz>=3.10,<4
 pytest>=8,<10
+pytest-timeout>=2.3,<3
+pyflakes>=3.2,<4
 python-dotenv>=1.0,<2
 beautifulsoup4>=4.12,<5

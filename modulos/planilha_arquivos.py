@@ -16,8 +16,6 @@ Estados de cada arquivo conciliado:
 
 from __future__ import annotations
 
-import re
-import unicodedata
 import warnings
 from dataclasses import dataclass
 from pathlib import Path

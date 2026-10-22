@@ -1374,6 +1374,43 @@ $ python -m pytest -m "not real" -q
 
 ---
 
+## T34 - Varredura completa (22/10) [x parcial]
+
+Pedido do Antônio: "vasculhada completa" para achar o que precisa arrumar.
+
+Corrigido agora (sem mudar comportamento):
+- `modulos/descoberta_arquivos.py` removido: código morto (ninguém importava;
+  a descoberta usada é a de planilha_arquivos.py).
+- `run_test.bat` removido: chamava `test_upload_observation.py`, que não existe.
+- 98 arquivos de `logs/` tirados do git (`git rm --cached`; continuam no disco).
+  `logs/` já estava no .gitignore, mas tinham sido versionados antes. Nenhum
+  tinha e-mail.
+- requirements.txt: + `pytest-timeout` (o pytest.ini usa `--timeout`) e
+  + `pyflakes` (usado por tests/test_estatico.py).
+- Imports sem uso removidos em planilha_arquivos (re, unicodedata), login
+  (Locator), normalizacao (Config). Os imports restantes "sem uso" de
+  planilha_arquivos são reexportações usadas por tests/test_essenciais.py.
+
+Aberto (precisa de decisão do Antônio):
+- docs/qa-issues/002: tema genérico 000 em várias pastas do mesmo aluno manda
+  tudo para REVISAO_MANUAL; e no envio a 2ª redação 000 do dia seria marcada
+  JA_ENVIADO sem enviar. Opções A (1 por tema por dia; recomendada) e B.
+
+Observações menores (sem ação agora):
+- `--revisar` não reabre pasta já aprovada (corrigir = editar
+  dados/pastas_aprovadas.csv ou apagar a linha).
+- login.py: o fallback do menu procura o texto "Testes" (só a conta de teste);
+  para aluno vale o saldo "Você tem N crédito(s)".
+- envio_item grava o código do tema na coluna `pasta` do banco (só nome).
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+203 passed, 4 deselected
+```
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 
