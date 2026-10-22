@@ -1355,6 +1355,25 @@ $ python -m pytest -m "not real" -q
 
 ---
 
+## T33 - Revisão: nome inteiro dos temas e cores no terminal [x]
+
+Pedido do Antônio (22/10): ver o nome inteiro de cada tema e deixar a tela
+mais bonita (gostou das barras de %).
+- Nome do tema inteiro, quebrado em linhas alinhadas (largura 80); sem "…".
+- Cores (só em terminal de verdade; nunca em teste/arquivo; NO_COLOR desliga):
+  barra/% verde >= 85, amarela >= 60, cinza abaixo; ✔ verde, ⚠ amarelo,
+  ✘ vermelho; cabeçalho em ciano/negrito; teclas do menu em ciano.
+- Parte 2 (nomes) com o mesmo formato: "Arquivos:", "Alunos da lista:" e
+  menu "O que fazer?" uma opção por linha.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+203 passed, 4 deselected
+```
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 

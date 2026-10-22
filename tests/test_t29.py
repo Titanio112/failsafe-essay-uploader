@@ -104,7 +104,7 @@ def test_revisar_pastas_busca_por_palavra_sem_acento_e_lista_todos(tmp_path):
 def test_revisar_pastas_mostra_o_provavel_e_porcentagens_do_maior_para_o_menor(tmp_path):
     saidas = []
     revisar_pastas([FILIACAO], TEMAS, tmp_path / "p.csv", entrada=respostas("q"), saida=saidas.append)
-    assert "  ✔ Provavelmente e o tema 100: Impactos da invisibilidade de filiação para os cidadãos brasileiros" in saidas
+    assert "✔ Provavelmente e o tema 100: Impactos da invisibilidade de filiação para os cidadãos brasileiros" in " ".join(s.strip() for s in saidas)
     import re
     pcts = [int(m.group(1)) for s in saidas if (m := re.search(r"(\d+)%", s))]
     assert pcts and pcts == sorted(pcts, reverse=True)
@@ -328,3 +328,29 @@ def test_fluxo_de_producao_bloqueado_mesmo_chamado_direto(tmp_path, monkeypatch)
     monkeypatch.setattr(fep, "montar_lote_producao", lambda *a, **k: (_ for _ in ()).throw(AssertionError("montou lote")))
     with patch("builtins.input", side_effect=AssertionError("pediu ENVIAR")):
         assert fep.executar_envio_producao(Config(), conciliar([], {}, codigos_site=[])) == 2
+
+
+# ─── Tela (T33) ──────────────────────────────────────────────
+
+def test_nome_do_tema_aparece_inteiro_quebrado_em_linhas(tmp_path):
+    longo = "102- Arquitetura hostil - impactos da desumanização de pessoas em situação de rua no Brasil e muito mais"
+    saidas = []
+    revisar_pastas(["3B - Arquitetura hostil"], TEMAS + [("102", longo)], tmp_path / "p.csv",
+                   entrada=respostas("q"), saida=saidas.append)
+    juntos = " ".join(s.strip() for s in saidas)
+    assert "situação de rua no Brasil e muito mais" in juntos
+    assert "…" not in juntos
+    assert all(len(s) <= 80 for s in saidas if "Arquitetura" in s or "muito mais" in s)
+
+
+def test_sem_terminal_nao_sai_codigo_de_cor(tmp_path):
+    saidas = []
+    revisar_pastas([FILIACAO], TEMAS, tmp_path / "p.csv", entrada=respostas("q"), saida=saidas.append)
+    assert not any("\033[" in s for s in saidas)
+
+
+def test_com_cores_a_barra_fica_verde_quando_provavel(monkeypatch):
+    from modulos import revisao_interativa as ri
+    monkeypatch.setitem(ri._cores, "ativas", True)
+    assert "\033[32m" in ri._barra(95.0)
+    assert "\033[33m" in ri._barra(65.0)
