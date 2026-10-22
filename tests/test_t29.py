@@ -87,7 +87,7 @@ def test_revisar_pastas_texto_busca_outro_tema(tmp_path):
     revisar_pastas([APOROFOBIA], TEMAS, tmp_path / "p.csv", entrada=respostas("expectativa vida", "q"),
                    saida=saidas.append)
     assert '  Temas com "expectativa vida":' in saidas
-    assert any(s.strip().startswith("9 ") for s in saidas)
+    assert any(s.strip().startswith("[     9]") for s in saidas)
 
 
 def test_revisar_pastas_busca_por_palavra_sem_acento_e_lista_todos(tmp_path):
@@ -101,11 +101,29 @@ def test_revisar_pastas_busca_por_palavra_sem_acento_e_lista_todos(tmp_path):
     assert carregar_codigos_pasta(tmp_path / "p.csv") == {APOROFOBIA: "102"}
 
 
-def test_revisar_pastas_mostra_o_provavel_sem_porcentagem(tmp_path):
+def test_revisar_pastas_mostra_o_provavel_e_porcentagens_do_maior_para_o_menor(tmp_path):
     saidas = []
     revisar_pastas([FILIACAO], TEMAS, tmp_path / "p.csv", entrada=respostas("q"), saida=saidas.append)
-    assert "  Provavelmente e o tema 100: Impactos da invisibilidade de filiação para os cidadãos brasileiros" in saidas
-    assert not any("%" in s for s in saidas)
+    assert "  ✔ Provavelmente e o tema 100: Impactos da invisibilidade de filiação para os cidadãos brasileiros" in saidas
+    import re
+    pcts = [int(m.group(1)) for s in saidas if (m := re.search(r"(\d+)%", s))]
+    assert pcts and pcts == sorted(pcts, reverse=True)
+    assert any("█" in s and "100" in s for s in saidas)
+
+
+def test_g_aprova_o_tema_generico_quando_o_tema_nao_existe(tmp_path):
+    temas = TEMAS + [("000", "000- DISSERTATIVO ARGUMENTATIVO")]
+    caminho = tmp_path / "p.csv"
+    saidas = []
+    revisar_pastas([APOROFOBIA], temas, caminho, entrada=respostas("g"), saida=saidas.append)
+    assert any("g        = tema generico: DISSERTATIVO ARGUMENTATIVO (000)" in s for s in saidas)
+    assert carregar_codigos_pasta(caminho) == {APOROFOBIA: "000"}
+
+
+def test_sem_tema_generico_no_site_g_nao_aprova(tmp_path):
+    caminho = tmp_path / "p.csv"
+    revisar_pastas([APOROFOBIA], TEMAS, caminho, entrada=respostas("g", "p"), saida=lambda *_: None)
+    assert carregar_codigos_pasta(caminho) == {}
 
 
 # ─── Nomes ───────────────────────────────────────────────────

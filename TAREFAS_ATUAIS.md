@@ -1333,6 +1333,28 @@ só navegou e leu, sem clicar em enviar nada.
 
 ---
 
+## T32 - Revisão: tema genérico (g) e tela mais fácil de ler [x]
+
+Decisão do Antônio (22/10): tema que não está cadastrado na plataforma vai
+como tema GENÉRICO, escolhido na própria revisão do terminal.
+- `g` = tema genérico `000- DISSERTATIVO ARGUMENTATIVO` (constante
+  `TEMA_GENERICO` em modulos/revisao_interativa.py). Só aparece se o código
+  existir uma única vez em dados/temas_site.csv.
+- Porcentagens de volta (o Antônio passou a entender: % = quão parecido é o
+  nome), do maior para o menor, com barra (██████░░░░ 65%), cabeçalho por
+  pasta/nome, ✔ provável / ⚠ nada parecido / ✘ erro, e menu "O que fazer?"
+  uma opção por linha.
+- Parte 2 (nomes) com o mesmo cabeçalho e barras na busca de aluno.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+200 passed, 4 deselected
+```
+- Conferido na cópia do projeto (pasta temporária) com as 130 redações.
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 

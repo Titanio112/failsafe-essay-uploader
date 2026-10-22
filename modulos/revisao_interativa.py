@@ -86,56 +86,99 @@ def _sem_codigo(texto: str) -> str:
 
 # ─── Pastas ──────────────────────────────────────────────────
 
+TEMA_GENERICO = "000"  # "000- DISSERTATIVO ARGUMENTATIVO": tema que não está na plataforma (22/10)
+LARGURA = 72
+
+
+def _barra(score: float, largura: int = 10) -> str:
+    cheio = round(max(0.0, min(score, 100.0)) / 100 * largura)
+    return "█" * cheio + "░" * (largura - cheio)
+
+
+def _cabecalho(saida: Callable, titulo: str) -> None:
+    saida("")
+    saida("─" * LARGURA)
+    saida(f" {titulo}")
+    saida("─" * LARGURA)
+
+
+def _curto(texto: str, limite: int = 52) -> str:
+    texto = _sem_codigo(texto)
+    return texto if len(texto) <= limite else texto[: limite - 1] + "…"
+
+
+def _linha_tema(codigo: str, tema: str, score: float | None) -> str:
+    if score is None:
+        return f"   [{codigo:>6}]  {_curto(tema, 62)}"
+    return f"   [{codigo:>6}]  {_barra(score)} {score:3.0f}%  {_curto(tema)}"
+
+
 def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_aprovadas: Path,
                    entrada: Entrada | None = None, saida: Callable = print) -> tuple[int, bool]:
-    """Pergunta o código de cada pasta sem código. Retorna (aprovadas, saiu)."""
+    """Pergunta o código de cada pasta sem código. Retorna (aprovadas, saiu).
+    Temas do mais parecido para o menos, com barra e %; ``g`` = tema genérico."""
     contagem = {}
     for codigo, _ in temas:
         contagem[codigo] = contagem.get(codigo, 0) + 1
     texto_de = {codigo: tema for codigo, tema in temas}
+    tem_generico = contagem.get(TEMA_GENERICO) == 1
     aprovadas = 0
     for n, pasta in enumerate(pastas, 1):
         busca = ""
         while True:
             opcoes = buscar_temas(busca or pasta, temas, n=len(temas) if busca else 5,
                                   por_palavras=bool(busca))
-            if busca == "t":
-                opcoes.sort(key=lambda t: (len(t[0]), t[0]))
             melhor = opcoes[0] if not busca and opcoes and opcoes[0][2] >= SCORE_PROVAVEL else None
-            saida("")
-            saida(f"[Pasta {n}/{len(pastas)}] {pasta}")
+            _cabecalho(saida, f"PASTA {n} de {len(pastas)}:  {pasta}")
             if busca == "t":
                 saida("  Todos os temas do site:")
-            elif busca:
-                achou = [o for o in opcoes if o[2] >= 100.0]
-                opcoes = achou or opcoes[:5]
-                saida(f"  Temas com \"{busca}\":" if achou else f"  Nenhum tema tem \"{busca}\"; os mais parecidos:")
-            elif melhor:
-                saida(f"  Provavelmente e o tema {melhor[0]}: {_sem_codigo(melhor[1])}")
-                saida("  Outros parecidos:")
-                opcoes = opcoes[1:]
+                for codigo, tema, _ in sorted(opcoes, key=lambda t: (len(t[0]), t[0])):
+                    saida(_linha_tema(codigo, tema, None))
             else:
-                saida("  Nenhum tema do site tem o nome bem parecido. Os mais proximos:")
-            for codigo, tema, _ in opcoes:
-                saida(f"    {codigo:>6}  {_sem_codigo(tema)}")
-            dica = f"Enter = confirmar {melhor[0]} | " if melhor else ""
-            resp = _perguntar(entrada, f"  {dica}numero do tema | palavra = procurar | t = todos | p = pular | q = sair: ")
+                if busca:
+                    achou = [o for o in opcoes if o[2] >= 100.0]
+                    opcoes = achou or opcoes[:5]
+                    saida(f"  Temas com \"{busca}\":" if achou
+                          else f"  Nenhum tema tem \"{busca}\"; os mais parecidos (do maior para o menor):")
+                else:
+                    saida("  Temas do site mais parecidos (do maior para o menor):")
+                for codigo, tema, score in opcoes:
+                    saida(_linha_tema(codigo, tema, None if score >= 100.0 and busca else score))
+                saida("")
+                if melhor:
+                    saida(f"  ✔ Provavelmente e o tema {melhor[0]}: {_sem_codigo(melhor[1])}")
+                elif not busca:
+                    saida("  ⚠ Nenhum tema e bem parecido. Se o tema nao existe no site,")
+                    saida(f"    use g = tema generico ({TEMA_GENERICO})." if tem_generico
+                          else "    pule (p) e decida depois.")
+            saida("")
+            saida("  O que fazer?")
+            if melhor:
+                saida(f"    Enter    = confirmar o tema {melhor[0]}")
+            saida("    numero   = escolher o tema (ex.: 100)")
+            if tem_generico:
+                saida(f"    g        = tema generico: {_sem_codigo(texto_de[TEMA_GENERICO])} ({TEMA_GENERICO})")
+            saida("    palavra  = procurar tema (ex.: rua)     t = ver todos")
+            saida("    p        = pular esta pasta             q = sair")
+            resp = _perguntar(entrada, "  > ")
             low = resp.lower()
             if low == "q":
                 return aprovadas, True
             if low == "p" or (not resp and not melhor):
                 saida("  Pulada (nada desta pasta sera enviado).")
                 break
+            if low == "g" and tem_generico:
+                resp = TEMA_GENERICO
             codigo = melhor[0] if not resp else resp
             if codigo.isdigit():
                 if codigo not in contagem:
-                    saida(f"  Tema {codigo} nao existe na lista do site (dados/temas_site.csv).")
+                    saida(f"  ✘ Tema {codigo} nao existe na lista do site (dados/temas_site.csv).")
                     continue
                 if contagem[codigo] > 1:
-                    saida(f"  Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.")
+                    saida(f"  ✘ Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.")
                     continue
                 aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
-                saida(f"  OK: {pasta} -> tema {codigo}")
+                saida(f"  ✔ OK: {pasta} -> tema {codigo} ({_sem_codigo(texto_de[codigo])})")
                 aprovadas += 1
                 break
             busca = low if low == "t" else resp
@@ -225,13 +268,12 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
         opcoes = [(a, "sugerido") for a in sugestoes] or buscar_alunos(nome, alunos, n=3)
         escolhido = None
         while escolhido is None:
-            saida("")
-            saida(f"[Nome {n}/{len(grupos)}] \"{nome}\" em {len(itens)} arquivo(s):")
+            _cabecalho(saida, f"NOME {n} de {len(grupos)}:  \"{nome}\"  ({len(itens)} arquivo(s))")
             for item in itens:
                 saida(f"    {item.pasta}/{item.arquivo}")
             for i, (aluno, info) in enumerate(opcoes, 1):
-                extra = f"{info:.0f}%" if isinstance(info, float) else info
-                saida(f"  {i}) {aluno.nome}  ({extra})")
+                extra = f"{_barra(info)} {info:3.0f}%" if isinstance(info, float) else "sugerido"
+                saida(f"   {i}) {extra}  {aluno.nome}")
             unico = len(sugestoes) == 1 and opcoes[0][0] is sugestoes[0]
             dica = "Enter = 1 | " if unico else ""
             resp = _perguntar(entrada, f"  {dica}numero = escolher | texto = buscar aluno | p = pular | q = sair: ")
