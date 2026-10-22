@@ -1216,6 +1216,18 @@ Dropped refs/stash@{0} (0807e6104cbcb8bf529e9748f4f10a3988b94d9f)
 $ (mesmo comando, T28)
 6 passed in 0.72s
 
+- Ajuste pós-commit cd00f9a (achado rodando o dry-run real, offline):
+  `python main.py --pasta "Redações plataforma"` não gerou sugestões de NOME,
+  porque com a pasta ainda sem código todo item fica SEM_CODIGO e as
+  sugestões só olhavam FUZZY/SEM_ALUNO/AMBIGUO. Agora sugere para todo nome
+  que não é o nome exato de um aluno, em qualquer estado.
+  - Prova: com nomes_aprovados.py antigo (stash) o teste
+    `test_sugestao_de_nome_sai_mesmo_com_pasta_sem_codigo` FALHA; com o novo, passa.
+  - `python -m pytest -m "not real" -q` -> 175 passed, 4 deselected.
+  - Dry-run real (sem site): 4 pastas em dados/pastas_aprovadas.csv e
+    64 sugestões em dados/nomes_aprovados.csv (37 nome parcial único,
+    27 parecidos). Fila real ainda 0: falta o Antônio aprovar.
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.

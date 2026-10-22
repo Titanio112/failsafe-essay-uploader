@@ -17,7 +17,6 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
-from modulos.estados import AMBIGUO, ARQUIVO_SEM_ALUNO, SUGESTAO_FUZZY
 from modulos.normalizacao import normalizar_nome
 from modulos.planilha_arquivos import (
     Aluno, ResultadoConciliacao, _emitir_aviso, candidatos_nome_parcial, eh_folha_em_branco,
@@ -76,19 +75,23 @@ def _sugestoes_para(norm: str, alunos: list[Aluno]) -> list[tuple[Aluno, str]]:
 
 
 def registrar_sugestoes(resultado: ResultadoConciliacao, alunos: list[Aluno], caminho: Path) -> int:
-    """Acrescenta sugestões novas (aprovado vazio) para arquivos sem aluno
-    exato. Nunca altera linhas existentes. Retorna quantas linhas novas."""
+    """Acrescenta sugestões novas (aprovado vazio) para todo nome de arquivo
+    que não é o nome exato de um aluno, em qualquer estado da conciliação.
+    Nunca altera linhas existentes. Retorna quantas linhas novas."""
     caminho = Path(caminho)
     existentes = _ler(caminho)
     ja_tem = {(normalizar_nome(l.get("nome_no_arquivo", "")), l.get("aluno_email", "").casefold())
               for l in existentes}
     ja_tem_nome = {nome for nome, _ in ja_tem}
     novas: list[dict] = []
+    nomes_exatos = {a.nome_norm for a in alunos}
     for item in resultado.itens:
-        if item.estado not in (SUGESTAO_FUZZY, ARQUIVO_SEM_ALUNO, AMBIGUO) or not item.arquivo:
+        if not item.arquivo:
             continue
+        # T28: vale para qualquer estado (ex.: SEM_CODIGO de pasta ainda não
+        # aprovada), para nomes e pastas serem aprovados na mesma rodada.
         norm = normalizar_nome(item.pessoa)
-        if not norm or norm in ja_tem_nome:
+        if not norm or norm in ja_tem_nome or norm in nomes_exatos:
             continue
         if eh_folha_em_branco(norm):
             continue  # folha em branco: nunca sugerir aluno (decidir à mão)

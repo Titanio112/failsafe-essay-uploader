@@ -98,3 +98,17 @@ def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
     assert f"Pasta aprovada: {PASTA} -> tema 100" in saida
     assert "Exatos unicos (fila real): 1" in saida
     assert saida.count("Coluna 'Senha'") == 0  # CSV sem coluna Senha
+
+
+def test_sugestao_de_nome_sai_mesmo_com_pasta_sem_codigo(tmp_path):
+    """Nomes e pastas aprovados na mesma rodada (a pasta ainda sem código)."""
+    from modulos.nomes_aprovados import registrar_sugestoes
+    completa = Aluno(nome="Ana Lalara Larili dos Larito", email="ana@escola.com")
+    resultado = conciliar([completa], {PASTA: ["Ana Lalara Larili.JPG", "Ana Lalara Larili dos Larito.JPG"]},
+                          codigos_site=["100"])
+    assert {i.estado for i in resultado.itens if i.arquivo} == {SEM_CODIGO}
+
+    caminho = tmp_path / "nomes.csv"
+    assert registrar_sugestoes(resultado, [completa], caminho) == 1  # o nome exato não vira sugestão
+    assert [(l["nome_no_arquivo"], l["aluno_email"]) for l in _ler(caminho)] == [
+        ("Ana Lalara Larili", "ana@escola.com")]
