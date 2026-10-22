@@ -77,6 +77,25 @@ def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
     }
 
 
+def aprovar_pasta(caminho: Path, pasta: str, codigo: str, tema: str) -> None:
+    """Grava pasta -> código com aprovado=sim (T29, revisão interativa).
+    Atualiza a linha da pasta se já existir; as outras ficam como estão."""
+    caminho = Path(caminho)
+    linhas = _ler_pastas(caminho)
+    nova = {"pasta": pasta, "codigo": codigo, "tema": tema, "aprovado": "sim", "semelhanca": "revisao interativa"}
+    for i, linha in enumerate(linhas):
+        if linha.get("pasta") == pasta:
+            linhas[i] = nova
+            break
+    else:
+        linhas.append(nova)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+        escritor = csv.DictWriter(f, fieldnames=COLUNAS_PASTAS, delimiter=";", extrasaction="ignore")
+        escritor.writeheader()
+        escritor.writerows({c: l.get(c, "") for c in COLUNAS_PASTAS} for l in linhas)
+
+
 def registrar_sugestoes_pasta(sugestoes: list[tuple[str, str, str, float]], caminho: Path) -> int:
     """Acrescenta as pastas ainda não listadas (mesmo sem tema parecido: o
     código pode ser digitado à mão). Nunca altera linhas existentes."""

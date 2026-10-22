@@ -29,6 +29,7 @@ from modulos.progresso_relatorio import (
 from modulos.fluxo_envio_teste import executar_envio_teste
 from modulos.fluxo_envio_producao import executar_envio_producao
 from modulos.analise_remota import executar_analise_remota
+from modulos.revisao_interativa import desfazer_renomeacoes, executar_revisao
 from modulos.nomes_aprovados import (
     carregar_nomes_aprovados,
     registrar_sugestoes,
@@ -90,6 +91,12 @@ def parse_args(argv=None):
                    help="habilita envio real (teste: ENVIAR TESTE; producao: ENVIAR)")
     p.add_argument("--analise-remota", action="store_true",
                    help="so leitura: login na conta de teste, le o combo de temas e atualiza dados/temas_site.csv (confirmacao ANALISAR)")
+    p.add_argument("--conta-aluno", metavar="EMAIL", default=None,
+                   help="com --analise-remota: le o combo na conta deste aluno da lista (senha ESQUEMA_SENHA_PADRAO)")
+    p.add_argument("--revisar", action="store_true",
+                   help="revisao no terminal: aprova o tema de cada pasta e renomeia arquivos para o nome do aluno")
+    p.add_argument("--desfazer-renomeacao", metavar="LOG_CSV", default=None,
+                   help="volta os nomes de uma revisao (relatorios/renomeacoes_<data>.csv)")
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
     p.add_argument("--pasta", default=None,
@@ -112,11 +119,26 @@ def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+    if (args.revisar or args.desfazer_renomeacao) and (args.envio_real or args.modo_teste):
+        print("[ERRO] --revisar/--desfazer-renomeacao nao combinam com --envio-real nem --modo-teste.")
+        return 2
+    if args.desfazer_renomeacao:
+        desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz)
+        return 0
+
     # Análise remota (T27): só lê o combo de temas do site e atualiza o CSV
     if args.analise_remota:
         from dotenv import load_dotenv
         load_dotenv()
-        return executar_analise_remota(cfg, TEMAS_SITE_CSV)
+        aluno_conta = None
+        if args.conta_aluno:
+            # T29: o combo de um aluno pode ter temas que a conta de teste não tem
+            aluno_conta = next((a for a in carregar_alunos(cfg)
+                                if a.email.casefold() == args.conta_aluno.strip().casefold()), None)
+            if aluno_conta is None:
+                print(f"[ERRO] {args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
+                return 2
+        return executar_analise_remota(cfg, TEMAS_SITE_CSV, aluno=aluno_conta)
 
     # Modo teste: usa conta de teste e pasta de teste
     if args.modo_teste:
@@ -184,6 +206,12 @@ def main(argv=None) -> int:
     )
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
+    if args.revisar:
+        return executar_revisao(
+            resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,
+            cfg.pasta_raiz, cfg.arquivo_pastas_aprovadas, cfg.banco_progresso,
+            cfg.pasta_relatorios, nomes_aprovados,
+        )
     csv_path = gerar_relatorio_conciliacao(
         resultado, cfg.pasta_relatorios / "relatorio_conciliacao.csv"
     )

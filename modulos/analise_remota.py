@@ -1,6 +1,8 @@
 """Análise remota (T27): atualiza dados/temas_site.csv lendo o combo do site.
 
-Só leitura: login na CONTA DE TESTE, abre /wordings/new, lê o combo
+Só leitura: login na CONTA DE TESTE (ou, com --conta-aluno, na conta de um
+aluno da lista, T29: o combo do aluno pode ter temas que a de teste não tem),
+abre /wordings/new, lê o combo
 "Informe o tema da redação" e grava o CSV. Nada é anexado nem enviado.
 Confirmação textual ANALISAR (digitada pelo Antônio). O CSV anterior vira
 backup em dados/temas_site.<data_hora>.bak.csv. Combo vazio -> não grava.
@@ -41,9 +43,11 @@ def gravar_temas_csv(temas: list[tuple[str, str]], caminho: Path, conta: str) ->
     return backup
 
 
-def executar_analise_remota(cfg: Config, caminho_csv: Path) -> int:
-    """0 = CSV atualizado; 1 = falhou (CSV intacto); 2 = cancelado."""
-    print("Analise remota: login na conta de TESTE, leitura do combo de temas e")
+def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None = None) -> int:
+    """0 = CSV atualizado; 1 = falhou (CSV intacto); 2 = cancelado.
+    ``aluno``: entra na conta desse aluno (senha ESQUEMA_SENHA_PADRAO)."""
+    qual = f"do aluno {aluno.nome}" if aluno else "de TESTE"
+    print(f"Analise remota: login na conta {qual}, leitura do combo de temas e")
     print(f"regravacao de {caminho_csv} (o atual vira backup). Nada e enviado.")
     try:
         confirmacao = input("Digite ANALISAR para confirmar (qualquer outro texto cancela): ").strip()
@@ -53,9 +57,15 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path) -> int:
         print("Cancelado pelo usuario.")
         return 2
 
-    email = obter_email_teste()
-    senha = obter_senha("ESQUEMA_SENHA_TESTE")
+    if aluno:
+        email, senha = aluno.email, obter_senha("ESQUEMA_SENHA_PADRAO")
+        esperado, modo_teste = aluno, False
+    else:
+        email = obter_email_teste()
+        senha = obter_senha("ESQUEMA_SENHA_TESTE")
+        esperado, modo_teste = Aluno(nome="Usuario Testes Ignorar", email=email), True
     conta = mascarar_email(email)
+    antes = {c for c, _ in ler_temas_csv(caminho_csv)}
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=cfg.headless, slow_mo=cfg.slow_mo_ms)
@@ -66,7 +76,7 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path) -> int:
             page.wait_for_load_state("networkidle")
             verificar_dominio_autorizado(page)
             login(page, cfg, email, senha)
-            confirmar_identidade(page, Aluno(nome="Usuario Testes Ignorar", email=email), modo_teste=True)
+            confirmar_identidade(page, esperado, modo_teste=modo_teste)
             abrir_formulario_envio(page)
             temas = ler_combo_temas(page)
         except Exception as e:
@@ -86,4 +96,17 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path) -> int:
         print(f"Backup do anterior: {backup}")
     if repetidos:
         print(f"Codigos repetidos no combo (nunca enviados automaticamente): {repetidos}")
+    agora = {c for c, _ in temas}
+    if antes:
+        print(f"Codigos novos em relacao ao CSV anterior: {sorted(agora - antes, key=_ordem) or 'nenhum'}")
+        print(f"Codigos que sumiram: {sorted(antes - agora, key=_ordem) or 'nenhum'}")
     return 0
+
+
+def _ordem(codigo: str) -> tuple[int, str]:
+    return (int(codigo), codigo) if codigo.isdigit() else (0, codigo)
+
+
+def ler_temas_csv(caminho: Path) -> list[tuple[str, str]]:
+    from modulos.sugestao_temas import ler_temas_site
+    return ler_temas_site(caminho)

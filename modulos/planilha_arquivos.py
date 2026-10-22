@@ -422,7 +422,7 @@ def conciliar(
                     obs = "candidatos fuzzy sem margem suficiente"
                 if estado_inicial:
                     estado = estado_inicial
-                    obs = obs or "codigo ausente ou invalido"
+                    obs = obs or ("aluno nao identificado" if estado_inicial == SEM_CODIGO else "codigo ausente ou invalido")
 
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,

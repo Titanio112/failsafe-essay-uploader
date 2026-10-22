@@ -1230,6 +1230,52 @@ $ (mesmo comando, T28)
 
 ---
 
+## T29 - F4: revisão no terminal (--revisar) e análise remota na conta de um aluno [x]
+
+Pedido do Antônio (22/10): revisar aluno por aluno pelo terminal em vez de
+editar CSV; os 3 temas "que não existem" talvez existam com outro nome.
+
+- `python main.py --pasta "Redações plataforma" --revisar` (nada é enviado):
+  - Parte 1, pastas sem código: mostra os 5 temas mais parecidos de
+    dados/temas_site.csv. Enter aceita só se for provável (>= 85%); digitar o
+    código aprova; texto busca outro tema; `p` pula; `q` sai. Código fora do
+    CSV ou repetido no combo (0000) é recusado. Grava `sim` em
+    dados/pastas_aprovadas.csv (a pasta não é renomeada).
+  - Parte 2, nomes: um nome por vez, agrupado (o mesmo "Alice Lalato" nas 4
+    pastas é uma pergunta só). Enter aceita quando há UMA sugestão; número
+    escolhe; texto busca o aluno; `p` pula; `q` sai. Confirmado -> o arquivo é
+    RENOMEADO para o nome exato do aluno (pedido do Antônio), com log em
+    relatorios/renomeacoes_<data_hora>.csv.
+  - Não renomeia: folha em branco; arquivo com ENVIADO/ENVIANDO/JA_ENVIADO/
+    REVISAO_MANUAL no banco (a chave do progresso é pasta/arquivo: renomear
+    depois de enviar abriria reenvio); quando já existe arquivo com o nome do
+    aluno na mesma pasta (duas redações do mesmo aluno: decidir à mão).
+  - Sem terminal/Ctrl+C -> sai salvando o que já foi feito.
+- `--desfazer-renomeacao relatorios/renomeacoes_<data>.csv --pasta ...` volta
+  os nomes (do último para o primeiro).
+- `--analise-remota --conta-aluno EMAIL`: lê o combo na conta de um aluno da
+  lista (senha ESQUEMA_SENHA_PADRAO do .env; identidade conferida com o nome
+  da lista). Motivo: no combo da conta de TESTE (109 temas) não há aporofobia
+  nem discriminação no trabalho; o combo do aluno pode ter outros temas.
+  Ao fim mostra os códigos novos e os que sumiram em relação ao CSV anterior.
+- Observação "codigo ausente ou invalido" em arquivo sem aluno e pasta sem
+  código passou a ser "aluno nao identificado" (a antiga confundia).
+
+PROVA:
+```
+$ python -m pytest tests/test_t29.py -q
+18 passed
+$ python -m pytest -m "not real" -q
+193 passed, 4 deselected
+```
+- Simulação numa CÓPIA do projeto (pasta temporária) com as 130 redações
+  reais: aprovou 100 para a filiação com Enter, recusou Enter nas FRACAS,
+  renomeou Alice Lalato (4 pastas) e Ana Lalara Larili (3); a busca
+  "aporofobia" não achou nada no CSV atual (conta de teste). Arquivos reais
+  não foram tocados.
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 
