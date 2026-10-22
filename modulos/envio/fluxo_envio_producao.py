@@ -115,23 +115,26 @@ def executar_envio_producao(
     limite_alunos: Optional[int] = None,
     limite_redacoes: Optional[int] = None,
     conta_teste: Optional[str] = None,
+    lotes: Optional[list[LoteAluno]] = None,
 ) -> int:
     """Retorna 0 = tudo enviado/já enviado; 1 = houve ERRO/REVISAO_MANUAL ou
     parada; 2 = cancelado na confirmação ou produção bloqueada.
 
     ``conta_teste`` (T40): e-mail da conta de teste. O mesmo fluxo, mas só
     aceita lote em que TODOS os alunos são essa conta, pede ENVIAR TESTE e usa
-    ESQUEMA_SENHA_TESTE. Assim a trava de produção não se aplica a ele."""
+    ESQUEMA_SENHA_TESTE. Assim a trava de produção não se aplica a ele.
+    ``lotes`` (T42): lote já montado (ensaio); passa pelas mesmas travas."""
     from modulos.base import config as config_mod
     if not conta_teste and config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
         tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
         return 2
-    lotes, ignorados = montar_lote_producao(
-        resultado, Path(cfg.pasta_raiz), progresso,
-        limite_alunos=limite_alunos, limite_redacoes=limite_redacoes,
-    )
-    for chave, motivo in ignorados:
-        log.warning("Fora do lote: %s (%s)", chave, motivo)
+    if lotes is None:
+        lotes, ignorados = montar_lote_producao(
+            resultado, Path(cfg.pasta_raiz), progresso,
+            limite_alunos=limite_alunos, limite_redacoes=limite_redacoes,
+        )
+        for chave, motivo in ignorados:
+            log.warning("Fora do lote: %s (%s)", chave, motivo)
     total = sum(len(lote.itens) for lote in lotes)
     if not total:
         tela.info("Nada para enviar nesta execucao.")

@@ -15,7 +15,14 @@ except (AttributeError, ValueError):
 
 from modulos.base import config as config_mod
 from modulos.base import tela
-from modulos.base.config import MENSAGEM_BLOQUEIO, NOME_CONTA_TESTE, carregar_config, configurar_modo_teste
+from modulos.base.config import (
+    MENSAGEM_BLOQUEIO,
+    NOME_CONTA_TESTE,
+    carregar_config,
+    configurar_modo_teste,
+    obter_email_teste,
+)
+from modulos.envio.ensaio import QUANTIDADE_PADRAO, montar_lote_ensaio
 from modulos.dados.planilha_arquivos import Aluno, carregar_alunos
 from modulos.base.progresso_relatorio import (
     Progresso,
@@ -86,7 +93,33 @@ def parse_args(argv=None):
                    help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
     p.add_argument("--preparar", action="store_true",
                    help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
+    p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
+                   help=f"redacoes REAIS ja conferidas (padrao {QUANTIDADE_PADRAO}) vao para a CONTA DE TESTE; "
+                        "com --envio-real envia (ENVIAR TESTE)")
     return p.parse_args(argv)
+
+
+def _executar_ensaio(cfg, resultado, alunos, quantidade: int, envio_real: bool) -> int:
+    """T42: amostra da fila real enviada para a conta de teste (nunca para o aluno)."""
+    from dotenv import load_dotenv
+    load_dotenv()
+    conta = Aluno(nome=NOME_CONTA_TESTE, email=obter_email_teste().strip())
+    if any(a.id == conta.id for a in alunos):
+        tela.erro("ESQUEMA_EMAIL_TESTE e o e-mail de um aluno da lista. Ensaio cancelado.")
+        return 2
+    with Progresso(cfg.banco_progresso) as progresso:
+        lotes = montar_lote_ensaio(resultado, cfg.pasta_raiz, conta, progresso, quantidade)
+        tela.secao("Ensaio na conta de teste")
+        if not lotes:
+            tela.aviso("Nenhuma redacao validada para o ensaio (falta aprovar temas/nomes? --revisar).")
+            return 0
+        for item in lotes[0].itens:
+            tela.status("info", f"tema {item.codigo}: {item.pasta}/{item.arquivo}", recuo=4)
+        tela.status("fraco", "Vao para a CONTA DE TESTE; nenhuma conta de aluno e aberta.")
+        if not envio_real:
+            tela.comando(f"python main.py --ensaio {quantidade} --envio-real", "envia estas para a conta de teste")
+            return 0
+        return executar_envio_producao(cfg, resultado, progresso, conta_teste=conta.email, lotes=lotes)
 
 
 def main(argv=None) -> int:
@@ -110,6 +143,9 @@ def main(argv=None) -> int:
     if (args.revisar or args.desfazer_renomeacao) and args.envio_real:
         tela.erro("--revisar/--desfazer-renomeacao nao combinam com --envio-real.")
         return 2
+    if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
+        tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
+        return 2
     if args.modo_teste:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
     if args.desfazer_renomeacao:
@@ -131,7 +167,9 @@ def main(argv=None) -> int:
                 return 2
         return executar_analise_remota(cfg, TEMAS_SITE_CSV, aluno=aluno_conta)
 
-    modo = "MODO TESTE (conta de teste)" if args.modo_teste else "alunos da lista"
+    modo = ("MODO TESTE (conta de teste)" if args.modo_teste
+            else "ENSAIO (redacoes reais -> conta de teste)" if args.ensaio is not None
+            else "alunos da lista")
     if not args.revisar:
         tela.titulo(f"CONFERÊNCIA  ·  {modo}  ·  " + ("depois envia" if args.envio_real else "nada é enviado"))
     tela.secao("Dados")
@@ -152,7 +190,7 @@ def main(argv=None) -> int:
                 tela.erro(f"Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
                 tela.erro("Nada foi enviado.")
                 return 2
-            if config_mod.PRODUCAO_BLOQUEADA:
+            if config_mod.PRODUCAO_BLOQUEADA and args.ensaio is None:
                 tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
                 return 2
             # Senha padrão vem do .env (ou getpass)
@@ -252,6 +290,10 @@ def main(argv=None) -> int:
     _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
                        cfg.arquivo_pastas_aprovadas, codigos_pasta,
                        "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar")
+
+    # Ensaio (T42): redações reais -> conta de teste
+    if args.ensaio is not None:
+        return _executar_ensaio(cfg, resultado, alunos, args.ensaio, args.envio_real)
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:
