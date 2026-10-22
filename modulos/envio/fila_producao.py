@@ -7,6 +7,8 @@ Regras (T24, ver docs/historico/TAREFAS_T1_a_T36.md):
 - vários arquivos do mesmo aluno no mesmo código entram se estiverem em
   pastas diferentes (T35: ex. tema genérico 000); o envio confere pela
   contagem do dia; na mesma pasta a conciliação já mandou para revisão;
+- T44: a mesma foto (mesmo conteúdo) não entra duas vezes no lote, nem
+  volta se o banco já a registrou para o aluno com outro nome/pasta;
 - sem limite de redações por aluno (Antônio, 22/10);
 - ``limite_alunos`` / ``limite_redacoes`` cortam o lote no fim.
 """
@@ -17,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.envio.fila_teste import ItemFilaTeste, hash_do_arquivo
 from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, REVISAO_MANUAL
 
@@ -42,6 +44,7 @@ def montar_lote_producao(
     lotes: dict[str, LoteAluno] = {}
     ignorados: list[tuple[str, str]] = []
     vistos: set[tuple[str, str, str]] = set()
+    conteudos: dict[str, str] = {}  # T44: hash -> chave já no lote
 
     fila = sorted(resultado.fila_validada(), key=lambda i: (i.aluno.nome_norm, i.pasta, i.arquivo))
     total_por_tema: dict[tuple[str, str], int] = {}
@@ -62,11 +65,17 @@ def montar_lote_producao(
             ignorados.append((chave, f"ja registrado como {registro['estado']}"))
         elif not caminho.is_file():
             ignorados.append((chave, "arquivo nao encontrado"))
+        elif (h := hash_do_arquivo(caminho)) in conteudos:
+            ignorados.append((chave, f"mesma foto que {conteudos[h]} (copia? revisao manual)"))
+        elif progresso and (antigo := progresso.registro_do_conteudo(aluno.id, h, chave)):
+            ignorados.append((chave, f"mesma foto ja registrada como {antigo['estado']} em {antigo['arquivo']}"))
         else:
             vistos.add((aluno.id, codigo, item.pasta))
+            conteudos[h] = chave
             lote = lotes.setdefault(aluno.id, LoteAluno(aluno))
             lote.itens.append(ItemFilaTeste(item.pasta, item.arquivo, codigo, caminho, chave,
-                                            total_mesmo_tema=total_por_tema[(aluno.id, codigo)]))
+                                            total_mesmo_tema=total_por_tema[(aluno.id, codigo)],
+                                            hash_arquivo=h))
 
     resultado_lotes = [lote for lote in lotes.values() if lote.itens]
     if limite_alunos is not None:

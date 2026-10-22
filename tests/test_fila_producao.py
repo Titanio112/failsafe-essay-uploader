@@ -22,7 +22,7 @@ BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
 def _item(raiz: Path, aluno, pasta, arquivo, codigo, estado=EXATO_UNICO, criar=True):
     if criar:
         (raiz / pasta).mkdir(parents=True, exist_ok=True)
-        (raiz / pasta / arquivo).write_bytes(b"jpg-falso")
+        (raiz / pasta / arquivo).write_bytes(str(raiz / pasta / arquivo).encode())
     return ItemConciliacao(pasta=pasta, arquivo=arquivo, pessoa=aluno.nome if aluno else "",
                            estado=estado, aluno=aluno, codigo_tema=codigo)
 

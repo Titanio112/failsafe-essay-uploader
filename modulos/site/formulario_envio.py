@@ -82,14 +82,22 @@ def selecionar_tema_por_codigo(page: Page, codigo: str, codigos_site: list[str] 
     return False
 
 
-def selecionar_criterio(page: Page) -> None:
-    """Seleciona o critério ENEM no formulário."""
-    # Critério é um select: select[name="wording[folder_id]"]
-    # value="1" = ENEM, value="2" = FUVEST, value="3" = UNICAMP
+CRITERIO_ENEM = "1"
+
+
+def selecionar_criterio(page: Page) -> bool:
+    """Seleciona o critério ENEM e confere a opção marcada (T44).
+
+    select[name="wording[folder_id]"]: value="1" = ENEM, "3" = FUVEST,
+    "2" = UNICAMP (wordings_new.html). Retorna False se não conseguiu
+    selecionar ou se a opção marcada não é ENEM (quem chama: ERRO, sem clique)."""
+    seletor = "select[name='wording[folder_id]']"
     try:
-        page.select_option("select[name='wording[folder_id]']", value="1", timeout=3000)
+        page.select_option(seletor, value=CRITERIO_ENEM, timeout=3000)
+        marcado = page.locator(f"{seletor} option:checked").first.get_attribute("value", timeout=3000)
     except PWTimeoutError:
-        pass  # Critério pode já estar selecionado ou ser padrão
+        return False
+    return (marcado or "").strip() == CRITERIO_ENEM
 
 
 def anexar_arquivo(page: Page, caminho_arquivo: str) -> None:

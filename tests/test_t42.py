@@ -30,7 +30,7 @@ def _real(tmp_path):
     for pasta in arquivos:
         (tmp_path / pasta).mkdir()
         for aluno in (ANA, BIA):
-            (tmp_path / pasta / f"{aluno.nome}.JPG").write_bytes(b"x")
+            (tmp_path / pasta / f"{aluno.nome}.JPG").write_bytes(str(tmp_path / pasta / f"{aluno.nome}.JPG").encode())
             arquivos[pasta].append(f"{aluno.nome}.JPG")
     return conciliar([ANA, BIA], arquivos, codigos_site=["000", "100"],
                      codigos_pasta={"3B - Aporofobia": "000"})
@@ -81,7 +81,7 @@ def _main_ensaio(tmp_path, monkeypatch):
     pasta = tmp_path / "Redações plataforma"
     for nome_pasta in ("3B - Aporofobia", "100 - Filiacao"):
         (pasta / nome_pasta).mkdir(parents=True)
-        (pasta / nome_pasta / f"{ANA.nome}.JPG").write_bytes(b"x")
+        (pasta / nome_pasta / f"{ANA.nome}.JPG").write_bytes(str(pasta / nome_pasta / f"{ANA.nome}.JPG").encode())
     cfg = Config()
     cfg.pasta_raiz = pasta
     cfg.planilha = tmp_path / "alunos.csv"

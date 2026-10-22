@@ -10,7 +10,13 @@ import logging
 import re
 from typing import Optional
 
-from modulos.site.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, contar_tema_hoje
+from modulos.base import relogio
+from modulos.site.lista_redacoes import (
+    contar_tema_hoje,
+    ler_lista_redacoes,
+    ler_saldo_creditos,
+    situacoes_tema_hoje,
+)
 from modulos.site.formulario_envio import (
     abrir_formulario_envio,
     ler_combo_temas,
@@ -44,17 +50,27 @@ def enviar_item(
     progresso: Optional[Progresso] = None,
 ) -> str:
     """Tenta enviar um item. Retorna o estado final gravado:
-    ENVIADO ou JA_ENVIADO (pode seguir) / ERRO ou REVISAO_MANUAL (parar)."""
+    ENVIADO ou JA_ENVIADO (pode seguir) / ERRO ou REVISAO_MANUAL (parar).
+    CAPTCHA/bloqueio: grava o estado e levanta CaptchaOuBloqueio (com
+    ``.estado``) para o fluxo parar tudo (T44)."""
 
     def marcar(estado: str, detalhe: str) -> str:
         if progresso:
             chave = item.chave_progresso or item.arquivo
-            progresso.marcar(aluno_id, chave, estado, pasta=item.codigo, detalhe=detalhe)
+            progresso.marcar(aluno_id, chave, estado, pasta=item.codigo, detalhe=detalhe,
+                             hash_arquivo=item.hash_arquivo)
         return estado
 
     codigo = item.codigo
     clique_iniciado = False
     try:
+        # 0. T44: um "hoje" só (Brasília) para a contagem e a confirmação;
+        #    perto da meia-noite os dois poderiam ser dias diferentes.
+        if relogio.perto_da_meia_noite():
+            log.warning("Perto da meia-noite: nao envia agora (a contagem do dia ficaria errada).")
+            return marcar(ERRO, "Perto da meia-noite (23:55-00:05): rode de novo depois")
+        data_hoje = relogio.data_site()
+
         # 1. Saldo (fail-closed se None ou 0)
         saldo = ler_saldo_creditos(page)
         if saldo is None or saldo == 0:
@@ -64,7 +80,9 @@ def enviar_item(
         # 2. Duplicidade por contagem (T35): linhas do tema HOJE no site x
         #    arquivos deste aluno/tema que o caderno (banco) marcou hoje.
         #    Com 1 arquivo no tema vale a regra antiga: tem hoje -> já enviado.
-        no_site = contar_tema_hoje(ler_lista_redacoes(page), codigo)
+        lista = ler_lista_redacoes(page)
+        no_site = contar_tema_hoje(lista, codigo, data_hoje)
+        antes = situacoes_tema_hoje(lista, codigo, data_hoje)
         no_caderno = progresso.enviados_hoje(aluno_id, codigo) if progresso else 0
         total = max(item.total_mesmo_tema, 1)
         if no_site >= total:
@@ -97,8 +115,10 @@ def enviar_item(
                       codigo, codigo_selecionado)
             return marcar(ERRO, f"Tema selecionado diferente: {codigo_selecionado}")
 
-        # 5. Criterio ENEM (fixo em selecionar_criterio), anexo e upload aceito
-        selecionar_criterio(page)
+        # 5. Criterio ENEM conferido (T44), anexo e upload aceito
+        if not selecionar_criterio(page):
+            log.error("Criterio ENEM nao selecionado/conferido. Abortando sem enviar.")
+            return marcar(ERRO, "Criterio ENEM nao conferido")
         anexar_arquivo(page, str(item.caminho))
         if not aguardar_upload_aceito(page):
             log.error("Upload nao aceito para %s. Abortando sem enviar.", item.arquivo)
@@ -110,15 +130,19 @@ def enviar_item(
         clicar_enviar(page)
 
         # 7. Confirmacao (Pendente, timeout 120s)
-        if aguardar_confirmacao(page, codigo, timeout_segundos=120, linhas_esperadas=no_site + 1):
+        if aguardar_confirmacao(page, codigo, timeout_segundos=120, linhas_esperadas=no_site + 1,
+                                antes=antes, data_hoje=data_hoje):
             log.info("Envio confirmado: tema %s -> Pendente", codigo)
             return marcar(ENVIADO, "Confirmado na lista remota")
         log.error("Timeout ou falha na confirmacao do envio para tema %s", codigo)
         return marcar(REVISAO_MANUAL, "Confirmacao inconclusiva apos clique")
 
     except CaptchaOuBloqueio as e:
+        # T44 (P6): CAPTCHA/bloqueio PARA A EXECUÇÃO INTEIRA, não só o aluno.
+        # Grava o estado e sobe a exceção (com o estado) para o fluxo parar.
         log.error("Captcha ou dominio bloqueado: %s", e)
-        return marcar(REVISAO_MANUAL if clique_iniciado else ERRO, f"Captcha/bloqueio: {e}")
+        e.estado = marcar(REVISAO_MANUAL if clique_iniciado else ERRO, f"Captcha/bloqueio: {e}")
+        raise
     except ConfirmacaoInconclusiva as e:
         log.error("Confirmacao inconclusiva apos clique: %s", e)
         return marcar(REVISAO_MANUAL, f"Confirmacao inconclusiva apos clique: {e}")

@@ -207,7 +207,7 @@ def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path, monkeypatc
     itens = []
     for pasta in ("1 - Carta", "2 - Tema"):
         (cfg.pasta_raiz / pasta).mkdir(parents=True)
-        (cfg.pasta_raiz / pasta / "Ana Lalara.JPG").write_bytes(b"x")
+        (cfg.pasta_raiz / pasta / "Ana Lalara.JPG").write_bytes(str(cfg.pasta_raiz / pasta / "Ana Lalara.JPG").encode())
         itens.append(ItemConciliacao(pasta=pasta, arquivo="Ana Lalara.JPG", pessoa="Ana Lalara",
                                      estado=EXATO_UNICO, aluno=ana, codigo_tema=pasta[0]))
     prog = Progresso(tmp_path / "p.db")

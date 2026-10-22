@@ -28,6 +28,7 @@ from modulos.dados.planilha_arquivos import ResultadoConciliacao, mascarar_email
 from modulos.envio.fila_producao import LoteAluno, montar_lote_producao
 from modulos.envio.envio_item import enviar_item
 from modulos.base.excecoes import CaptchaOuBloqueio
+from modulos.base.trava import TravaOcupada, trava_de_envio
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
 
 
@@ -49,15 +50,19 @@ def _marcar_aluno(progresso, lote: LoteAluno, estado: str, detalhe: str) -> None
 
 
 def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
-                       progresso, contagem: dict[str, int]) -> Optional[str]:
-    """Envia os itens de um aluno. Retorna PARAR_TUDO para encerrar a execução."""
+                       progresso, contagem: dict[str, int], conta_teste: bool = False) -> Optional[str]:
+    """Envia os itens de um aluno. Retorna PARAR_TUDO para encerrar a execução.
+    ``conta_teste`` (T44): identidade exata (nome do menu igual ao da conta)."""
     aluno = lote.aluno
     try:
         page.goto(f"https://{DOMINIO_ESPERADO}", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
         verificar_dominio_autorizado(page)
         login(page, cfg, aluno.email, senha)
-        confirmar_identidade(page, aluno)
+        if conta_teste:
+            confirmar_identidade(page, aluno, exato=True)
+        else:
+            confirmar_identidade(page, aluno)
     except CaptchaOuBloqueio as e:
         log.error("Captcha/bloqueio no login de %s: %s. Parando a execucao.", aluno.nome, e)
         _marcar_aluno(progresso, lote, ERRO, f"Captcha/bloqueio no login: {e}")
@@ -75,7 +80,13 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
             _pausa(cfg)
         log.info("%s — item %d/%d: tema %s (%s)", aluno.nome, n, len(lote.itens),
                  item.codigo, item.chave_progresso)
-        estado = enviar_item(page, aluno.id, item, progresso)
+        try:
+            estado = enviar_item(page, aluno.id, item, progresso)
+        except CaptchaOuBloqueio as e:
+            estado = getattr(e, "estado", ERRO)
+            contagem[estado] = contagem.get(estado, 0) + 1
+            log.error("Captcha/bloqueio durante o envio (%s). Parando a execucao.", item.chave_progresso)
+            return PARAR_TUDO
         contagem[estado] = contagem.get(estado, 0) + 1
         if estado == REVISAO_MANUAL:
             log.error("Resultado inconclusivo apos clique (%s). Parando a execucao.", item.chave_progresso)
@@ -162,6 +173,15 @@ def executar_envio_producao(
         return 2
     tela.secao("Enviando")
 
+    try:
+        with trava_de_envio(Path(cfg.pasta_relatorios) / "envio.trava"):
+            return _enviar_com_navegador(cfg, lotes, progresso, conta_teste, rotulo)
+    except TravaOcupada:
+        tela.erro("Outro envio esta rodando agora (outra janela?). Espere ele acabar. Nada foi enviado.")
+        return 2
+
+
+def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_teste, rotulo: str) -> int:
     senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
@@ -177,7 +197,8 @@ def executar_envio_producao(
                 context = browser.new_context()
                 page = context.new_page()
                 try:
-                    if _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem) == PARAR_TUDO:
+                    if _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem,
+                                          conta_teste=bool(conta_teste)) == PARAR_TUDO:
                         parou = True
                         break
                 finally:

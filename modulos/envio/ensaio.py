@@ -18,7 +18,7 @@ from typing import Optional
 from modulos.base.progresso_relatorio import Progresso
 from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao
 from modulos.envio.fila_producao import ESTADOS_SEM_REENVIO, LoteAluno
-from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.envio.fila_teste import ItemFilaTeste, hash_do_arquivo
 
 QUANTIDADE_PADRAO = 3
 PREFIXO_CHAVE = "ensaio/"
@@ -46,28 +46,37 @@ def montar_lote_ensaio(
         registro = progresso.obter(conta_teste.id, chave) if progresso else None
         if registro and registro["estado"] in ESTADOS_SEM_REENVIO:
             continue
-        if not (Path(pasta_raiz) / item.pasta / item.arquivo).is_file():
+        caminho = Path(pasta_raiz) / item.pasta / item.arquivo
+        if not caminho.is_file():
             continue
-        por_pasta.setdefault(item.pasta, []).append(item)
+        h = hash_do_arquivo(caminho)
+        if progresso and progresso.registro_do_conteudo(conta_teste.id, h, chave):
+            continue  # T44: essa foto já foi no ensaio com outro nome
+        por_pasta.setdefault(item.pasta, []).append((item, h))
 
-    escolhidos = []
+    escolhidos, conteudos = [], set()
     filas = [list(itens) for _, itens in sorted(por_pasta.items())]
     while len(escolhidos) < max(quantidade, 0) and any(filas):
         for fila in filas:
-            if fila and len(escolhidos) < quantidade:
-                escolhidos.append(fila.pop(0))
+            while fila and len(escolhidos) < quantidade:
+                item, h = fila.pop(0)
+                if h not in conteudos:  # T44: a mesma foto uma vez só
+                    conteudos.add(h)
+                    escolhidos.append((item, h))
+                    break
 
     if not escolhidos:
         return []
     por_codigo: dict[str, int] = {}
-    for item in escolhidos:
+    for item, _ in escolhidos:
         por_codigo[item.codigo_tema] = por_codigo.get(item.codigo_tema, 0) + 1
     ja_hoje = {codigo: (progresso.enviados_hoje(conta_teste.id, codigo) if progresso else 0)
                for codigo in por_codigo}
     itens = [
         ItemFilaTeste(item.pasta, item.arquivo, item.codigo_tema,
                       Path(pasta_raiz) / item.pasta / item.arquivo, PREFIXO_CHAVE + item.chave,
-                      total_mesmo_tema=ja_hoje[item.codigo_tema] + por_codigo[item.codigo_tema])
-        for item in escolhidos
+                      total_mesmo_tema=ja_hoje[item.codigo_tema] + por_codigo[item.codigo_tema],
+                      hash_arquivo=h)
+        for item, h in escolhidos
     ]
     return [LoteAluno(conta_teste, itens)]

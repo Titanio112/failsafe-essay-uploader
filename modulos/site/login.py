@@ -13,8 +13,10 @@ DOMINIO_ESPERADO = "www.esquemaredacao.com.br"
 
 
 def verificar_dominio_autorizado(page: Page) -> None:
-    dominio_atual = page.url.split("/")[2] if len(page.url.split("/")) > 2 else ""
-    if DOMINIO_ESPERADO not in dominio_atual:
+    """T44: o host tem de ser EXATAMENTE o do site (não basta conter)."""
+    from urllib.parse import urlparse
+    dominio_atual = urlparse(page.url).hostname or ""
+    if dominio_atual != DOMINIO_ESPERADO:
         raise CaptchaOuBloqueio(f"Domínio inesperado: {dominio_atual}. Esperado: {DOMINIO_ESPERADO}")
 
 
@@ -65,11 +67,14 @@ def nomes_compativeis(no_site: str, na_lista: str) -> bool:
     return set(a) <= set(b) or set(b) <= set(a)
 
 
-def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> bool:
+def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False,
+                         exato: bool = False) -> bool:
     """Confirma se o aluno logado corresponde ao esperado.
 
     Retorna True se confirmado, levanta IdentidadeDivergente se não.
-    Fail-closed: se elemento não existir ou texto vier vazio, NÃO aceita vazio."""
+    Fail-closed: se elemento não existir ou texto vier vazio, NÃO aceita vazio.
+    ``exato`` (T44, conta de teste): o nome do menu tem de ser igual, sem a
+    tolerância de nome abreviado dos alunos."""
     from modulos.dados.planilha_arquivos import mascarar_email
     from modulos.dados.normalizacao import normalizar_nome
 
@@ -126,7 +131,9 @@ def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> 
     nome_normalizado = normalizar_nome(texto_visivel)
     esperado_normalizado = normalizar_nome(aluno.nome)
 
-    if not nomes_compativeis(nome_normalizado, esperado_normalizado):
+    confere = (nome_normalizado == esperado_normalizado if exato
+               else nomes_compativeis(nome_normalizado, esperado_normalizado))
+    if not confere:
         url_sem_query = page.url.split("?")[0]
         diagnostico = (
             f"URL: {url_sem_query} | "

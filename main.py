@@ -314,8 +314,8 @@ def main(argv=None) -> int:
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:
-        progresso = Progresso(cfg.banco_progresso)
-        return executar_envio_teste(cfg, progresso)
+        with Progresso(cfg.banco_progresso) as progresso:
+            return executar_envio_teste(cfg, progresso)
 
     # Produção com envio real (F4/T24): confirmação ENVIAR dentro do fluxo
     if args.envio_real:

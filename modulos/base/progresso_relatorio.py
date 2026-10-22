@@ -45,6 +45,14 @@ class _FiltroSanitizador(logging.Filter):
         if any(p in msg for p in _SEM_SENHA):
             record.msg = "[suprimido: possível segredo no log]"
             record.args = ()
+        if record.exc_info:
+            # T44: o traceback também passa pelo filtro
+            import traceback
+            texto = "".join(traceback.format_exception(*record.exc_info)).lower()
+            if any(p in texto for p in _SEM_SENHA):
+                record.msg = f"{record.msg} [traceback suprimido: possível segredo]"
+                record.exc_info = None
+                record.exc_text = None
         return True
 
 
@@ -99,7 +107,8 @@ class Progresso:
         caminho_db = Path(caminho_db)
         if str(caminho_db) != ":memory:":
             caminho_db.parent.mkdir(parents=True, exist_ok=True)
-        self.con = sqlite3.connect(caminho_db)
+        # T44: outro programa com o banco aberto -> espera até 30 s em vez de quebrar
+        self.con = sqlite3.connect(caminho_db, timeout=30)
         self.con.executescript(_SCHEMA)
         self.resolver_enviando_pendentes()
 
@@ -151,7 +160,7 @@ class Progresso:
             DO UPDATE SET estado = excluded.estado,
                           pasta = excluded.pasta,
                           detalhe = excluded.detalhe,
-                          hash_arquivo = excluded.hash_arquivo,
+                          hash_arquivo = COALESCE(NULLIF(excluded.hash_arquivo, ''), progresso.hash_arquivo),
                           atualizado_em = excluded.atualizado_em
             """,
             (aluno_id, arquivo, pasta, estado, detalhe, hash_arquivo, agora, agora),
@@ -175,15 +184,29 @@ class Progresso:
 
     def enviados_hoje(self, aluno_id: str, codigo: str) -> int:
         """Arquivos deste aluno neste código marcados ENVIADO ou JA_ENVIADO
-        hoje (data local) (T35). O envio grava o código do tema na coluna
-        ``pasta`` (envio_item.marcar)."""
-        hoje = datetime.now().date()
+        hoje (T35; T44: "hoje" no horário de Brasília, como o site). O envio
+        grava o código do tema na coluna ``pasta`` (envio_item.marcar)."""
+        from modulos.base import relogio
+        hoje = relogio.hoje()
         linhas = self.con.execute(
             "SELECT atualizado_em FROM progresso WHERE aluno_id = ? AND pasta = ? AND estado IN (?, ?)",
             (aluno_id, codigo, ENVIADO, JA_ENVIADO),
         ).fetchall()
         return sum(1 for (quando,) in linhas
-                   if datetime.fromisoformat(quando).astimezone().date() == hoje)
+                   if datetime.fromisoformat(quando).astimezone(relogio.FUSO_BRASILIA).date() == hoje)
+
+    def registro_do_conteudo(self, aluno_id: str, hash_arquivo: str, exceto: str) -> dict | None:
+        """T44: o MESMO arquivo (mesmo conteúdo) já registrado para este aluno
+        com outro nome/pasta, num estado que não reenvia. Pega arquivo
+        renomeado, movido de pasta ou copiado de novo."""
+        if not hash_arquivo:
+            return None
+        row = self.con.execute(
+            "SELECT arquivo, estado FROM progresso WHERE aluno_id = ? AND hash_arquivo = ? "
+            "AND arquivo != ? AND estado IN (?, ?, ?, ?) LIMIT 1",
+            (aluno_id, hash_arquivo, exceto, ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ENVIANDO),
+        ).fetchone()
+        return {"arquivo": row[0], "estado": row[1]} if row else None
 
     # ─── Envios por aluno (limite de 4) ──────────────────────
 

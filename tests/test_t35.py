@@ -48,7 +48,7 @@ def test_mesmo_tema_na_mesma_pasta_continua_revisao_manual():
 def test_lote_leva_os_dois_com_total_do_tema(tmp_path):
     for pasta in ("3B - Aporofobia", "3B - Discriminacao"):
         (tmp_path / pasta).mkdir()
-        (tmp_path / pasta / ARQ).write_bytes(b"x")
+        (tmp_path / pasta / ARQ).write_bytes(str(tmp_path / pasta / ARQ).encode())
     resultado = conciliar([ANA], {"3B - Aporofobia": [ARQ], "3B - Discriminacao": [ARQ]},
                           codigos_site=["000"],
                           codigos_pasta={"3B - Aporofobia": "000", "3B - Discriminacao": "000"})

@@ -51,7 +51,7 @@ class TestFailClosedPosClique:
     def cfg(self, arquivo_teste, codigo_tema, tmp_path):
         # JPG falso real em disco: o fluxo exige o caminho completo existente (T18D-B)
         (tmp_path / codigo_tema).mkdir()
-        (tmp_path / codigo_tema / arquivo_teste).write_bytes(b"jpg-falso")
+        (tmp_path / codigo_tema / arquivo_teste).write_bytes(str(tmp_path / codigo_tema / arquivo_teste).encode())
         cfg = Config()
         cfg.pasta_raiz = tmp_path
         cfg.headless = True
@@ -330,7 +330,7 @@ class TestFailClosedPosClique:
     def _fila_dois_itens(self, cfg, mocks):
         """Itens: tema "0" e tema "00", o mesmo aluno (conta de teste)."""
         (cfg.pasta_raiz / "00").mkdir()
-        (cfg.pasta_raiz / "00" / "Usuario Testes Ignorar.jpg").write_bytes(b"jpg-falso")
+        (cfg.pasta_raiz / "00" / "Usuario Testes Ignorar.jpg").write_bytes(str(cfg.pasta_raiz / "00" / "Usuario Testes Ignorar.jpg").encode())
         mocks["descobrir"].return_value = {"0": ["Usuario Testes Ignorar.jpg"],
                                            "00": ["Usuario Testes Ignorar.jpg"]}
         mocks["combo"].return_value = [("0", "0 - Tema Teste"), ("00", "00 - Outro")]

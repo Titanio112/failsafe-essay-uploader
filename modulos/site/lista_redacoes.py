@@ -90,16 +90,26 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
     soup = BeautifulSoup(html, 'html.parser')
     
     itens = []
-    # Procurar tabela
-    tabela = soup.find('table')
-    if not tabela:
-        return itens
+    # T44: lista paginada nunca foi observada; a redação de hoje poderia
+    # estar em outra página -> fail-closed.
+    if soup.select(".pagination, nav[aria-label*='agina'], a[rel='next']"):
+        raise RuntimeError("Lista de redacoes com paginacao (nao observado); envio bloqueado")
 
     # Cabeçalho observado (21/10/2026): Data | Tema | Nota | Situação.
-    # Cabeçalho presente e diferente -> lista ilegível (fail-closed).
-    cabecalho = [th.get_text(strip=True).lower() for th in tabela.find_all('th')][:4]
-    if cabecalho and cabecalho != CABECALHO_ESPERADO:
-        raise RuntimeError(f"Cabecalho inesperado na lista de redacoes: {cabecalho}")
+    # T44: a tabela é achada pelo cabeçalho (outra tabela antes não engana);
+    # só tabelas com outro cabeçalho -> lista ilegível (fail-closed).
+    tabelas = soup.find_all('table')
+    if not tabelas:
+        return itens  # conta sem redação nenhuma (D1: pode enviar)
+
+    def _cabecalho(t):
+        return [th.get_text(strip=True).lower() for th in t.find_all('th')][:4]
+
+    tabela = next((t for t in tabelas if _cabecalho(t) == CABECALHO_ESPERADO), None)
+    if tabela is None:
+        tabela = next((t for t in tabelas if not _cabecalho(t)), None)
+    if tabela is None:
+        raise RuntimeError(f"Cabecalho inesperado na lista de redacoes: {_cabecalho(tabelas[0])}")
 
     tbody = tabela.find('tbody')
     if not tbody:
@@ -202,20 +212,26 @@ def contar_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,
     """Quantas linhas do tema ``codigo`` com a data de HOJE há na lista (T35).
     "Cancelada" não conta. Lista vazia -> 0 (decisão D1 (a)). Lista com
     linhas ilegíveis -> RuntimeError (fail-closed, não envia)."""
-    import re
-    from datetime import datetime
     if not lista_redacoes:
         return 0
-    if data_hoje is None:
-        data_hoje = datetime.now().strftime("%d/%m/%Y")
     if not any(item.tema.strip() and item.data.strip() for item in lista_redacoes):
         raise RuntimeError("Lista de redacoes ilegivel; envio bloqueado")
-    total = 0
+    return len(situacoes_tema_hoje(lista_redacoes, codigo, data_hoje))
+
+
+def situacoes_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,
+                        data_hoje: str | None = None) -> list[str]:
+    """Situações (minúsculas) das linhas do tema ``codigo`` com a data de
+    HOJE (horário de Brasília), sem as "Cancelada" (T35/T44)."""
+    import re
+    from modulos.base import relogio
+    data_hoje = data_hoje or relogio.data_site()
+    situacoes = []
     for item in lista_redacoes:
         match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", item.tema)
         item_codigo = match.group(1) if match else item.codigo
-        if (item_codigo == codigo and item.data.strip() == data_hoje
-                and item.situacao.strip().lower() != "cancelada"):
-            total += 1
-    return total
+        situacao = item.situacao.strip().lower()
+        if item_codigo == codigo and item.data.strip() == data_hoje and situacao != "cancelada":
+            situacoes.append(situacao)
+    return situacoes
 

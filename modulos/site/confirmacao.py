@@ -6,20 +6,39 @@ from playwright.sync_api import Page
 import logging
 import time
 
-from modulos.base.excecoes import ConfirmacaoInconclusiva
+from modulos.base.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 from modulos.site.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
-from modulos.site.lista_redacoes import ler_lista_redacoes
+from modulos.site.lista_redacoes import ler_lista_redacoes, situacoes_tema_hoje
 
 log = logging.getLogger("automacao_redacoes")
 
+# Situações que mostram a linha NOVA (a que acabou de ser enviada)
+_ATIVAS = ("pendente", "processando")
+
+
 def clicar_enviar(page: Page) -> None:
-    """Clica uma única vez no botão 'Enviar resposta'."""
+    """Clica uma única vez no botão 'Enviar resposta'.
+
+    T44: depois do clique espera o envio do formulário sair de /wordings/new
+    antes de qualquer outra navegação (ir direto para a lista poderia
+    interromper o envio). Se a página não mudar em 30 s, segue: a
+    confirmação na lista decide."""
+    from playwright.sync_api import TimeoutError as PWTimeoutError
     btn = page.locator("input[type='submit'][value='Enviar resposta'][name='commit']").first
     btn.click()
+    try:
+        page.wait_for_url(lambda url: "/wordings/new" not in url, timeout=30000)
+    except PWTimeoutError:
+        log.warning("Pagina continuou no formulario 30 s apos o clique; conferindo na lista.")
+
+
+def _contar(situacoes: list[str], palavra: str) -> int:
+    return sum(1 for s in situacoes if palavra in s)
 
 
 def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 120,
-                         linhas_esperadas: int = 1) -> bool:
+                         linhas_esperadas: int = 1, antes: list[str] | None = None,
+                         data_hoje: str | None = None) -> bool:
     """Aguarda confirmação do envio na lista remota.
     
     Recarrega /minhas-redacoes a cada 5s até:
@@ -35,10 +54,17 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
 
     T35: ``linhas_esperadas`` = linhas desse tema hoje antes do clique + 1.
     Só conta como recebida quando a lista chega a esse número (vale para
-    várias redações do mesmo tema no mesmo dia)."""
-    from datetime import datetime
+    várias redações do mesmo tema no mesmo dia).
 
-    data_hoje = datetime.now().strftime("%d/%m/%Y")
+    T44: ``antes`` = situações das linhas desse tema hoje ANTES do clique.
+    Só a linha nova é julgada: uma redação anterior do dia já "Corrigida"
+    não impede a confirmação, e um "erro" antigo não vira falso erro.
+    ``data_hoje`` vem de quem contou antes do clique (mesmo dia nas duas
+    pontas). CAPTCHA/domínio estranho na espera sobe na hora."""
+    from modulos.base import relogio
+
+    data_hoje = data_hoje or relogio.data_site()
+    antes = antes or []
     inicio = time.time()
     viu_processando = False
 
@@ -48,18 +74,20 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
             page.wait_for_load_state("networkidle")
             verificar_dominio_autorizado(page)
 
-            do_dia = [item.situacao.lower() for item in ler_lista_redacoes(page)
-                      if item.codigo == codigo_tema and item.data == data_hoje
-                      and item.situacao.strip().lower() != "cancelada"]
+            do_dia = situacoes_tema_hoje(ler_lista_redacoes(page), codigo_tema, data_hoje)
             if len(do_dia) >= linhas_esperadas:
-                if any("erro" in s for s in do_dia):
+                if _contar(do_dia, "erro") > _contar(antes, "erro"):
                     return False
-                if any("processando" in s for s in do_dia):
-                    viu_processando = True
-                elif all("pendente" in s for s in do_dia):
-                    return True
-        except Exception:
-            pass
+                ativas_agora = sum(_contar(do_dia, s) for s in _ATIVAS)
+                if ativas_agora > sum(_contar(antes, s) for s in _ATIVAS):
+                    if _contar(do_dia, "processando") > _contar(antes, "processando"):
+                        viu_processando = True
+                    else:
+                        return True
+        except CaptchaOuBloqueio:
+            raise
+        except Exception as e:
+            log.warning("Lista ainda nao conferida (%s); tentando de novo.", type(e).__name__)
         time.sleep(5)
 
     if viu_processando:

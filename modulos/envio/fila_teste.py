@@ -21,3 +21,11 @@ class ItemFilaTeste:
     # T35: quantos arquivos o aluno tem neste código (todas as pastas).
     # Se o site já tem esse tanto hoje, tudo já foi enviado.
     total_mesmo_tema: int = 1
+    # T44: sha256 do JPG, gravado no banco; o mesmo conteúdo com outro nome
+    # não é enviado de novo.
+    hash_arquivo: str = ""
+
+
+def hash_do_arquivo(caminho: Path) -> str:
+    import hashlib
+    return hashlib.sha256(Path(caminho).read_bytes()).hexdigest()

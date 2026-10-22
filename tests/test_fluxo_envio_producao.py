@@ -54,7 +54,7 @@ def resultado(cfg):
         (BRUNO, "1 - Carta", "Bruno Silva - Red.jpg", "1"),
     ]:
         (cfg.pasta_raiz / pasta).mkdir(parents=True, exist_ok=True)
-        (cfg.pasta_raiz / pasta / arquivo).write_bytes(b"jpg-falso")
+        (cfg.pasta_raiz / pasta / arquivo).write_bytes(str(cfg.pasta_raiz / pasta / arquivo).encode())
         itens.append(ItemConciliacao(pasta=pasta, arquivo=arquivo, pessoa=aluno.nome,
                                      estado=EXATO_UNICO, aluno=aluno, codigo_tema=codigo))
     return ResultadoConciliacao(itens=itens)

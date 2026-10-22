@@ -49,7 +49,7 @@ def _resultado(tmp_path, aluno, pastas=("000 - Generico",)):
     arquivos = {}
     for pasta in pastas:
         (tmp_path / pasta).mkdir(parents=True, exist_ok=True)
-        (tmp_path / pasta / f"{aluno.nome}.jpg").write_bytes(b"x")
+        (tmp_path / pasta / f"{aluno.nome}.jpg").write_bytes(str(tmp_path / pasta / f"{aluno.nome}.jpg").encode())
         arquivos[pasta] = [f"{aluno.nome}.jpg"]
     return conciliar([aluno], arquivos, codigos_site=["000"])
 
@@ -92,7 +92,7 @@ def test_duas_pastas_genericas_da_conta_de_teste_entram_no_lote(tmp_path, navega
                           codigos_site=["000"], codigos_pasta={"Aporofobia": "000", "Discriminacao": "000"})
     for pasta in ("Aporofobia", "Discriminacao"):
         (tmp_path / pasta).mkdir()
-        (tmp_path / pasta / f"{TESTE.nome}.jpg").write_bytes(b"x")
+        (tmp_path / pasta / f"{TESTE.nome}.jpg").write_bytes(str(tmp_path / pasta / f"{TESTE.nome}.jpg").encode())
     with patch("builtins.input", return_value="ENVIAR TESTE"):
         assert fep.executar_envio_producao(cfg, resultado, conta_teste=TESTE.email) == 0
     itens = [c.args[2] for c in navegador_falso["enviar"].call_args_list]
@@ -105,7 +105,7 @@ def _main_modo_teste(tmp_path, monkeypatch):
     import main as main_mod
     pasta = config_mod.RAIZ / "testes" / "redacoes_teste" / "Efeitos da aporofobia"
     pasta.mkdir(parents=True)
-    (pasta / f"{NOME_CONTA_TESTE}.jpg").write_bytes(b"x")
+    (pasta / f"{NOME_CONTA_TESTE}.jpg").write_bytes(str(pasta / f"{NOME_CONTA_TESTE}.jpg").encode())
     (tmp_path / "dados").mkdir()
     (tmp_path / "dados" / "temas_site.csv").write_text(
         "codigo,texto\n000,000- DISSERTATIVO ARGUMENTATIVO\n", encoding="utf-8")
