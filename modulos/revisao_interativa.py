@@ -59,17 +59,29 @@ def buscar_alunos(texto: str, alunos: list[Aluno], n: int = 5) -> list[tuple[Alu
     return pontuados[:n]
 
 
-def buscar_temas(texto: str, temas: list[tuple[str, str]], n: int = 5) -> list[tuple[str, str, float]]:
+def buscar_temas(texto: str, temas: list[tuple[str, str]], n: int = 5,
+                 por_palavras: bool = False) -> list[tuple[str, str, float]]:
+    """Temas mais parecidos (sem repetir código). ``por_palavras``: busca
+    digitada; tema que contém todas as palavras (sem acento) vem primeiro."""
     titulo = _titulo(texto)
+    palavras = [w for w in normalizar_nome(texto).split() if len(w) >= 3]
     vistos: set[str] = set()
     pontuados = []
     for codigo, tema in temas:
         if codigo in vistos:
             continue
         vistos.add(codigo)
-        pontuados.append((codigo, tema, float(fuzz.token_set_ratio(titulo, _titulo(tema)))))
+        score = float(fuzz.token_set_ratio(titulo, _titulo(tema)))
+        if por_palavras and palavras and all(w in normalizar_nome(tema) for w in palavras):
+            score = 100.0
+        pontuados.append((codigo, tema, score))
     pontuados.sort(key=lambda t: t[2], reverse=True)
     return pontuados[:n]
+
+
+def _sem_codigo(texto: str) -> str:
+    """"100- Impactos..." -> "Impactos..." (o código já aparece na coluna)."""
+    return re.sub(r"^\s*\d+\s*-\s*", "", texto)
 
 
 # ─── Pastas ──────────────────────────────────────────────────
@@ -83,18 +95,31 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
     texto_de = {codigo: tema for codigo, tema in temas}
     aprovadas = 0
     for n, pasta in enumerate(pastas, 1):
-        busca = pasta
+        busca = ""
         while True:
-            opcoes = buscar_temas(busca, temas)
+            opcoes = buscar_temas(busca or pasta, temas, n=len(temas) if busca else 5,
+                                  por_palavras=bool(busca))
+            if busca == "t":
+                opcoes.sort(key=lambda t: (len(t[0]), t[0]))
+            melhor = opcoes[0] if not busca and opcoes and opcoes[0][2] >= SCORE_PROVAVEL else None
             saida("")
             saida(f"[Pasta {n}/{len(pastas)}] {pasta}")
-            if busca != pasta:
-                saida(f"  (busca: {busca})")
-            for codigo, tema, score in opcoes:
-                saida(f"  [{codigo}] {tema}  ({score:.0f}%)")
-            melhor = opcoes[0] if opcoes and opcoes[0][2] >= SCORE_PROVAVEL else None
-            dica = f"Enter = {melhor[0]} | " if melhor else ""
-            resp = _perguntar(entrada, f"  {dica}codigo = escolher | texto = buscar tema | p = pular | q = sair: ")
+            if busca == "t":
+                saida("  Todos os temas do site:")
+            elif busca:
+                achou = [o for o in opcoes if o[2] >= 100.0]
+                opcoes = achou or opcoes[:5]
+                saida(f"  Temas com \"{busca}\":" if achou else f"  Nenhum tema tem \"{busca}\"; os mais parecidos:")
+            elif melhor:
+                saida(f"  Provavelmente e o tema {melhor[0]}: {_sem_codigo(melhor[1])}")
+                saida("  Outros parecidos:")
+                opcoes = opcoes[1:]
+            else:
+                saida("  Nenhum tema do site tem o nome bem parecido. Os mais proximos:")
+            for codigo, tema, _ in opcoes:
+                saida(f"    {codigo:>6}  {_sem_codigo(tema)}")
+            dica = f"Enter = confirmar {melhor[0]} | " if melhor else ""
+            resp = _perguntar(entrada, f"  {dica}numero do tema | palavra = procurar | t = todos | p = pular | q = sair: ")
             low = resp.lower()
             if low == "q":
                 return aprovadas, True
@@ -104,16 +129,16 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
             codigo = melhor[0] if not resp else resp
             if codigo.isdigit():
                 if codigo not in contagem:
-                    saida(f"  Codigo {codigo} nao esta em dados/temas_site.csv. Confira no site.")
+                    saida(f"  Tema {codigo} nao existe na lista do site (dados/temas_site.csv).")
                     continue
                 if contagem[codigo] > 1:
-                    saida(f"  Codigo {codigo} aparece {contagem[codigo]}x no combo do site: nao da para enviar automaticamente.")
+                    saida(f"  Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.")
                     continue
                 aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
                 saida(f"  OK: {pasta} -> tema {codigo}")
                 aprovadas += 1
                 break
-            busca = resp
+            busca = low if low == "t" else resp
     return aprovadas, False
 
 

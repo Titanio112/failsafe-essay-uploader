@@ -1274,6 +1274,20 @@ $ python -m pytest -m "not real" -q
   "aporofobia" não achou nada no CSV atual (conta de teste). Arquivos reais
   não foram tocados.
 
+- Ajuste pós-uso real (Antônio, 22/10): a Parte 1 confundia (porcentagens).
+  Agora: "Provavelmente e o tema 100: ..." (Enter confirma) ou "Nenhum tema do
+  site tem o nome bem parecido"; sem %; palavra digitada procura temas que
+  contêm a palavra (sem acento, ex.: "rua"); `t` lista todos os temas.
+  - Antônio: todos os alunos veem os MESMOS temas (padrão da plataforma).
+    A página pública do site não lista temas (conferido no navegador, sem
+    login). Logo, o combo lido (109) é a lista; os 3 temas existem com outro
+    nome. Candidatos por sentido, para o Antônio decidir: aporofobia -> 102
+    (arquitetura hostil, pessoas em situação de rua) / 90 / 48; discriminação
+    no trabalho -> 64; tecnologia e saúde mental -> 75 (ou 85).
+  - REGRA do Antônio (22/10): nunca enviar redação nas contas dos alunos de
+    verdade. Claude não envia, não digita ENVIAR e não loga em conta de aluno.
+  - `python -m pytest -m "not real" -q` -> 195 passed, 4 deselected.
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.

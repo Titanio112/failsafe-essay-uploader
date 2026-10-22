@@ -78,7 +78,7 @@ def test_revisar_pastas_recusa_codigo_inexistente_e_repetido_no_combo(tmp_path):
     saidas = []
     revisar_pastas([APOROFOBIA], TEMAS, caminho, entrada=respostas("77", "0000", "9"), saida=saidas.append)
     texto = "\n".join(saidas)
-    assert "77 nao esta" in texto and "0000 aparece 2x" in texto
+    assert "Tema 77 nao existe" in texto and "0000 aparece 2x" in texto
     assert carregar_codigos_pasta(caminho) == {APOROFOBIA: "9"}
 
 
@@ -86,7 +86,26 @@ def test_revisar_pastas_texto_busca_outro_tema(tmp_path):
     saidas = []
     revisar_pastas([APOROFOBIA], TEMAS, tmp_path / "p.csv", entrada=respostas("expectativa vida", "q"),
                    saida=saidas.append)
-    assert "  (busca: expectativa vida)" in saidas
+    assert '  Temas com "expectativa vida":' in saidas
+    assert any(s.strip().startswith("9 ") for s in saidas)
+
+
+def test_revisar_pastas_busca_por_palavra_sem_acento_e_lista_todos(tmp_path):
+    temas = TEMAS + [("102", "102- Arquitetura hostil - impactos da desumanização de pessoas em situação de rua")]
+    saidas = []
+    revisar_pastas([APOROFOBIA], temas, tmp_path / "p.csv", entrada=respostas("situacao rua", "t", "102"),
+                   saida=saidas.append)
+    assert '  Temas com "situacao rua":' in saidas
+    assert not any("Expectativa" in s for s in saidas[saidas.index('  Temas com "situacao rua":'):saidas.index("  Todos os temas do site:")])
+    assert "  Todos os temas do site:" in saidas
+    assert carregar_codigos_pasta(tmp_path / "p.csv") == {APOROFOBIA: "102"}
+
+
+def test_revisar_pastas_mostra_o_provavel_sem_porcentagem(tmp_path):
+    saidas = []
+    revisar_pastas([FILIACAO], TEMAS, tmp_path / "p.csv", entrada=respostas("q"), saida=saidas.append)
+    assert "  Provavelmente e o tema 100: Impactos da invisibilidade de filiação para os cidadãos brasileiros" in saidas
+    assert not any("%" in s for s in saidas)
 
 
 # ─── Nomes ───────────────────────────────────────────────────
