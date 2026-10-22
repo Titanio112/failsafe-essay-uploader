@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import random
+import sqlite3
 import time
 from pathlib import Path
 from typing import Optional
@@ -29,6 +30,7 @@ from modulos.envio.fila_producao import LoteAluno, montar_lote_producao
 from modulos.envio.envio_item import enviar_item
 from modulos.base.excecoes import CaptchaOuBloqueio
 from modulos.base.trava import TravaOcupada, trava_de_envio
+from modulos.base.copia_seguranca import copiar_caderno
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
 
 
@@ -95,6 +97,43 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
             log.error("Item com %s; parando este aluno e seguindo para o proximo.", estado)
             return None
     return None
+
+
+# O que fazer com cada estado que pede ação (T47)
+_ACAO = {
+    REVISAO_MANUAL: ("revisao", "abra o site NA CONTA DESTE ALUNO e veja se a redacao deste tema chegou hoje; "
+                                "o script nao reenvia sozinho"),
+    ERRO: ("erro", "nada foi enviado; resolva o motivo e rode de novo (ele tenta outra vez)"),
+}
+
+
+def mostrar_o_que_precisa_de_voce(lotes: list[LoteAluno], progresso: Progresso) -> int:
+    """T47: no fim do envio, uma lista só com o que pede ação humana, aluno
+    por aluno, com o motivo e o que fazer. Retorna quantos itens."""
+    pendentes: dict[str, list] = {}
+    nao_tentados = 0
+    for lote in lotes:
+        for item in lote.itens:
+            registro = progresso.obter(lote.aluno.id, item.chave_progresso) or {}
+            estado = registro.get("estado", "")
+            if estado in _ACAO:
+                pendentes.setdefault(estado, []).append((lote.aluno.nome, item, registro.get("detalhe", "")))
+            elif estado not in (ENVIADO, JA_ENVIADO):
+                nao_tentados += 1
+    if not pendentes and not nao_tentados:
+        return 0
+    tela.secao("O que precisa de voce")
+    for estado in (REVISAO_MANUAL, ERRO):
+        if estado not in pendentes:
+            continue
+        _, acao = _ACAO[estado]
+        tela.status("aviso" if estado == REVISAO_MANUAL else "erro",
+                    f"{estado} ({len(pendentes[estado])}): {acao}")
+        for nome, item, detalhe in pendentes[estado]:
+            tela.status("fraco", f"{nome} - tema {item.codigo} - {item.pasta}/{item.arquivo}: {detalhe}", recuo=6)
+    if nao_tentados:
+        tela.status("info", f"{nao_tentados} redacao(oes) nao chegaram a ser tentadas: vao na proxima execucao.")
+    return sum(len(v) for v in pendentes.values()) + nao_tentados
 
 
 def gravar_relatorio_envio(lotes: list[LoteAluno], progresso: Progresso, pasta: Path) -> Path:
@@ -182,6 +221,15 @@ def executar_envio_producao(
 
 
 def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_teste, rotulo: str) -> int:
+    if progresso:
+        # T47: cópia do caderno ANTES de qualquer clique; sem cópia, não envia
+        try:
+            copia = copiar_caderno(progresso.con, Path(cfg.pasta_relatorios) / "copias")
+        except (OSError, sqlite3.Error) as e:
+            tela.erro(f"Nao consegui guardar a copia de seguranca do caderno ({type(e).__name__}). "
+                      "Nada foi enviado.")
+            return 2
+        tela.info(f"Copia de seguranca do caderno: {tela.caminho(copia)}")
     senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
@@ -218,5 +266,6 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
     elif not contagem[ERRO] and not contagem[REVISAO_MANUAL]:
         tela.ok("Tudo certo.")
     if progresso:
+        mostrar_o_que_precisa_de_voce(lotes, progresso)
         tela.info(f"Relatorio do envio: {tela.caminho(gravar_relatorio_envio(lotes, progresso, cfg.pasta_relatorios))}")
     return 1 if parou or contagem[ERRO] or contagem[REVISAO_MANUAL] else 0

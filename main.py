@@ -366,4 +366,9 @@ if __name__ == "__main__":
     # assim funciona mesmo rodando o script de outra pasta.
     import os
     os.chdir(Path(__file__).resolve().parent)
+    # T47: sem nenhuma opção, num terminal de verdade, abre o menu
+    if len(sys.argv) == 1 and sys.stdin.isatty():
+        from modulos.ferramentas.menu import executar_menu
+        tela.ativar_cores()
+        sys.exit(executar_menu(main))
     sys.exit(main())
