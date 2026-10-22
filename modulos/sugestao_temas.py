@@ -49,3 +49,50 @@ def sugerir_codigos(pastas: list[str], temas: list[tuple[str, str]]) -> list[tup
             codigo, texto = "", ""
         sugestoes.append((pasta, codigo, texto, round(score, 1)))
     return sugestoes
+
+
+# ─── Pastas aprovadas (T28) ──────────────────────────────────
+# dados/pastas_aprovadas.csv (;): pasta;codigo;tema;aprovado;semelhanca
+# O dry-run acrescenta sugestões com "aprovado" vazio; o Antônio confere
+# (pode trocar o código à mão) e escreve "sim". Sem renomear pastas.
+
+COLUNAS_PASTAS = ["pasta", "codigo", "tema", "aprovado", "semelhanca"]
+_RESPOSTAS_SIM = {"sim", "s", "x", "ok", "yes"}
+
+
+def _ler_pastas(caminho: Path) -> list[dict]:
+    if not Path(caminho).is_file():
+        return []
+    with open(caminho, encoding="utf-8-sig", newline="") as f:
+        return [{k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
+                for linha in csv.DictReader(f, delimiter=";")]
+
+
+def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
+    """{pasta: codigo} das linhas com aprovado=sim e código preenchido."""
+    return {
+        linha["pasta"]: linha["codigo"]
+        for linha in _ler_pastas(caminho)
+        if linha.get("aprovado", "").lower() in _RESPOSTAS_SIM and linha.get("pasta") and linha.get("codigo")
+    }
+
+
+def registrar_sugestoes_pasta(sugestoes: list[tuple[str, str, str, float]], caminho: Path) -> int:
+    """Acrescenta as pastas ainda não listadas (mesmo sem tema parecido: o
+    código pode ser digitado à mão). Nunca altera linhas existentes."""
+    caminho = Path(caminho)
+    ja_tem = {linha.get("pasta", "") for linha in _ler_pastas(caminho)}
+    novas = [
+        {"pasta": pasta, "codigo": codigo, "tema": texto, "aprovado": "",
+         "semelhanca": f"{score:.0f}%" if codigo else "nenhum tema parecido"}
+        for pasta, codigo, texto, score in sugestoes if pasta not in ja_tem
+    ]
+    if novas:
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        novo = not caminho.is_file()
+        with open(caminho, "a", encoding="utf-8-sig" if novo else "utf-8", newline="") as f:
+            escritor = csv.DictWriter(f, fieldnames=COLUNAS_PASTAS, delimiter=";")
+            if novo:
+                escritor.writeheader()
+            escritor.writerows(novas)
+    return len(novas)

@@ -29,6 +29,7 @@ def cfg(tmp_path):
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "pend"
     cfg.arquivo_nomes_aprovados = tmp_path / "nomes_aprovados.csv"
+    cfg.arquivo_pastas_aprovadas = tmp_path / "pastas_aprovadas.csv"
     cfg.pasta_relatorios = tmp_path / "relatorios"
     cfg.headless = True
     cfg.slow_mo_ms = 0

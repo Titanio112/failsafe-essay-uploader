@@ -1156,6 +1156,66 @@ Dropped refs/stash@{0} (1725fbf1422644c532fd4ca6273a87bb695dc453)
 $ python -m pytest tests/test_t27.py -q -m "not real"   (T27)
 20 passed in 1.07s
 
+## T28 - F4: rodar direto nas redações reais (--pasta) e aprovar código por pasta [x]
+- Execuções do Antônio (22/10, 10:58–11:00, após T27):
+  - `python main.py --analise-remota` -> 109 temas gravados, backup criado,
+    código repetido ['0000']. OK (T27 funcionando no site real).
+  - `python main.py` e `--envio-real --limite-alunos 1 --limite-redacoes 1` ->
+    "Nada para enviar": o script leu `redacoes_pendentes/`, que só tem as 11
+    cópias de TESTE ("Usuario Testes Ignorar", que não está na lista de
+    alunos). As 130 redações reais estão em `Redações plataforma/`. Não é bug
+    do envio; faltava apontar para a pasta certa.
+  - O aviso "Coluna 'Senha' ... ignorada" saía 2 vezes (print + UserWarning).
+- Combo atualizado (22/10): dos 4 temas reais, só "filiação" existe no site
+  (código 100). "aporofobia", "discriminação no trabalho" e "tecnologia e
+  saúde mental" NÃO estão entre os 109 temas da conta de teste -> essas
+  redações não têm como ser enviadas até o tema existir no site (decisão do
+  Antônio / da plataforma).
+- Mudanças:
+  - `--pasta "<pasta>"`: lê as redações de qualquer pasta (sem copiar).
+  - `dados/pastas_aprovadas.csv` (`;`, no .gitignore):
+    pasta;codigo;tema;aprovado;semelhanca. O dry-run acrescenta as pastas sem
+    código com o tema mais parecido; o Antônio confere (pode digitar outro
+    código) e escreve `sim`. Pasta aprovada vale como "<codigo> - <pasta>"
+    só para extrair o código; o arquivo continua no mesmo lugar. Sem renomear.
+  - Avisos aparecem uma vez só.
+  - `dados/*.bak.csv` no .gitignore; `dados/temas_site.csv` atualizado (109).
+PROVA:
+$ python -m py_compile main.py modulos/planilha_arquivos.py modulos/sugestao_temas.py modulos/config.py
+[exit 0]
+$ python -m pyflakes main.py modulos/sugestao_temas.py modulos/config.py tests/test_t28.py tests/test_fluxo_envio_producao.py
+[exit 0]
+$ python -m pytest tests/test_t28.py -v -m "not real"
+tests/test_t28.py::test_pasta_sem_codigo_nao_entra_sem_aprovacao PASSED  [ 16%]
+tests/test_t28.py::test_pasta_aprovada_entra_com_o_codigo_e_mantem_o_nome_real PASSED [ 33%]
+tests/test_t28.py::test_aprovacao_nao_sobrescreve_pasta_que_ja_tem_codigo PASSED [ 50%]
+tests/test_t28.py::test_sugestoes_de_pasta_gravadas_e_aprovacao_lida PASSED [ 66%]
+tests/test_t28.py::test_main_pasta_inexistente_da_erro_claro PASSED      [ 83%]
+tests/test_t28.py::test_main_dry_run_com_pasta_e_pasta_aprovada PASSED   [100%]
+============================== 6 passed in 0.71s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 41%]
+........................................................................ [ 82%]
+..............................                                           [100%]
+174 passed, 4 deselected, 8 warnings in 6.36s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ git stash push -- main.py modulos/planilha_arquivos.py
+Saved working directory and index state WIP on f4-producao: 85aeb5c T27: analise remota, identidade tolerante, Processando = recebido, folha em branco, relatorio do envio; corrige bug 001 (0000 repetido no combo)
+$ python -m pytest tests/test_t28.py -q -m "not real"   (main/planilha_arquivos de 85aeb5c)
+FAILED tests/test_t28.py::test_pasta_aprovada_entra_com_o_codigo_e_mantem_o_nome_real
+FAILED tests/test_t28.py::test_aprovacao_nao_sobrescreve_pasta_que_ja_tem_codigo
+FAILED tests/test_t28.py::test_main_pasta_inexistente_da_erro_claro - SystemE...
+FAILED tests/test_t28.py::test_main_dry_run_com_pasta_e_pasta_aprovada - Syst...
+4 failed, 2 passed in 1.11s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (0807e6104cbcb8bf529e9748f4f10a3988b94d9f)
+$ (mesmo comando, T28)
+6 passed in 0.72s
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.

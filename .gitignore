@@ -20,6 +20,8 @@ __pycache__/
 dados/dados_alunos*.csv
 dados/*alunos*.csv
 dados/nomes_aprovados.csv
+dados/pastas_aprovadas.csv
+dados/*.bak.csv
 *.xlsx
 *.xls
 *.jpg

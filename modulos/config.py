@@ -67,6 +67,8 @@ class Config:
     pasta_relatorios: Path = field(default_factory=lambda: RAIZ / "relatorios")
     # Nomes de arquivo aprovados por humano -> aluno (T26)
     arquivo_nomes_aprovados: Path = field(default_factory=lambda: RAIZ / "dados" / "nomes_aprovados.csv")
+    # Código de tema aprovado por humano para pasta sem código (T28)
+    arquivo_pastas_aprovadas: Path = field(default_factory=lambda: RAIZ / "dados" / "pastas_aprovadas.csv")
 
     def __post_init__(self) -> None:
         if not self.planilha or str(self.planilha) == ".":

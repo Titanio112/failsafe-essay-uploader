@@ -33,7 +33,13 @@ from modulos.nomes_aprovados import (
     carregar_nomes_aprovados,
     registrar_sugestoes,
 )
-from modulos.sugestao_temas import SCORE_PROVAVEL, ler_temas_site, sugerir_codigos
+from modulos.sugestao_temas import (
+    SCORE_PROVAVEL,
+    carregar_codigos_pasta,
+    ler_temas_site,
+    registrar_sugestoes_pasta,
+    sugerir_codigos,
+)
 
 
 TEMAS_SITE_CSV = Path("dados/temas_site.csv")
@@ -50,8 +56,8 @@ def ler_codigos_site_csv(caminho: Path) -> list[str]:
         return [row["codigo"] for row in csv.DictReader(f) if row.get("codigo")]
 
 
-def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes) -> None:
-    """Sugestões para o humano resolver (T26): nomes e códigos de tema. Só sugere."""
+def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pastas, codigos_pasta) -> None:
+    """Sugestões para o humano resolver (T26/T28): nomes e códigos de tema. Só sugere."""
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
     if novas:
         print()
@@ -59,16 +65,20 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes) -> None:
         print("Abra o arquivo e escreva 'sim' na coluna 'aprovado' das que estiverem certas;")
         print("na proxima execucao esses arquivos entram na fila como nome exato.")
 
-    sugestoes = sugerir_codigos(list(arquivos), ler_temas_site(TEMAS_SITE_CSV))
+    pastas = [p for p in arquivos if p not in codigos_pasta]
+    sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
     if sugestoes:
+        novas_pastas = registrar_sugestoes_pasta(sugestoes, arquivo_pastas)
         print()
-        print("Pastas SEM codigo de tema (nada delas sera enviado). Renomeie para '<codigo> - <titulo>':")
+        print("Pastas SEM codigo de tema aprovado (nada delas sera enviado):")
         for pasta, codigo, texto, score in sugestoes:
             if not codigo:
                 print(f"  {pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)")
             else:
                 nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
                 print(f"  {pasta}: {nivel} -> {texto} ({score:.0f}%)")
+        print(f"Em {arquivo_pastas} ({novas_pastas} linha(s) nova(s)): confira/corrija o")
+        print("codigo e escreva 'sim' em 'aprovado'. Nao precisa renomear a pasta.")
 
 
 def parse_args(argv=None):
@@ -82,12 +92,22 @@ def parse_args(argv=None):
                    help="so leitura: login na conta de teste, le o combo de temas e atualiza dados/temas_site.csv (confirmacao ANALISAR)")
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
+    p.add_argument("--pasta", default=None,
+                   help="pasta com as redacoes (ex.: \"Redações plataforma\"); padrao: redacoes_pendentes/")
     return p.parse_args(argv)
 
 
 def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = carregar_config(args.config)
+    if args.pasta and not args.modo_teste:
+        cfg.pasta_raiz = Path(args.pasta)
+        if not cfg.pasta_raiz.is_dir():
+            print(f"[ERRO] Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
+            return 2
+    # Os [AVISO] já saem na tela; não repetir como UserWarning do Python
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
     log = configurar_logging()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -149,12 +169,18 @@ def main(argv=None) -> int:
     nomes_aprovados = {} if args.modo_teste else carregar_nomes_aprovados(cfg.arquivo_nomes_aprovados, alunos)
     if nomes_aprovados:
         print(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
+    codigos_pasta = {} if args.modo_teste else carregar_codigos_pasta(cfg.arquivo_pastas_aprovadas)
+    for pasta, codigo in sorted(codigos_pasta.items()):
+        if pasta in arquivos:
+            aviso = "" if not codigos_site or codigo in codigos_site else "  [AVISO] codigo fora do temas_site.csv"
+            print(f"Pasta aprovada: {pasta} -> tema {codigo}{aviso}")
 
     resultado = conciliar(
         alunos, arquivos,
         codigos_site=codigos_site,
         limiar=cfg.limiar_fuzzy, margem=cfg.margem_minima,
         nomes_aprovados=nomes_aprovados,
+        codigos_pasta=codigos_pasta,
     )
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
@@ -204,7 +230,8 @@ def main(argv=None) -> int:
     print("exigem revisao humana e nao entram na fila real.")
 
     if not args.modo_teste:
-        _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados)
+        _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
+                           cfg.arquivo_pastas_aprovadas, codigos_pasta)
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:

@@ -270,9 +270,20 @@ def conciliar(
     limiar: float = 95.0,
     margem: float = 8.0,
     nomes_aprovados: Optional[dict] = None,
+    codigos_pasta: Optional[dict] = None,
 ) -> ResultadoConciliacao:
     """``nomes_aprovados``: {nome normalizado do arquivo: Aluno}, aprovado por
-    humano em dados/nomes_aprovados.csv; conta como nome exato."""
+    humano em dados/nomes_aprovados.csv; conta como nome exato.
+    ``codigos_pasta``: {pasta sem código: código}, aprovado por humano em
+    dados/pastas_aprovadas.csv (T28); vale só para pasta SEM código no nome."""
+    # Pasta usada só para extrair o código ("3B - X" aprovada como 9 -> "9 - 3B - X");
+    # item.pasta continua o nome real (caminho do arquivo).
+    pasta_cod = {
+        pasta: (f"{codigos_pasta[pasta]} - {pasta}"
+                if codigos_pasta and pasta in codigos_pasta and not PADRAO_CODIGO_ARQUIVO.match(pasta)
+                else pasta)
+        for pasta in arquivos_por_pasta
+    }
     por_norm = {}
     for a in alunos:
         por_norm.setdefault(a.nome_norm, []).append(a)
@@ -295,7 +306,7 @@ def conciliar(
         for nome_arquivo in arquivos:
             pessoa = extrair_pessoa(nome_arquivo)
             norm = normalizar_nome(pessoa)
-            codigo = extrair_codigo_tema(nome_arquivo, pasta)
+            codigo = extrair_codigo_tema(nome_arquivo, pasta_cod[pasta])
             if codigo and codigo != "" and not eh_folha_em_branco(norm):
                 exatos, _ = _resolver_alunos(norm, por_norm, nomes_aprovados)
                 if len(exatos) == 1:
@@ -316,7 +327,7 @@ def conciliar(
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
                     estado=REVISAO_MANUAL, observacao="folha em branco: decidir a mao",
-                    codigo_tema=extrair_codigo_tema(nome_arquivo, pasta) or "",
+                    codigo_tema=extrair_codigo_tema(nome_arquivo, pasta_cod[pasta]) or "",
                 ))
                 continue
 
@@ -327,7 +338,7 @@ def conciliar(
             
             codigo_pasta = None
             if pasta:
-                match_pasta = PADRAO_CODIGO_ARQUIVO.match(pasta)
+                match_pasta = PADRAO_CODIGO_ARQUIVO.match(pasta_cod[pasta])
                 if match_pasta:
                     codigo_pasta = match_pasta.group(1)
             
