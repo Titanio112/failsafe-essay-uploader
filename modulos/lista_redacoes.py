@@ -204,6 +204,29 @@ def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: s
     return "OK", None
 
 
+def contar_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,
+                     data_hoje: str | None = None) -> int:
+    """Quantas linhas do tema ``codigo`` com a data de HOJE há na lista (T35).
+    "Cancelada" não conta. Lista vazia -> 0 (decisão D1 (a)). Lista com
+    linhas ilegíveis -> RuntimeError (fail-closed, não envia)."""
+    import re
+    from datetime import datetime
+    if not lista_redacoes:
+        return 0
+    if data_hoje is None:
+        data_hoje = datetime.now().strftime("%d/%m/%Y")
+    if not any(item.tema.strip() and item.data.strip() for item in lista_redacoes):
+        raise RuntimeError("Lista de redacoes ilegivel; envio bloqueado")
+    total = 0
+    for item in lista_redacoes:
+        match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", item.tema)
+        item_codigo = match.group(1) if match else item.codigo
+        if (item_codigo == codigo and item.data.strip() == data_hoje
+                and item.situacao.strip().lower() != "cancelada"):
+            total += 1
+    return total
+
+
 def detectar_ja_enviado(lista_redacoes: list[ItemListaRedacao], codigo: str, data_hoje: str | None = None) -> tuple[bool, str]:
     """Verifica se já foi enviado HOJE - retorna (True, data) ou (False, '').
 

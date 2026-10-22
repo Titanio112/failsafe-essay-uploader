@@ -4,7 +4,9 @@ Regras (T24, ver TAREFAS_ATUAIS.md):
 - só itens EXATO_UNICO da conciliação;
 - nunca reenviar o que o banco registra como ENVIADO, JA_ENVIADO ou
   REVISAO_MANUAL (ERRO pode tentar de novo: não houve clique);
-- um arquivo por (aluno, código); repetido fica fora (revisão manual);
+- vários arquivos do mesmo aluno no mesmo código entram se estiverem em
+  pastas diferentes (T35: ex. tema genérico 000); o envio confere pela
+  contagem do dia; na mesma pasta a conciliação já mandou para revisão;
 - no máximo ``max_por_aluno`` itens por aluno nesta execução;
 - ``limite_alunos`` / ``limite_redacoes`` cortam o lote no fim.
 """
@@ -40,9 +42,14 @@ def montar_lote_producao(
     """Retorna (lotes por aluno, ignorados=[(chave, motivo)])."""
     lotes: dict[str, LoteAluno] = {}
     ignorados: list[tuple[str, str]] = []
-    vistos: set[tuple[str, str]] = set()
+    vistos: set[tuple[str, str, str]] = set()
 
     fila = sorted(resultado.fila_validada(), key=lambda i: (i.aluno.nome_norm, i.pasta, i.arquivo))
+    total_por_tema: dict[tuple[str, str], int] = {}
+    for item in fila:
+        if item.codigo_tema:
+            chave_tema = (item.aluno.id, item.codigo_tema)
+            total_por_tema[chave_tema] = total_por_tema.get(chave_tema, 0) + 1
     for item in fila:
         aluno, codigo, chave = item.aluno, item.codigo_tema, item.chave
         caminho = Path(pasta_raiz) / item.pasta / item.arquivo
@@ -50,19 +57,20 @@ def montar_lote_producao(
 
         if not codigo:
             ignorados.append((chave, "sem codigo de tema (revisao manual)"))
-        elif (aluno.id, codigo) in vistos:
-            ignorados.append((chave, f"codigo {codigo} repetido para o aluno (revisao manual)"))
+        elif (aluno.id, codigo, item.pasta) in vistos:
+            ignorados.append((chave, f"codigo {codigo} repetido para o aluno na mesma pasta (revisao manual)"))
         elif registro and registro["estado"] in ESTADOS_SEM_REENVIO:
             ignorados.append((chave, f"ja registrado como {registro['estado']}"))
         elif not caminho.is_file():
             ignorados.append((chave, "arquivo nao encontrado"))
         else:
-            vistos.add((aluno.id, codigo))
+            vistos.add((aluno.id, codigo, item.pasta))
             lote = lotes.setdefault(aluno.id, LoteAluno(aluno))
             if len(lote.itens) >= max_por_aluno:
                 ignorados.append((chave, f"limite de {max_por_aluno} envios por aluno nesta execucao"))
                 continue
-            lote.itens.append(ItemFilaTeste(item.pasta, item.arquivo, codigo, caminho, chave))
+            lote.itens.append(ItemFilaTeste(item.pasta, item.arquivo, codigo, caminho, chave,
+                                            total_mesmo_tema=total_por_tema[(aluno.id, codigo)]))
 
     resultado_lotes = [lote for lote in lotes.values() if lote.itens]
     if limite_alunos is not None:

@@ -18,6 +18,9 @@ class ItemFilaTeste:
     # Chave no banco de progresso; vazia = nome do arquivo (modo teste).
     # Produção usa "pasta/arquivo", a mesma chave do dry-run.
     chave_progresso: str = ""
+    # T35: quantos arquivos o aluno tem neste código (todas as pastas).
+    # Se o site já tem esse tanto hoje, tudo já foi enviado.
+    total_mesmo_tema: int = 1
 
 
 def montar_fila_teste(

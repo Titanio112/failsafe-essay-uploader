@@ -294,10 +294,12 @@ def conciliar(
             contagem_codigos[cod] = contagem_codigos.get(cod, 0) + 1
         codigos_duplicados_site = {cod for cod, count in contagem_codigos.items() if count > 1}
 
-    # Contar quantos arquivos cada aluno tem por código (antes de processar)
-    # para detectar duplicatas de mesmo aluno + mesmo código
+    # Contar quantos arquivos cada aluno tem por código NA MESMA PASTA (antes
+    # de processar): dois arquivos do aluno na mesma pasta = duplicata.
+    # T35: mesmo código em pastas diferentes (ex.: tema genérico 000) é
+    # permitido; o envio confere pela contagem do dia (envio_item).
     from collections import defaultdict
-    contagem_aluno_codigo: dict[tuple[str, str], int] = defaultdict(int)
+    contagem_aluno_codigo: dict[tuple[str, str, str], int] = defaultdict(int)
 
     # Primeira passada: contar
     for pasta, arquivos in arquivos_por_pasta.items():
@@ -309,11 +311,11 @@ def conciliar(
                 exatos, _ = _resolver_alunos(norm, por_norm, nomes_aprovados)
                 if len(exatos) == 1:
                     aluno_match = exatos[0]
-                    key = (aluno_match.id, codigo)
+                    key = (aluno_match.id, codigo, pasta)
                     contagem_aluno_codigo[key] += 1
 
     itens = []
-    vistos_por_aluno_codigo: dict[tuple[str, str], int] = {}
+    vistos_por_aluno_codigo: dict[tuple[str, str, str], int] = {}
 
     for pasta, arquivos in arquivos_por_pasta.items():
         for nome_arquivo in arquivos:
@@ -372,7 +374,7 @@ def conciliar(
             if len(exatos) == 1:
                 aluno_match = exatos[0]
                 # Verificar se há duplicatas para este aluno+código
-                key = (aluno_match.id, codigo) if codigo and codigo != "" else None
+                key = (aluno_match.id, codigo, pasta) if codigo and codigo != "" else None
                 tem_duplicata = key and contagem_aluno_codigo.get(key, 0) > 1
 
                 if tem_duplicata:
@@ -411,7 +413,7 @@ def conciliar(
                     obs = "revisao humana obrigatoria antes de validar"
                     if sugerido is not None:
                         if codigo and codigo != "":
-                            key = (sugerido.id, codigo)
+                            key = (sugerido.id, codigo, pasta)
                             if key in vistos_por_aluno_codigo:
                                 estado = REVISAO_MANUAL
                             else:

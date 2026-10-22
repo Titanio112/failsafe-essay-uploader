@@ -10,7 +10,7 @@ import logging
 import re
 from typing import Optional
 
-from modulos.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, detectar_ja_enviado
+from modulos.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, contar_tema_hoje
 from modulos.formulario_envio import (
     abrir_formulario_envio,
     ler_combo_temas,
@@ -61,11 +61,19 @@ def enviar_item(
             log.warning("Saldo de creditos indisponivel ou zero (%s). Abortando sem enviar.", saldo)
             return marcar(ERRO, f"Saldo indisponivel/zero: {saldo}")
 
-        # 2. Duplicidade: mesmo dia + mesmo tema -> pula e segue
-        ja_enviado, data_envio = detectar_ja_enviado(ler_lista_redacoes(page), codigo)
-        if ja_enviado:
-            log.info("Tema %s ja enviado em %s. Pulando.", codigo, data_envio)
-            return marcar(JA_ENVIADO, "Ja enviado na lista remota")
+        # 2. Duplicidade por contagem (T35): linhas do tema HOJE no site x
+        #    arquivos deste aluno/tema que o caderno (banco) marcou hoje.
+        #    Com 1 arquivo no tema vale a regra antiga: tem hoje -> já enviado.
+        no_site = contar_tema_hoje(ler_lista_redacoes(page), codigo)
+        no_caderno = progresso.enviados_hoje(aluno_id, codigo) if progresso else 0
+        total = max(item.total_mesmo_tema, 1)
+        if no_site >= total:
+            log.info("Tema %s: site ja tem %d hoje (de %d). Pulando.", codigo, no_site, total)
+            return marcar(JA_ENVIADO, f"Ja enviado na lista remota ({no_site} hoje de {total})")
+        if no_site != no_caderno:
+            log.error("Tema %s: site tem %d hoje, caderno tem %d. Nao envia; conferir a mao.",
+                      codigo, no_site, no_caderno)
+            return marcar(ERRO, f"Contagem diverge: site {no_site} hoje, caderno {no_caderno} (conferir a mao)")
 
         # 3. Formulario e codigo no combo (fail-closed)
         abrir_formulario_envio(page)
@@ -102,7 +110,7 @@ def enviar_item(
         clicar_enviar(page)
 
         # 7. Confirmacao (Pendente, timeout 120s)
-        if aguardar_confirmacao(page, codigo, timeout_segundos=120):
+        if aguardar_confirmacao(page, codigo, timeout_segundos=120, linhas_esperadas=no_site + 1):
             log.info("Envio confirmado: tema %s -> Pendente", codigo)
             return marcar(ENVIADO, "Confirmado na lista remota")
         log.error("Timeout ou falha na confirmacao do envio para tema %s", codigo)

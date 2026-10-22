@@ -24,7 +24,8 @@ def clicar_enviar(page: Page) -> None:
     btn.click()
 
 
-def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 120) -> bool:
+def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 120,
+                         linhas_esperadas: int = 1) -> bool:
     """Aguarda confirmação do envio na lista remota.
     
     Recarrega /minhas-redacoes a cada 5s até:
@@ -36,7 +37,11 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
     T27: se no fim do prazo a linha nova (código + hoje) ainda estiver em
     "Processando arquivo", conta como RECEBIDA (True): antes do envio a
     lista não tinha esse tema hoje, então a linha só pode ser a nossa.
-    Sem linha nenhuma no prazo -> ConfirmacaoInconclusiva."""
+    Sem linha nenhuma no prazo -> ConfirmacaoInconclusiva.
+
+    T35: ``linhas_esperadas`` = linhas desse tema hoje antes do clique + 1.
+    Só conta como recebida quando a lista chega a esse número (vale para
+    várias redações do mesmo tema no mesmo dia)."""
     from datetime import datetime
 
     data_hoje = datetime.now().strftime("%d/%m/%Y")
@@ -49,16 +54,16 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
             page.wait_for_load_state("networkidle")
             verificar_dominio_autorizado(page)
 
-            for item in ler_lista_redacoes(page):
-                if item.codigo != codigo_tema or item.data != data_hoje:
-                    continue
-                situacao = item.situacao.lower()
-                if "pendente" in situacao:
-                    return True
-                if "processando" in situacao:
-                    viu_processando = True
-                elif "erro" in situacao or "cancelada" in situacao:
+            do_dia = [item.situacao.lower() for item in ler_lista_redacoes(page)
+                      if item.codigo == codigo_tema and item.data == data_hoje
+                      and item.situacao.strip().lower() != "cancelada"]
+            if len(do_dia) >= linhas_esperadas:
+                if any("erro" in s for s in do_dia):
                     return False
+                if any("processando" in s for s in do_dia):
+                    viu_processando = True
+                elif all("pendente" in s for s in do_dia):
+                    return True
         except Exception:
             pass
         time.sleep(5)

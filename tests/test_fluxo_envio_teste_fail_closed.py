@@ -67,7 +67,7 @@ class TestFailClosedPosClique:
              patch("modulos.fluxo_envio_teste.confirmar_identidade", autospec=True) as mock_identidade, \
              patch("modulos.envio_item.ler_saldo_creditos", autospec=True) as mock_saldo, \
              patch("modulos.envio_item.ler_lista_redacoes", autospec=True) as mock_lista, \
-             patch("modulos.envio_item.detectar_ja_enviado", autospec=True) as mock_dup, \
+             patch("modulos.envio_item.contar_tema_hoje", autospec=True) as mock_dup, \
              patch("modulos.envio_item.abrir_formulario_envio", autospec=True) as mock_abrir, \
              patch("modulos.envio_item.ler_combo_temas", autospec=True) as mock_combo, \
              patch("modulos.envio_item.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
@@ -91,7 +91,7 @@ class TestFailClosedPosClique:
             # Configurar retornos padrão (sucesso)
             mock_saldo.return_value = 999  # saldo disponível
             mock_lista.return_value = []
-            mock_dup.return_value = (False, None)
+            mock_dup.return_value = 0  # T35: nenhuma linha do tema hoje no site
             mock_combo.return_value = [(codigo_tema, f"{codigo_tema} - Tema Teste")]
             mock_sel_tema.return_value = True
             # Opção selecionada no combo, lida por _codigo_tema_selecionado
@@ -332,7 +332,7 @@ class TestFailClosedPosClique:
         """T21: 1º já enviado hoje -> pula e segue; 2º é enviado; 1 confirmação só"""
         mocks = mocks_completos
         self._fila_dois_itens(cfg, mocks)
-        mocks["dup"].side_effect = [(True, "21/10/2026"), (False, "")]
+        mocks["dup"].side_effect = [1, 0]  # T35: 1º tema já tem 1 linha hoje
         mocks["page"].locator.return_value.first.inner_text.return_value = "00 - Outro"
 
         from modulos.fluxo_envio_teste import executar_envio_teste

@@ -172,6 +172,18 @@ class Progresso:
 
 
 
+    def enviados_hoje(self, aluno_id: str, codigo: str) -> int:
+        """Arquivos deste aluno neste código marcados ENVIADO ou JA_ENVIADO
+        hoje (data local) (T35). O envio grava o código do tema na coluna
+        ``pasta`` (envio_item.marcar)."""
+        hoje = datetime.now().date()
+        linhas = self.con.execute(
+            "SELECT atualizado_em FROM progresso WHERE aluno_id = ? AND pasta = ? AND estado IN (?, ?)",
+            (aluno_id, codigo, ENVIADO, JA_ENVIADO),
+        ).fetchall()
+        return sum(1 for (quando,) in linhas
+                   if datetime.fromisoformat(quando).astimezone().date() == hoje)
+
     # ─── Envios por aluno (limite de 4) ──────────────────────
 
     def envios_de(self, aluno_id: str) -> int:

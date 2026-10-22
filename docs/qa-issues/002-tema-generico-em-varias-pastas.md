@@ -1,7 +1,7 @@
 # 002 — Tema genérico (000) em várias pastas trava os envios do aluno
 
 - **Tipo:** lógico (conciliação + duplicidade)
-- **Status:** aberto, aguardando decisão do Antônio
+- **Status:** resolvido na T35 (22/10) — checagem por contagem, tudo no mesmo dia
 - **Local:** `modulos/planilha_arquivos.py` (`conciliar`, contagem aluno+código),
   `modulos/fila_producao.py` (um arquivo por aluno+código),
   `modulos/envio_item.py` (duplicidade "mesmo dia + mesmo tema"),
@@ -35,3 +35,16 @@ conciliar([ANA], {"3B - Aporofobia": ["ANA....JPG"], "3B - Discriminacao": ["ANA
   A regra "mesmo dia + mesmo tema = já enviado" continua valendo.
 - **B:** enviar todas no mesmo dia; a duplicidade passa a contar as linhas
   do tema no dia (antes/depois). Mais rápido, mais frágil.
+
+## Resolução (T35, 22/10)
+
+O Antônio pediu tudo no mesmo dia (enviar em outro dia exigiria rodar de novo
+todo dia). O site não mostra o arquivo enviado (só Data | Tema | Nota |
+Situação), então a checagem passou a ser por CONTAGEM:
+- conciliação e lote: mesmo aluno + mesmo código só é duplicata na MESMA pasta;
+- antes de cada envio: linhas do tema HOJE no site x arquivos do aluno nesse
+  tema que o caderno (banco) marcou hoje. Site >= total de arquivos do tema ->
+  JA_ENVIADO (com 1 arquivo = regra antiga). Site == caderno -> envia.
+  Diferente -> ERRO sem clique ("Contagem diverge", conferir à mão);
+- confirmação: espera a lista chegar a (linhas antes + 1).
+Testes: tests/test_t35.py (11).

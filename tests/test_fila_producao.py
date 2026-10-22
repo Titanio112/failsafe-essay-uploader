@@ -88,10 +88,12 @@ def test_limite_de_envios_por_aluno_nesta_execucao(tmp_path):
 
 
 def test_codigo_repetido_arquivo_inexistente_e_sem_codigo_ficam_fora(tmp_path):
+    """T35: mesmo código em pasta diferente agora ENTRA (tema genérico);
+    repetido na MESMA pasta fica fora."""
     raiz = tmp_path / "pend"
     resultado = ResultadoConciliacao(itens=[
         _item(raiz, ANA, "1 - Carta", "a.jpg", "1"),
-        _item(raiz, ANA, "1 - Outra", "b.jpg", "1"),
+        _item(raiz, ANA, "1 - Carta", "b.jpg", "1"),
         _item(raiz, ANA, "2 - Tema", "c.jpg", "2", criar=False),
         _item(raiz, ANA, "Sem codigo", "d.jpg", ""),
     ])
@@ -100,7 +102,7 @@ def test_codigo_repetido_arquivo_inexistente_e_sem_codigo_ficam_fora(tmp_path):
 
     assert [i.chave_progresso for i in lotes[0].itens] == ["1 - Carta/a.jpg"]
     assert sorted(ignorados) == sorted([
-        ("1 - Outra/b.jpg", "codigo 1 repetido para o aluno (revisao manual)"),
+        ("1 - Carta/b.jpg", "codigo 1 repetido para o aluno na mesma pasta (revisao manual)"),
         ("2 - Tema/c.jpg", "arquivo nao encontrado"),
         ("Sem codigo/d.jpg", "sem codigo de tema (revisao manual)"),
     ])

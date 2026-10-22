@@ -1411,6 +1411,40 @@ $ python -m pytest -m "not real" -q
 
 ---
 
+## T35 - Várias redações do mesmo tema no mesmo dia: checagem por contagem [x]
+
+Decisão do Antônio (22/10): tudo no mesmo dia; "pode implementar a checagem
+por contagem". Resolve docs/qa-issues/002 (tema genérico 000 em várias pastas).
+- Conciliação/lote: duplicata = mesmo aluno + mesmo código NA MESMA PASTA
+  (o teste protegido de dois arquivos na mesma pasta continua valendo).
+- `lista_redacoes.contar_tema_hoje`: linhas do código com a data de hoje
+  ("Cancelada" não conta; lista ilegível -> bloqueia; vazia -> 0).
+- `Progresso.enviados_hoje(aluno, codigo)`: ENVIADO/JA_ENVIADO de hoje (data
+  local) nesse código (o envio grava o código na coluna `pasta`).
+- `envio_item`: site >= total de arquivos do aluno no tema -> JA_ENVIADO;
+  site == caderno -> envia; diferente -> ERRO sem clique (conferir à mão).
+- `aguardar_confirmacao(..., linhas_esperadas=site+1)`: a linha antiga não
+  confirma a nova.
+- Regra de 21/10 mantida para tema com 1 arquivo: tem hoje -> já enviado.
+- Testes ajustados: test_fila_producao (pasta diferente agora entra),
+  test_fluxo_envio_teste_fail_closed (mock da contagem no lugar de
+  detectar_ja_enviado).
+
+PROVA:
+```
+$ python -m pytest tests/test_t35.py -q
+11 passed
+$ git stash push -- modulos/ ; python -m pytest tests/test_t35.py -q
+1 error during collection   (código antigo não tem a contagem)
+$ git stash pop ; python -m pytest -m "not real" -q
+214 passed, 4 deselected
+```
+- Simulação na cópia com as 4 pastas aprovadas (3 x 000, filiação 100):
+  REVISAO_MANUAL só nas 4 folhas em branco (antes: todo aluno com 2+ pastas
+  em 000 ia para revisão manual).
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 
