@@ -1312,6 +1312,27 @@ $ python -m pytest -m "not real" -q
 
 ---
 
+## T31 - Busca dos 3 temas na plataforma (só leitura, conta de teste) [x]
+
+O Antônio fez o login da conta de teste no navegador do app (22/10); Claude
+só navegou e leu, sem clicar em enviar nada.
+- /minhas-redacoes tem a seção "Temas" com os mesmos 109 temas do combo, cada
+  um com o PDF da proposta (S3 público). Saldo da conta de teste: 996 (confere
+  com os 3 envios de 21/10).
+- PDFs lidos (texto extraído com pdftotext): 102 (arquitetura hostil, situação
+  de rua), 90 (pessoas em situação de rua), 64 (diversidade no trabalho),
+  75 (telas e saúde mental), 000000 (Simulado 3º ano Alpha = "trabalho
+  análogo à escravidão"). A palavra "aporofobia" não aparece em nenhum.
+- Os títulos da plataforma não citam aporofobia, discriminação no trabalho
+  nem tecnologia/saúde mental; o Antônio confirmou que as sugestões 9/64/75
+  não são os temas certos. Conclusão: os 3 temas das pastas NÃO existem na
+  plataforma (devem ser temas passados pela professora).
+- Decisão pendente do Antônio: pedir à plataforma o cadastro dos 3 temas, ou
+  usar um tema genérico (ex.: "000- DISSERTATIVO ARGUMENTATIVO"), ou não enviar.
+  Ainda não lidos: os outros ~100 PDFs (baixar todos só com o OK dele).
+
+---
+
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.
 - ✅ F3 concluída em 21/10/2026 (T19 e T20 com provas acima).
 
