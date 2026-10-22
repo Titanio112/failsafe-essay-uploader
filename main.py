@@ -41,6 +41,7 @@ from modulos.dados.conciliacao_completa import (  # noqa: F401 (ler_codigos_site
     ler_codigos_site_csv,
 )
 from modulos.dados.nomes_aprovados import registrar_sugestoes
+from modulos.dados.normalizacao import normalizar_nome
 from modulos.dados.sugestao_temas import (
     SCORE_PROVAVEL,
     ler_temas_site,
@@ -80,6 +81,19 @@ def _ler_alunos(cfg):
         tela.erro(f"Nao consegui ler a lista de alunos {tela.caminho(cfg.planilha)}: {e}")
         tela.status("fraco", "O arquivo precisa ter as colunas Nome e Email (separadas por ; ou ,).", recuo=4)
         return None
+
+
+def _resumo_pasta_sem_tema(itens, alunos) -> None:
+    """T45: pasta sem tema aprovado: nada dela vai; em vez de uma linha por
+    arquivo, uma linha só com como estão os nomes."""
+    exatos = {a.nome_norm for a in alunos}
+    outros = [i for i in itens if i.estado != "REVISAO_MANUAL"]
+    com_nome = sum(1 for i in outros if i.aluno and normalizar_nome(i.pessoa) in exatos)
+    sem_aluno = sum(1 for i in outros if not i.aluno)
+    tela.status("aviso", "sem tema aprovado: nenhum arquivo vai ate escolher o tema (--revisar)", recuo=5)
+    tela.status("fraco", f"nomes: {com_nome} exato(s), {len(outros) - com_nome - sem_aluno} parecido(s), "
+                         f"{sem_aluno} sem aluno, {len(itens) - len(outros)} para decidir a mao (em branco...)",
+                recuo=5)
 
 
 def parse_args(argv=None):
@@ -151,7 +165,7 @@ def main(argv=None) -> int:
     # Os avisos já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
-    log = configurar_logging()
+    log = configurar_logging(config_mod.RAIZ / "logs")  # T45: logs/automacao.log guarda cada execução
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
@@ -292,6 +306,9 @@ def main(argv=None) -> int:
         for tema in sorted(set(i.pasta for i in resultado.itens if i.pasta)):
             itens_tema = [i for i in resultado.itens if i.pasta == tema]
             print(f"  {tela.SIMBOLOS['pasta']} {tela.c(tema, 'pasta')}  {tela.c(f'({len(itens_tema)} arquivo(s))', 'fraco')}")
+            if not any(i.codigo_tema for i in itens_tema):
+                _resumo_pasta_sem_tema(itens_tema, alunos)
+                continue
             for item in itens_tema:
                 aluno_nome = item.aluno.nome if item.aluno else "N/A"
                 obs = tela.c(f"  ({item.observacao})", "fraco") if item.observacao else ""
@@ -326,10 +343,18 @@ def main(argv=None) -> int:
                 limite_redacoes=args.limite_redacoes,
             )
 
+    if resultado.fila_validada() and not args.modo_teste:
+        tela.secao("Proximo passo")
+        tela.comando(f"python main.py --ensaio {QUANTIDADE_PADRAO}",
+                     "manda algumas destas para a CONTA DE TESTE, para testar com redacoes reais")
     print()
     tela.bloqueado(MENSAGEM_BLOQUEIO + " (dry-run; use --envio-real para enviar)")
     return 0
 
 
 if __name__ == "__main__":
+    # T45: dados/, testes/ e diagnosticos/ são relativos à pasta do projeto;
+    # assim funciona mesmo rodando o script de outra pasta.
+    import os
+    os.chdir(Path(__file__).resolve().parent)
     sys.exit(main())

@@ -19,3 +19,15 @@ def raiz_temporaria(request, tmp_path_factory, monkeypatch):
         return
     from modulos.base import config
     monkeypatch.setattr(config, "RAIZ", tmp_path_factory.mktemp("raiz"))
+
+
+@pytest.fixture(autouse=True)
+def log_limpo():
+    """T45: o main abre logs/automacao.log; cada teste começa sem handlers
+    (o arquivo do teste anterior é fechado)."""
+    import logging
+    yield
+    logger = logging.getLogger("automacao_redacoes")
+    for handler in list(logger.handlers):
+        handler.close()
+        logger.removeHandler(handler)
