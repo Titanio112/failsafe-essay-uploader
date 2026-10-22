@@ -19,15 +19,34 @@ MENSAGEM_BLOQUEIO = "[BLOQUEADO] Envio real desativado."
 
 # Pasta padrão das redações (T38): o Antônio guarda as redações aqui.
 PASTA_REDACOES = "Redações plataforma"
-RAIZ_PASTA_REDACOES_LEIAME = """Coloque aqui as redações que serão enviadas.
+RAIZ_PASTA_REDACOES_LEIAME = """# 📂 Redações para enviar
 
-- Uma subpasta por tema. Ex.: "3B - Impactos da invisibilidade da filiação".
-  Se o nome da pasta começar com o código do tema do site ("100 - ..."), o
-  script já sabe o tema; senão, rode `python main.py --revisar` e escolha o
-  tema (ou g = tema genérico 000).
-- Dentro de cada subpasta, um JPG por aluno, com o NOME do aluno
-  (ex.: "Ana Lalara Larili.JPG"). Nome curto ou com erro: a revisão pergunta.
-- Folha sem redação: coloque "em branco" no nome; ela nunca é enviada.
+Coloque aqui as redações que o script vai enviar para a plataforma.
+
+## Como organizar
+
+```
+Redações plataforma/
+├── 100 - Impactos da invisibilidade da filiação/
+│   ├── Ana Lalara Larili.JPG
+│   └── Bruno Silva.JPG
+└── 3B - Efeitos da aporofobia/
+    ├── Ana Lalara Larili.JPG
+    └── Cecília em branco.JPG
+```
+
+| O quê | Regra |
+|---|---|
+| **Subpasta** | Uma por tema. Se começar com o código do tema do site (`100 - ...`), o script já sabe o tema. |
+| **Pasta sem código** | Rode `python main.py --revisar` e escolha o tema (ou `g` = tema genérico 000, quando o tema não existe no site). |
+| **Arquivo** | Um JPG por aluno, com o **nome do aluno**. Nome curto ou com erro: a revisão pergunta quem é. |
+| **Folha sem redação** | Coloque `em branco` no nome. Ela nunca é enviada. |
+
+## Depois de colocar as redações
+
+1. `python main.py` — confere tudo, sem enviar nada.
+2. `python main.py --revisar` — escolhe temas e confirma nomes.
+3. `python main.py` de novo — confere a fila.
 """
 
 # Regra do Antônio (22/10/2026): por enquanto NENHUMA redação é enviada nas

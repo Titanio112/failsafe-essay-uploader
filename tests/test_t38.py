@@ -27,7 +27,7 @@ def test_preparar_cria_o_que_falta_sem_sobrescrever(tmp_path):
 
     assert preparar(cfg, tmp_path, saida=saidas.append) == 0
 
-    assert (cfg.pasta_raiz / "LEIA-ME.txt").read_text(encoding="utf-8").startswith("Coloque aqui")
+    assert (cfg.pasta_raiz / "LEIA-ME.md").read_text(encoding="utf-8").startswith("# 📂 Redações para enviar")
     assert cfg.planilha.read_text(encoding="utf-8") == "Nome;Email\n"
     assert (tmp_path / ".env").is_file()
     assert any("criado:" in s for s in saidas)
@@ -73,5 +73,5 @@ def test_main_preparar(tmp_path, monkeypatch, capsys):
     import main as main_mod
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: Config())
     assert main_mod.main(["--preparar"]) == 0
-    assert (config_mod.RAIZ / "Redações plataforma" / "LEIA-ME.txt").is_file()
+    assert (config_mod.RAIZ / "Redações plataforma" / "LEIA-ME.md").is_file()
     assert "=== Preparar (primeiro uso) ===" in capsys.readouterr().out

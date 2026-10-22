@@ -47,7 +47,7 @@ Pedidos do Antônio (22/10): "não era pra ter limite do aluno"; pasta padrão
 - Pasta padrão: `Redações plataforma/` (constante `PASTA_REDACOES`).
   `redacoes_pendentes/` removida.
 - Primeiro uso: `python main.py --preparar` (modulos/primeiro_uso.py) cria a
-  pasta com LEIA-ME.txt, `dados/dados_alunos.csv` (Nome;Email) e `.env` a partir
+  pasta com LEIA-ME.md (era .txt; trocado a pedido do Antônio), `dados/dados_alunos.csv` (Nome;Email) e `.env` a partir
   do `.env.example`, sem sobrescrever nada, e mostra ✔/✘ do que falta. O
   dry-run sem lista de alunos ou sem pasta mostra o guia (antes: erro do Python).
 - README.md novo na raiz (como usar).

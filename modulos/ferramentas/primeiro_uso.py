@@ -43,7 +43,7 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
     if not pasta.is_dir():
         pasta.mkdir(parents=True)
         criados.append(str(pasta))
-    leiame = pasta / "LEIA-ME.txt"
+    leiame = pasta / "LEIA-ME.md"
     if not leiame.exists():
         leiame.write_text(RAIZ_PASTA_REDACOES_LEIAME, encoding="utf-8")
         criados.append(str(leiame))
