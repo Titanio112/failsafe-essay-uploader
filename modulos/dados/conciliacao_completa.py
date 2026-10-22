@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modulos.base.config import Config
+from modulos.dados.arquivos_csv import abrir_csv
 from modulos.dados.nomes_aprovados import carregar_nomes_aprovados
 from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao, conciliar, descobrir_arquivos
 from modulos.dados.sugestao_temas import carregar_codigos_pasta
@@ -26,8 +27,7 @@ def ler_codigos_site_csv(caminho: Path) -> list[str]:
     duplicado no combo (bug 001). Vazio se não existir."""
     if not Path(caminho).is_file():
         return []
-    with open(caminho, newline="", encoding="utf-8-sig") as f:
-        return [row["codigo"] for row in csv.DictReader(f) if row.get("codigo")]
+    return [row["codigo"] for row in csv.DictReader(abrir_csv(caminho)) if row.get("codigo")]
 
 
 @dataclass

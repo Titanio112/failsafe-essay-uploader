@@ -14,7 +14,8 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
-from modulos.dados.normalizacao import extrair_codigo_tema, normalizar_nome
+from modulos.dados.arquivos_csv import abrir_csv, garantir_quebra_final
+from modulos.dados.normalizacao import extrair_codigo_do_tema_site, extrair_codigo_tema, normalizar_nome
 
 SCORE_MINIMO = 60.0   # abaixo disso: nenhum tema parecido
 SCORE_PROVAVEL = 85.0  # a partir disso: provável; entre os dois: fraco, conferir
@@ -25,8 +26,7 @@ def ler_temas_site(caminho: Path) -> list[tuple[str, str]]:
     """[(codigo, texto)] do CSV; vazio se não existir."""
     if not Path(caminho).is_file():
         return []
-    with open(caminho, encoding="utf-8-sig", newline="") as f:
-        return [(l["codigo"], l.get("texto", "")) for l in csv.DictReader(f) if l.get("codigo")]
+    return [(l["codigo"], l.get("texto", "")) for l in csv.DictReader(abrir_csv(caminho)) if l.get("codigo")]
 
 
 def _titulo(texto: str) -> str:
@@ -63,18 +63,28 @@ _RESPOSTAS_SIM = {"sim", "s", "x", "ok", "yes"}
 def _ler_pastas(caminho: Path) -> list[dict]:
     if not Path(caminho).is_file():
         return []
-    with open(caminho, encoding="utf-8-sig", newline="") as f:
-        return [{k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
-                for linha in csv.DictReader(f, delimiter=";")]
+    return [{k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
+            for linha in csv.DictReader(abrir_csv(caminho), delimiter=";")]
 
 
 def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
-    """{pasta: codigo} das linhas com aprovado=sim e código preenchido."""
-    return {
-        linha["pasta"]: linha["codigo"]
-        for linha in _ler_pastas(caminho)
-        if linha.get("aprovado", "").lower() in _RESPOSTAS_SIM and linha.get("pasta") and linha.get("codigo")
-    }
+    """{pasta: codigo} das linhas com aprovado=sim e código preenchido.
+
+    T43: se a coluna ``tema`` começa por outro código, a linha é ignorada
+    (o Excel transforma "000" em "0", e "0" também é um tema do site)."""
+    codigos = {}
+    for linha in _ler_pastas(caminho):
+        pasta, codigo = linha.get("pasta"), linha.get("codigo")
+        if linha.get("aprovado", "").lower() not in _RESPOSTAS_SIM or not pasta or not codigo:
+            continue
+        do_tema = extrair_codigo_do_tema_site(linha.get("tema", ""))
+        if do_tema and do_tema != codigo:
+            from modulos.base import tela
+            tela.aviso(f"pastas_aprovadas: '{pasta}' tem codigo {codigo} mas o tema e {do_tema} "
+                       "(o Excel tira os zeros?); ignorada. Corrija o codigo ou o tema.")
+            continue
+        codigos[pasta] = codigo
+    return codigos
 
 
 def aprovar_pasta(caminho: Path, pasta: str, codigo: str, tema: str) -> None:
@@ -109,6 +119,7 @@ def registrar_sugestoes_pasta(sugestoes: list[tuple[str, str, str, float]], cami
     if novas:
         caminho.parent.mkdir(parents=True, exist_ok=True)
         novo = not caminho.is_file()
+        garantir_quebra_final(caminho)
         with open(caminho, "a", encoding="utf-8-sig" if novo else "utf-8", newline="") as f:
             escritor = csv.DictWriter(f, fieldnames=COLUNAS_PASTAS, delimiter=";")
             if novo:

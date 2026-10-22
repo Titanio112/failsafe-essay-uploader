@@ -34,6 +34,15 @@ def normalizar_nome(texto: str) -> str:
     return _ESPACOS_RE.sub(" ", sem_apostrofo).strip()
 
 
+_NUMERO_FINAL_RE = re.compile(r"(\s+\d+)+$")
+
+
+def sem_numero_final(norm: str) -> str:
+    """T43: "ana souza 2" / "ana souza (2)" -> "ana souza": página 2 ou cópia
+    do Windows identificam o mesmo aluno (e viram duplicata na pasta)."""
+    return _NUMERO_FINAL_RE.sub("", norm) or norm
+
+
 def extrair_pessoa(nome_arquivo: str) -> str:
     """Extrai a parte do nome da pessoa do arquivo (remove código prefixo e ' - Red')."""
     stem = Path(nome_arquivo).stem
@@ -45,7 +54,8 @@ def extrair_pessoa(nome_arquivo: str) -> str:
         # SEM separador (espaço, _, ., -) ou fim → NÃO é código, o stem inteiro é a pessoa
         resto = stem
     pessoa, sep, _ = resto.partition(MARCADOR_PESSOA)
-    return pessoa.strip()
+    # T43: "Ana_Souza" (celular/WhatsApp) -> "Ana Souza"; normalizar_nome mantém o "_"
+    return pessoa.replace("_", " ").strip()
 
 
 def extrair_codigo_do_arquivo(nome_arquivo: str) -> str | None:

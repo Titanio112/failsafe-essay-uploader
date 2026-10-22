@@ -17,6 +17,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
+from modulos.dados.arquivos_csv import abrir_csv, garantir_quebra_final
 from modulos.dados.normalizacao import normalizar_nome
 from modulos.dados.planilha_arquivos import (
     Aluno, ResultadoConciliacao, _emitir_aviso, candidatos_nome_parcial, eh_folha_em_branco,
@@ -30,11 +31,10 @@ SCORE_MINIMO_SUGESTAO = 70.0
 def _ler(caminho: Path) -> list[dict]:
     if not Path(caminho).is_file():
         return []
-    with open(caminho, encoding="utf-8-sig", newline="") as f:
-        return [
-            {k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
-            for linha in csv.DictReader(f, delimiter=";")
-        ]
+    return [
+        {k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
+        for linha in csv.DictReader(abrir_csv(caminho), delimiter=";")
+    ]
 
 
 def carregar_nomes_aprovados(caminho: Path, alunos: list[Aluno]) -> dict[str, Aluno]:
@@ -104,6 +104,7 @@ def registrar_sugestoes(resultado: ResultadoConciliacao, alunos: list[Aluno], ca
     if novas:
         caminho.parent.mkdir(parents=True, exist_ok=True)
         novo_arquivo = not caminho.is_file()
+        garantir_quebra_final(caminho)
         with open(caminho, "a", encoding="utf-8-sig" if novo_arquivo else "utf-8", newline="") as f:
             escritor = csv.DictWriter(f, fieldnames=COLUNAS, delimiter=";")
             if novo_arquivo:

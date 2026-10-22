@@ -44,6 +44,7 @@ class PlanilhaError(RuntimeError):
 
 from modulos.dados.normalizacao import (
     normalizar_nome,
+    sem_numero_final,
     extrair_pessoa,
     extrair_codigo_do_arquivo,
     extrair_codigo_do_tema_site,
@@ -123,18 +124,27 @@ def _sugerir_fuzzy(norm: str, alunos: list, limiar: float, margem: float):
     return SUGESTAO_FUZZY, melhor_aluno, [melhor_aluno], melhor_score, segundo_score
 
 
+def _coluna(nome: str) -> str:
+    """Cabeçalho comparável: "E-mail", "e mail", "EMAIL" -> "email" (T43)."""
+    return normalizar_nome(nome).replace(" ", "")
+
+
 def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
     """Lista de alunos em CSV (``;`` ou ``,``), colunas nome/e-mail sem
     diferenciar maiúsculas. Coluna de senha é ignorada: a senha vem só do
     .env (ESQUEMA_SENHA_PADRAO) e nunca é lida de arquivo."""
     import csv
-    with open(cfg.planilha, encoding="utf-8-sig", newline="") as f:
+    from modulos.dados.arquivos_csv import abrir_csv
+    with abrir_csv(cfg.planilha) as f:
         cabecalho = f.readline()
-        f.seek(0)
+        if cabecalho.strip().lower().startswith("sep="):  # linha que o Excel às vezes põe
+            cabecalho = f.readline()
+        inicio = f.tell() - len(cabecalho)
+        f.seek(inicio)
         delimitador = ";" if cabecalho.count(";") >= cabecalho.count(",") else ","
         leitor = csv.reader(f, delimiter=delimitador)
-        colunas = [c.strip().lower() for c in next(leitor, [])]
-        if cfg.coluna_nome.lower() not in colunas or cfg.coluna_email.lower() not in colunas:
+        colunas = [_coluna(c) for c in next(leitor, [])]
+        if _coluna(cfg.coluna_nome) not in colunas or _coluna(cfg.coluna_email) not in colunas:
             raise PlanilhaError(
                 f"Cabeçalho do CSV sem as colunas '{cfg.coluna_nome}' e '{cfg.coluna_email}'. "
                 f"Colunas encontradas: {colunas}"
@@ -142,8 +152,8 @@ def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
         if "senha" in colunas:
             _emitir_aviso("Coluna 'Senha' da lista de alunos ignorada; a senha vem de "
                           "ESQUEMA_SENHA_PADRAO no .env.")
-        idx_nome = colunas.index(cfg.coluna_nome.lower())
-        idx_email = colunas.index(cfg.coluna_email.lower())
+        idx_nome = colunas.index(_coluna(cfg.coluna_nome))
+        idx_email = colunas.index(_coluna(cfg.coluna_email))
         alunos = []
         for row in leitor:
             if len(row) <= max(idx_nome, idx_email):
@@ -212,12 +222,20 @@ def descobrir_pastas(cfg: Config) -> list[Path]:
     return sorted([p for p in raiz.iterdir() if p.is_dir() and not p.name.startswith(".")])
 
 
+ARQUIVOS_DO_SISTEMA = {"thumbs.db", "desktop.ini"}
+
+
 def descobrir_arquivos(cfg: Config) -> dict[str, list[str]]:
     extensoes_permitidas = {ext.lower() for ext in cfg.extensoes}
     resultado = {}
     for pasta in descobrir_pastas(cfg):
         arquivos = []
         for f in sorted(pasta.iterdir(), key=lambda x: x.name):
+            if f.name.startswith((".", "~$")) or f.name.casefold() in ARQUIVOS_DO_SISTEMA:
+                continue  # T43: ._ do Mac, temporário do Office, Thumbs.db, desktop.ini
+            if f.is_dir():
+                _emitir_aviso(f"Subpasta ignorada: {pasta.name}/{f.name} (coloque os JPGs direto na pasta do tema)")
+                continue
             if not f.is_file():
                 continue
             ext = f.suffix.lower()
@@ -252,12 +270,14 @@ def candidatos_nome_parcial(norm: str, alunos: list[Aluno]) -> list[Aluno]:
 def _resolver_alunos(norm: str, por_norm: dict,
                      nomes_aprovados: Optional[dict] = None) -> tuple[list[Aluno], bool]:
     """(candidatos, aprovado): nome exato primeiro; sem exato, o nome do
-    arquivo aprovado por humano em dados/nomes_aprovados.csv (T26)."""
-    exatos = por_norm.get(norm, [])
-    if exatos:
-        return exatos, False
-    if nomes_aprovados and norm in nomes_aprovados:
-        return [nomes_aprovados[norm]], True
+    arquivo aprovado por humano em dados/nomes_aprovados.csv (T26).
+    T43: sem achar, tenta de novo sem o número do fim ("Ana Souza 2")."""
+    for chave in dict.fromkeys((norm, sem_numero_final(norm))):
+        exatos = por_norm.get(chave, [])
+        if exatos:
+            return exatos, False
+        if nomes_aprovados and chave in nomes_aprovados:
+            return [nomes_aprovados[chave]], True
     return [], False
 
 
@@ -353,10 +373,17 @@ def conciliar(
             codigo = codigo_arquivo or codigo_pasta
             codigo_valido = True
             estado_inicial = ""
+            obs_inicial = ""
 
             if conflito_pasta_arquivo:
                 estado_inicial = REVISAO_MANUAL
                 codigo_valido = False
+                obs_inicial = f"codigo {codigo_arquivo} no arquivo e {codigo_pasta} na pasta"
+            elif codigo_arquivo is not None and codigo_pasta is None:
+                # T43: "1 Ana.jpg" numa pasta sem tema: número de página, não tema
+                estado_inicial = REVISAO_MANUAL
+                codigo_valido = False
+                obs_inicial = f"numero {codigo_arquivo} no inicio do arquivo numa pasta sem tema: pagina? decidir a mao"
             elif codigo is None:
                 estado_inicial = SEM_CODIGO
                 codigo_valido = False
@@ -379,6 +406,7 @@ def conciliar(
 
                 if tem_duplicata:
                     estado = REVISAO_MANUAL
+                    obs_inicial = obs_inicial or "mais de um arquivo do aluno nesta pasta (pagina 2? copia?): decidir a mao"
                 else:
                     estado = EXATO_UNICO
                     if key:
@@ -391,7 +419,7 @@ def conciliar(
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
                     estado=estado, aluno=aluno_match,
-                    observacao=f"nome aprovado: arquivo -> {aluno_match.nome}" if aprovado else "",
+                    observacao=obs_inicial or (f"nome aprovado: arquivo -> {aluno_match.nome}" if aprovado else ""),
                     codigo_tema=codigo or "", codigo_valido=codigo_valido,
                 ))
 
@@ -406,7 +434,7 @@ def conciliar(
 
             else:
                 estado, sugerido, candidatos, melhor, segundo = _sugerir_fuzzy(
-                    norm, alunos, limiar, margem
+                    sem_numero_final(norm), alunos, limiar, margem
                 )
                 obs = ""
                 if estado == SUGESTAO_FUZZY:
@@ -422,7 +450,7 @@ def conciliar(
                     obs = "candidatos fuzzy sem margem suficiente"
                 if estado_inicial:
                     estado = estado_inicial
-                    obs = obs or ("aluno nao identificado" if estado_inicial == SEM_CODIGO else "codigo ausente ou invalido")
+                    obs = obs_inicial or obs or ("aluno nao identificado" if estado_inicial == SEM_CODIGO else "codigo ausente ou invalido")
 
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,

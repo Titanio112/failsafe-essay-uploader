@@ -15,18 +15,20 @@ from typing import Callable
 
 from modulos.base import tela
 from modulos.base.config import Config, RAIZ_PASTA_REDACOES_LEIAME
+from modulos.dados.arquivos_csv import ler_texto
 
 CABECALHO_ALUNOS = "Nome;Email\n"
 
 
 def _tem_jpg(pasta: Path) -> bool:
-    return pasta.is_dir() and any(f.suffix.lower() in (".jpg", ".jpeg") for f in pasta.rglob("*") if f.is_file())
+    """JPG direto numa pasta de tema (subpasta dentro do tema não é lida)."""
+    return pasta.is_dir() and any(f.suffix.lower() in (".jpg", ".jpeg") for f in pasta.glob("*/*") if f.is_file())
 
 
 def verificar(cfg: Config, env: Path) -> list[tuple[bool, str, str]]:
     """[(ok, item, o que fazer)] na ordem em que o Antônio resolve."""
     planilha, pasta = Path(cfg.planilha), Path(cfg.pasta_raiz)
-    alunos_ok = planilha.is_file() and len(planilha.read_text(encoding="utf-8-sig").strip().splitlines()) > 1
+    alunos_ok = planilha.is_file() and len(ler_texto(planilha).strip().splitlines()) > 1
     return [
         (alunos_ok, f"Lista de alunos: {planilha}",
          "abra o arquivo e coloque um aluno por linha: Nome;Email (o e-mail da plataforma)"),

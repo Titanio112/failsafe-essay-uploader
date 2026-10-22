@@ -23,7 +23,7 @@ from modulos.base.config import (
     obter_email_teste,
 )
 from modulos.envio.ensaio import QUANTIDADE_PADRAO, montar_lote_ensaio
-from modulos.dados.planilha_arquivos import Aluno, carregar_alunos
+from modulos.dados.planilha_arquivos import Aluno, PlanilhaError, carregar_alunos
 from modulos.base.progresso_relatorio import (
     Progresso,
     configurar_logging,
@@ -72,6 +72,16 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
     tela.comando(revisar, "escolher os temas e confirmar os nomes")
 
 
+def _ler_alunos(cfg):
+    """Lista de alunos ou None (erro já explicado na tela) (T43)."""
+    try:
+        return carregar_alunos(cfg)
+    except (PlanilhaError, OSError, KeyError) as e:
+        tela.erro(f"Nao consegui ler a lista de alunos {tela.caminho(cfg.planilha)}: {e}")
+        tela.status("fraco", "O arquivo precisa ter as colunas Nome e Email (separadas por ; ou ,).", recuo=4)
+        return None
+
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Automacao de redacoes — MVP")
     p.add_argument("--config", help="caminho do config.ini")
@@ -87,8 +97,10 @@ def parse_args(argv=None):
                    help="revisao no terminal: aprova o tema de cada pasta e renomeia arquivos para o nome do aluno")
     p.add_argument("--desfazer-renomeacao", metavar="LOG_CSV", default=None,
                    help="volta os nomes de uma revisao (relatorios/renomeacoes_<data>.csv)")
-    p.add_argument("--limite-alunos", type=int, default=None)
-    p.add_argument("--limite-redacoes", type=int, default=None)
+    p.add_argument("--limite-alunos", type=int, default=None,
+                   help="producao: envia so para os N primeiros alunos do lote")
+    p.add_argument("--limite-redacoes", type=int, default=None,
+                   help="producao: envia so as N primeiras redacoes do lote")
     p.add_argument("--pasta", default=None,
                    help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
     p.add_argument("--preparar", action="store_true",
@@ -126,7 +138,10 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = carregar_config(args.config)
     tela.ativar_cores()
-    if args.pasta and not args.modo_teste:
+    if args.pasta and args.modo_teste:
+        tela.erro("--pasta nao vale no --modo-teste (usa sempre testes/redacoes_teste/).")
+        return 2
+    if args.pasta:
         cfg.pasta_raiz = Path(args.pasta)
         if not cfg.pasta_raiz.is_dir():
             tela.erro(f"Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
@@ -150,7 +165,7 @@ def main(argv=None) -> int:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
     if args.desfazer_renomeacao:
         tela.titulo("DESFAZER RENOMEAÇÃO")
-        desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz)
+        desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz, banco=cfg.banco_progresso)
         return 0
 
     # Análise remota (T27): só lê o combo de temas do site e atualiza o CSV
@@ -160,7 +175,7 @@ def main(argv=None) -> int:
         aluno_conta = None
         if args.conta_aluno:
             # T29: o combo de um aluno pode ter temas que a conta de teste não tem
-            aluno_conta = next((a for a in carregar_alunos(cfg)
+            aluno_conta = next((a for a in (_ler_alunos(cfg) or [])
                                 if a.email.casefold() == args.conta_aluno.strip().casefold()), None)
             if aluno_conta is None:
                 tela.erro(f"{args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
@@ -206,7 +221,9 @@ def main(argv=None) -> int:
             mostrar_guia(cfg, config_mod.RAIZ / ".env")
             tela.comando("python main.py --preparar", "cria o que falta")
             return 2
-        alunos = carregar_alunos(cfg)
+        alunos = _ler_alunos(cfg)
+        if alunos is None:
+            return 2
         tela.ok(f"Alunos carregados: {len(alunos)}  ·  pasta {tela.caminho(cfg.pasta_raiz)}")
 
     # O CSV é só referência; a trava real é o combo da conta logada,

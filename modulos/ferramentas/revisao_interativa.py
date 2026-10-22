@@ -206,8 +206,8 @@ def estado_travado(banco: Path, chave: str) -> str:
     con = sqlite3.connect(f"file:{Path(banco).as_posix()}?mode=ro", uri=True)
     try:
         linhas = con.execute("SELECT estado FROM progresso WHERE arquivo = ?", (chave,)).fetchall()
-    except sqlite3.Error:
-        return ""
+    except sqlite3.Error as e:
+        return f"banco ilegivel ({type(e).__name__})"  # T43: na dúvida, não mexe
     finally:
         con.close()
     for (estado,) in linhas:
@@ -231,7 +231,7 @@ def renomear(pasta_raiz: Path, pasta: str, arquivo: str, aluno: Aluno, banco: Pa
     existentes = {p.name.casefold() for p in origem.parent.iterdir()}
     if novo.casefold() in existentes:
         return "", f"ja existe '{novo}' nesta pasta (duas redacoes do mesmo aluno?): decida a mao"
-    origem.rename(origem.with_name(novo))
+    # T43: log ANTES de renomear: renomeação sem log não teria como ser desfeita
     log_csv = Path(log_csv)
     log_csv.parent.mkdir(parents=True, exist_ok=True)
     novo_log = not log_csv.is_file()
@@ -240,6 +240,10 @@ def renomear(pasta_raiz: Path, pasta: str, arquivo: str, aluno: Aluno, banco: Pa
         if novo_log:
             escritor.writerow(COLUNAS_LOG)
         escritor.writerow([pasta, arquivo, novo, aluno.email])
+    try:
+        origem.rename(origem.with_name(novo))
+    except OSError as e:
+        return "", f"Windows nao deixou renomear ({type(e).__name__}): arquivo aberto?"
     return novo, ""
 
 
@@ -332,15 +336,28 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
     return 0
 
 
-def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = print) -> int:
-    """Volta os nomes do log, do último para o primeiro. Retorna quantos voltaram."""
+def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = print,
+                         banco: Path | None = None) -> int:
+    """Volta os nomes do log, do último para o primeiro. Retorna quantos voltaram.
+    T43: arquivo que já tem estado de envio no banco não volta (a chave do
+    banco é o nome; voltar o nome apagaria o histórico e permitiria reenviar)."""
+    log_csv = Path(log_csv)
+    if not log_csv.is_file():
+        tela.erro(f"Log nao encontrado: {log_csv}", saida)
+        return 0
     with open(log_csv, encoding="utf-8-sig", newline="") as f:
         linhas = list(csv.DictReader(f, delimiter=";"))
+    if linhas and not set(COLUNAS_LOG) <= set(linhas[0]):
+        tela.erro(f"Log sem as colunas {COLUNAS_LOG}: {log_csv.name}. Nada foi desfeito.", saida)
+        return 0
     voltaram = 0
     for linha in reversed(linhas):
         atual = Path(pasta_raiz) / linha["pasta"] / linha["depois"]
         antigo = atual.with_name(linha["antes"])
-        if atual.is_file() and not antigo.exists():
+        travado = estado_travado(banco, f"{linha['pasta']}/{linha['depois']}") if banco else ""
+        if travado:
+            tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']} ja tem estado {travado} no banco", saida)
+        elif atual.is_file() and not antigo.exists():
             atual.rename(antigo)
             voltaram += 1
         else:
