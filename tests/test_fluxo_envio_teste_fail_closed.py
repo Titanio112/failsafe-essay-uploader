@@ -65,17 +65,17 @@ class TestFailClosedPosClique:
              patch("modulos.fluxo_envio_teste.verificar_dominio_autorizado", autospec=True) as mock_dominio, \
              patch("modulos.fluxo_envio_teste.login", autospec=True) as mock_login, \
              patch("modulos.fluxo_envio_teste.confirmar_identidade", autospec=True) as mock_identidade, \
-             patch("modulos.envio_teste_item.ler_saldo_creditos", autospec=True) as mock_saldo, \
-             patch("modulos.envio_teste_item.ler_lista_redacoes", autospec=True) as mock_lista, \
-             patch("modulos.envio_teste_item.detectar_ja_enviado", autospec=True) as mock_dup, \
-             patch("modulos.envio_teste_item.abrir_formulario_envio", autospec=True) as mock_abrir, \
-             patch("modulos.envio_teste_item.ler_combo_temas", autospec=True) as mock_combo, \
-             patch("modulos.envio_teste_item.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
-             patch("modulos.envio_teste_item.selecionar_criterio", autospec=True) as mock_sel_crit, \
-             patch("modulos.envio_teste_item.anexar_arquivo", autospec=True) as mock_anexar, \
-             patch("modulos.envio_teste_item.aguardar_upload_aceito", autospec=True) as mock_upload, \
-             patch("modulos.envio_teste_item.clicar_enviar", autospec=True) as mock_clicar, \
-             patch("modulos.envio_teste_item.aguardar_confirmacao", autospec=True) as mock_confirma, \
+             patch("modulos.envio_item.ler_saldo_creditos", autospec=True) as mock_saldo, \
+             patch("modulos.envio_item.ler_lista_redacoes", autospec=True) as mock_lista, \
+             patch("modulos.envio_item.detectar_ja_enviado", autospec=True) as mock_dup, \
+             patch("modulos.envio_item.abrir_formulario_envio", autospec=True) as mock_abrir, \
+             patch("modulos.envio_item.ler_combo_temas", autospec=True) as mock_combo, \
+             patch("modulos.envio_item.selecionar_tema_por_codigo", autospec=True) as mock_sel_tema, \
+             patch("modulos.envio_item.selecionar_criterio", autospec=True) as mock_sel_crit, \
+             patch("modulos.envio_item.anexar_arquivo", autospec=True) as mock_anexar, \
+             patch("modulos.envio_item.aguardar_upload_aceito", autospec=True) as mock_upload, \
+             patch("modulos.envio_item.clicar_enviar", autospec=True) as mock_clicar, \
+             patch("modulos.envio_item.aguardar_confirmacao", autospec=True) as mock_confirma, \
              patch("modulos.fluxo_envio_teste.logout", autospec=True) as mock_logout:
 
             # Configurar playwright mock

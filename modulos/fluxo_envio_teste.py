@@ -1,7 +1,7 @@
 """Fluxo de envio de teste (conta de teste).
 
 Percorre a fila de teste (fila_teste) e envia cada item com
-envio_teste_item. Uma confirmacao ENVIAR TESTE para a fila toda;
+envio_item. Uma confirmacao ENVIAR TESTE para a fila toda;
 qualquer ERRO ou REVISAO_MANUAL para a execucao.
 """
 
@@ -19,7 +19,7 @@ from modulos.login import login, confirmar_identidade, DOMINIO_ESPERADO
 from modulos.formulario_envio import verificar_dominio_autorizado
 from modulos.confirmacao import logout
 from modulos.fila_teste import montar_fila_teste
-from modulos.envio_teste_item import enviar_item_teste
+from modulos.envio_item import enviar_item
 from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO
 
 
@@ -91,7 +91,7 @@ def executar_envio_teste(
             # 4. Um item por vez; ERRO/REVISAO_MANUAL para a execucao
             for n, item in enumerate(fila, 1):
                 log.info("Item %d/%d: tema %s (%s)", n, len(fila), item.codigo, item.arquivo)
-                estado = enviar_item_teste(page, aluno_teste.id, item, progresso)
+                estado = enviar_item(page, aluno_teste.id, item, progresso)
                 if estado not in (ENVIADO, JA_ENVIADO):
                     log.error("Execucao parada no item %d/%d: %s", n, len(fila), estado)
                     return 1

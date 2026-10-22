@@ -1,4 +1,4 @@
-"""Envio de UM item da fila de teste, com fail-closed (T18B-T18D).
+"""Envio de UM item (modo teste e produção), com fail-closed (T18B-T18D).
 
 Antes do clique, qualquer falha -> ERRO. Depois de iniciar o clique,
 qualquer resultado inconclusivo -> REVISAO_MANUAL. Sem retry, sem 2º clique.
@@ -37,7 +37,7 @@ def _codigo_tema_selecionado(page) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def enviar_item_teste(
+def enviar_item(
     page,
     aluno_id: str,
     item: ItemFilaTeste,
@@ -48,7 +48,8 @@ def enviar_item_teste(
 
     def marcar(estado: str, detalhe: str) -> str:
         if progresso:
-            progresso.marcar(aluno_id, item.arquivo, estado, pasta=item.codigo, detalhe=detalhe)
+            chave = item.chave_progresso or item.arquivo
+            progresso.marcar(aluno_id, chave, estado, pasta=item.codigo, detalhe=detalhe)
         return estado
 
     codigo = item.codigo

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import logging
-from datetime import datetime
 from pathlib import Path
 
 # Configuração de encoding para stdout e stderr
@@ -15,57 +13,33 @@ try:
 except (AttributeError, ValueError):
     pass
 
-from modulos.config import Config, MENSAGEM_BLOQUEIO, carregar_config
+from modulos.config import MENSAGEM_BLOQUEIO, carregar_config
 from modulos.planilha_arquivos import (
-    ALUNO_SEM_ARQUIVO,
+    Aluno,
     carregar_alunos,
     conciliar,
     descobrir_arquivos,
-    mascarar_email,
-    normalizar_nome,
-    Aluno,
-    ResultadoConciliacao,
-    ItemConciliacao,
-)
-from modulos.estados import (
-    EXATO_UNICO,
-    SUGESTAO_FUZZY,
-    AMBIGUO,
-    ARQUIVO_SEM_ALUNO,
-    SEM_CODIGO,
-    CODIGO_INVALIDO,
-    REVISAO_MANUAL,
 )
 from modulos.progresso_relatorio import (
     Progresso,
     configurar_logging,
     gerar_fila_dry_run,
     gerar_relatorio_conciliacao,
-    JA_ENVIADO,
-)
-from modulos.login import (
-    login,
-    confirmar_identidade,
-)
-from modulos.lista_redacoes import (
-    ler_saldo_creditos,
-    ler_lista_redacoes,
-    verificar_duplicidade,
-)
-from modulos.formulario_envio import (
-    abrir_formulario_envio,
-    ler_combo_temas,
-    selecionar_tema_por_codigo,
-    selecionar_criterio,
-    anexar_arquivo,
-    aguardar_upload_aceito,
-)
-from modulos.confirmacao import (
-    clicar_enviar,
-    aguardar_confirmacao,
-    logout,
 )
 from modulos.fluxo_envio_teste import executar_envio_teste
+from modulos.fluxo_envio_producao import executar_envio_producao
+
+
+TEMAS_SITE_CSV = Path("dados/temas_site.csv")
+
+
+def ler_codigos_site_csv(caminho: Path) -> set[str]:
+    """Códigos (strings exatas) da coluna 'codigo' do CSV; vazio se não existir."""
+    import csv
+    if not Path(caminho).is_file():
+        return set()
+    with open(caminho, newline="", encoding="utf-8-sig") as f:
+        return {row["codigo"] for row in csv.DictReader(f) if row.get("codigo")}
 
 
 def parse_args(argv=None):
@@ -74,7 +48,7 @@ def parse_args(argv=None):
     p.add_argument("--modo-teste", action="store_true",
                    help="usa conta de teste e pasta testes/redacoes_teste/")
     p.add_argument("--envio-real", action="store_true",
-                   help="habilita envio real (somente Fase 3+)")
+                   help="habilita envio real (teste: ENVIAR TESTE; producao: ENVIAR)")
     p.add_argument("--analise-remota", action="store_true",
                    help="somente leitura: login, lista redacoes, combo temas, logout")
     p.add_argument("--limite-alunos", type=int, default=None)
@@ -97,17 +71,25 @@ def main(argv=None) -> int:
         cfg.planilha = Path("testes") / "planilha_teste.xlsx"  # placeholder, não usado
         cfg.pasta_raiz = Path("testes/redacoes_teste")
         # Apenas aluno virtual
-        from modulos.planilha_arquivos import Aluno
         email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
         alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste)]
         log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")
     else:
         if args.envio_real:
-            print(MENSAGEM_BLOQUEIO)
-            print("Envio real so sera executado na Fase 3, com as confirmacoes exigidas.")
+            # Produção (F4/T24): fail-closed sem a referência de códigos do site
+            if not ler_codigos_site_csv(TEMAS_SITE_CSV):
+                print(f"[ERRO] Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
+                print("[ERRO] Nada foi enviado.")
+                return 2
+            # Senha padrão vem do .env (ou getpass)
+            from dotenv import load_dotenv
+            load_dotenv()
+            log.info("Iniciando conciliacao para envio de producao.")
+        else:
+            log.info("Iniciando conciliacao (dry-run).")
+        if args.envio_real and not Path(cfg.planilha).is_file():
+            print(f"[ERRO] Planilha de alunos nao encontrada: {cfg.planilha}")
             return 2
-
-        log.info("Iniciando conciliacao (dry-run).")
         alunos = carregar_alunos(cfg)
         print(f"Alunos carregados: {len(alunos)}")
 
@@ -117,21 +99,18 @@ def main(argv=None) -> int:
 
     # Determinar codigos_site com fail-closed
     codigos_site = set()
-    # Falha fechada para produção e análise remota, mas NÃO para modo teste + envio real
-    # (o fluxo_envio_teste faz sua própria validação no combo do site)
-    if (args.analise_remota or args.envio_real) and not (args.modo_teste and args.envio_real):
-        # Modos que exigem códigos do site reais: abortar se não tiver
+    # Análise remota exige o combo real (ainda não implementada): aborta.
+    # Envio (teste ou produção) usa o CSV só como referência; a trava real é o
+    # combo da conta logada, conferido item a item antes do clique (T18D).
+    if args.analise_remota:
         print("[ERRO] Códigos do site não disponíveis. Execute a análise remota primeiro para obter o combo de temas.")
         print("[ERRO] Use --analise-remota no mesmo dia para preencher dados/temas_site.csv.")
         return 2
     else:
-        # Dry-run: usar dados/temas_site.csv como referência (pode estar vazio/desatualizado)
-        temas_csv = Path("dados/temas_site.csv")
+        # dados/temas_site.csv como referência (pode estar vazio/desatualizado)
+        temas_csv = TEMAS_SITE_CSV
         if temas_csv.exists():
-            import csv
-            with open(temas_csv, newline="", encoding="utf-8-sig") as f:
-                reader = csv.DictReader(f)
-                codigos_site = {row["codigo"] for row in reader if row.get("codigo")}
+            codigos_site = ler_codigos_site_csv(temas_csv)
             if codigos_site:
                 print(f"[AVISO] Dry-run: usando {len(codigos_site)} códigos de dados/temas_site.csv (referência, pode estar desatualizado)")
             else:
@@ -196,6 +175,16 @@ def main(argv=None) -> int:
         progresso = Progresso(cfg.banco_progresso)
         return executar_envio_teste(cfg, progresso)
 
+    # Produção com envio real (F4/T24): confirmação ENVIAR dentro do fluxo
+    if args.envio_real:
+        with Progresso(cfg.banco_progresso) as progresso:
+            return executar_envio_producao(
+                cfg, resultado, progresso,
+                limite_alunos=args.limite_alunos,
+                limite_redacoes=args.limite_redacoes,
+            )
+
+    print(MENSAGEM_BLOQUEIO + " (dry-run; use --envio-real para enviar)")
     return 0
 
 

@@ -872,6 +872,127 @@ Dropped refs/stash@{0} (e7b12cdcf80cae0ddc08d4ddef383fbaf364f54f)
 $ python -m pytest tests/test_sem_sala.py -q -m "not real"   (T23)
 5 passed in 0.63s
 
+## T24 - F4: fluxo de envio de produção (offline; envio real só pelo Antônio) [x]
+- Pedido do Antônio (22/10): seguir sozinho até ficar pronto, usando bom senso
+  nas dúvidas, numa branch separada para poder voltar. Branch: `f4-producao`
+  (criada a partir de `limpeza` em ea80e09). Para voltar: `git checkout limpeza`.
+- Decisões de bom senso (REVISAR, Antônio pode mudar qualquer uma):
+  - P1 Fila real = só `EXATO_UNICO` da conciliação (fuzzy, ambíguo, sem par,
+    código inválido/repetido nunca entram — regra já existente).
+  - P2 Não reenviar o que o banco já registra como ENVIADO, JA_ENVIADO ou
+    REVISAO_MANUAL (nem em outro dia: é o mesmo arquivo). ERRO pode tentar
+    de novo (não houve clique).
+  - P3 Limite de 4 envios por aluno **por execução** (`max_envios_por_aluno`);
+    o resto fica para a próxima execução. O saldo de créditos é lido antes de
+    cada item; saldo 0/ilegível para o aluno.
+  - P4 Uma confirmação `ENVIAR` para o lote inteiro, mostrado antes
+    (aluno, e-mail mascarado, tema, arquivo). `--limite-alunos` e
+    `--limite-redacoes` cortam o lote antes da confirmação.
+  - P5 Senha: `ESQUEMA_SENHA_PADRAO` (.env ou getpass). Um contexto de
+    navegador por aluno (sem cookie de um aluno no outro).
+  - P6 Falhas: login/identidade de um aluno falha -> itens dele ERRO e segue
+    para o próximo aluno (nada clicado). ERRO num item -> para esse aluno e
+    segue. REVISAO_MANUAL (depois do clique) ou Captcha/bloqueio -> para a
+    execução inteira.
+  - P7 Pausa aleatória de 8–15 s entre envios (`pausa_envio_*` do config).
+  - P8 Códigos do site na conciliação: `dados/temas_site.csv` como referência
+    (igual ao dry-run); a trava real é o combo da conta logada, conferido
+    item a item antes do clique (T18D).
+- Arquivos: main.py, modulos/envio_teste_item.py -> modulos/envio_item.py
+  (o envio de 1 item é o mesmo do teste), modulos/fila_teste.py (campo de
+  chave do progresso), novos modulos/fila_producao.py e
+  modulos/fluxo_envio_producao.py, testes, docs.
+- Proibido nesta tarefa: rodar main.py, abrir navegador, login, digitar ENVIAR.
+- Feito:
+  - `python main.py --envio-real` (sem --modo-teste) deixou de ser bloqueado:
+    concilia, gera os relatórios e chama `executar_envio_producao`.
+    Fail-closed antes de ler a planilha se `dados/temas_site.csv` não tiver
+    códigos; erro claro se a planilha não existir.
+  - Sem `--envio-real` (dry-run) imprime `[BLOQUEADO] Envio real desativado.`
+    no fim, como o AGENTS.md documenta.
+  - main.py: 32 imports sem uso removidos (pyflakes 32 -> 0).
+  - Nuance de P6: Captcha detectado DENTRO de um item (antes do clique) vira
+    ERRO só daquele aluno; o login do próximo aluno pega o bloqueio e para tudo.
+- Teste protegido alterado (com justificativa): em tests/test_essenciais.py,
+  `test_fail_closed_envio_real_sem_codigos_site` fixava "produção sempre
+  aborta" (regra da F3). Agora testa o fail-closed da F4: sem
+  dados/temas_site.csv -> retorna 2, mensagem cita o CSV e a planilha NÃO é
+  lida. Mesmos 50 testes; asserts 154 -> 155.
+PROVA:
+$ python -m py_compile main.py modulos/envio_item.py modulos/fila_teste.py modulos/fila_producao.py modulos/fluxo_envio_producao.py modulos/fluxo_envio_teste.py
+[exit 0]
+$ python -m pyflakes main.py modulos/envio_item.py modulos/fila_teste.py modulos/fila_producao.py modulos/fluxo_envio_producao.py modulos/fluxo_envio_teste.py tests/test_fila_producao.py tests/test_fluxo_envio_producao.py tests/test_fluxo_envio_teste_fail_closed.py
+[exit 0]
+$ python -m pytest tests/test_fila_producao.py tests/test_fluxo_envio_producao.py -v -m "not real"
+tests/test_fila_producao.py::test_so_exato_unico_entra_com_chave_pasta_arquivo PASSED [  4%]
+tests/test_fila_producao.py::test_nao_reenvia_o_que_o_banco_ja_registrou[ENVIADO] PASSED [  9%]
+tests/test_fila_producao.py::test_nao_reenvia_o_que_o_banco_ja_registrou[JA_ENVIADO] PASSED [ 13%]
+tests/test_fila_producao.py::test_nao_reenvia_o_que_o_banco_ja_registrou[REVISAO_MANUAL] PASSED [ 18%]
+tests/test_fila_producao.py::test_erro_anterior_pode_tentar_de_novo PASSED [ 22%]
+tests/test_fila_producao.py::test_limite_de_envios_por_aluno_nesta_execucao PASSED [ 27%]
+tests/test_fila_producao.py::test_codigo_repetido_arquivo_inexistente_e_sem_codigo_ficam_fora PASSED [ 31%]
+tests/test_fila_producao.py::test_limite_de_alunos_e_de_redacoes PASSED  [ 36%]
+tests/test_fluxo_envio_producao.py::test_lote_inteiro_enviado_uma_confirmacao_um_contexto_por_aluno PASSED [ 40%]
+tests/test_fluxo_envio_producao.py::test_confirmacao_diferente_de_ENVIAR_cancela_sem_login[enviar] PASSED [ 45%]
+tests/test_fluxo_envio_producao.py::test_confirmacao_diferente_de_ENVIAR_cancela_sem_login[ENVIAR TESTE] PASSED [ 50%]
+tests/test_fluxo_envio_producao.py::test_confirmacao_diferente_de_ENVIAR_cancela_sem_login[] PASSED [ 54%]
+tests/test_fluxo_envio_producao.py::test_confirmacao_diferente_de_ENVIAR_cancela_sem_login[sim] PASSED [ 59%]
+tests/test_fluxo_envio_producao.py::test_login_falha_marca_erro_do_aluno_e_segue PASSED [ 63%]
+tests/test_fluxo_envio_producao.py::test_identidade_divergente_nao_envia_nada_do_aluno PASSED [ 68%]
+tests/test_fluxo_envio_producao.py::test_erro_em_item_para_o_aluno_e_segue_para_o_proximo PASSED [ 72%]
+tests/test_fluxo_envio_producao.py::test_revisao_manual_para_a_execucao_inteira PASSED [ 77%]
+tests/test_fluxo_envio_producao.py::test_captcha_no_login_para_a_execucao_inteira PASSED [ 81%]
+tests/test_fluxo_envio_producao.py::test_nada_para_enviar_nao_pede_confirmacao PASSED [ 86%]
+tests/test_fluxo_envio_producao.py::test_limites_chegam_ao_lote PASSED   [ 90%]
+tests/test_fluxo_envio_producao.py::test_main_envio_real_chama_fluxo_de_producao PASSED [ 95%]
+tests/test_fluxo_envio_producao.py::test_main_sem_envio_real_nao_chama_fluxo_de_producao PASSED [100%]
+============================= 22 passed in 1.84s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 51%]
+...................................................................      [100%]
+139 passed, 4 deselected, 8 warnings in 8.31s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ pyflakes main.py: HEAD x agora
+HEAD=32 agora=0
+$ testes e asserts em test_essenciais.py: HEAD x agora
+def test_ HEAD=50 agora=50 | assert HEAD=154 agora=155
+$ git stash push -- main.py
+Saved working directory and index state WIP on f4-producao: ea80e09 T23: remove todos os restos de sala (config, Aluno, planilha, relatorios, testes)
+$ python -m pytest tests/test_fluxo_envio_producao.py tests/test_essenciais.py -q -m "not real" -k "main or fail_closed"   (main.py de ea80e09: producao bloqueada)
+FAILED tests/test_fluxo_envio_producao.py::test_main_envio_real_chama_fluxo_de_producao
+FAILED tests/test_fluxo_envio_producao.py::test_main_sem_envio_real_nao_chama_fluxo_de_producao
+FAILED tests/test_essenciais.py::test_fail_closed_envio_real_sem_codigos_site
+3 failed, 2 passed, 59 deselected in 1.11s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (8e358da3c487158f21a8465acae8c1df475cf538)
+$ (mesmo comando, T24)
+5 passed, 59 deselected in 1.08s
+
+## T25 - F4: primeiro envio real de produção (1 aluno) — executado pelo Antônio [ ]
+- Pré-requisitos (Antônio):
+  1. Planilha em `redacoes_pendentes/Alunos para corrigir redacoes.xlsx`
+     (aba "Planilha1", colunas `nome` e `email`; outras colunas são ignoradas)
+     e as redações em `redacoes_pendentes/<código> - <tema>/<Nome do aluno> - Red.jpg`.
+     Em 22/10 a planilha NÃO existia nesse caminho.
+  2. `.env` com `ESQUEMA_SENHA_PADRAO` (senão o script pergunta a senha).
+  3. `dados/temas_site.csv` com os códigos do combo (já tem 107).
+  4. (Recomendado) a troca do banco de progresso explicada na T22.
+- Passo 1, dry-run (não envia, não abre navegador):
+  python main.py
+  Conferir `relatorios/relatorio_conciliacao.csv`: só `EXATO_UNICO` entra.
+- Passo 2, envio real de 1 aluno e 1 redação:
+  python main.py --envio-real --limite-alunos 1 --limite-redacoes 1
+  Conferir a lista mostrada; digitar ENVIAR; ver no site
+  (/minhas-redacoes do aluno) a linha nova como "Pendente".
+- Passo 3, reexecução idempotente: o mesmo comando deve mostrar o item como
+  já registrado (fora do lote) ou JA_ENVIADO, sem novo clique.
+- PROVA: (colar a saída dos 3 passos + a situação vista no site)
+- Fora de escopo: lote grande antes deste passar.
+
 ---
 
 ## F3 concluída quando: T19 [x] + T20 [x] com provas coladas.

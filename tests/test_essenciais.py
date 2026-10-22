@@ -728,15 +728,23 @@ def test_codigo_string_preserva_zeros():
 # Testes de fail-closed para codigos_site
 # =====================================================================
 
-def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_teste):
-    """--envio-real sem códigos do site deve abortar com erro claro."""
+def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_teste, capsys):
+    """--envio-real (produção) sem códigos do site (dados/temas_site.csv) deve
+    abortar com erro claro, antes de ler a planilha (T24: produção liberada,
+    mas continua fail-closed sem a referência de códigos)."""
     from main import main
     import sys
-    # Simular args com --envio-real
+    # Diretório sem dados/temas_site.csv
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, 'argv', ['main.py', '--envio-real'])
-    # O main() deve retornar 2 (erro) e imprimir mensagem de erro
+
+    def nao_pode_ler_planilha(cfg):
+        raise AssertionError("planilha lida antes do fail-closed")
+    monkeypatch.setattr('main.carregar_alunos', nao_pode_ler_planilha)
+
     result = main()
     assert result == 2
+    assert "temas_site.csv" in capsys.readouterr().out
 
 
 def test_fail_closed_analise_remota_sem_codigos_site(monkeypatch, tmp_path, config_teste):

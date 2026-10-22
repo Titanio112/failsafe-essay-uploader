@@ -10,11 +10,14 @@ from modulos.normalizacao import extrair_codigo_tema
 
 @dataclass
 class ItemFilaTeste:
-    """Um arquivo de teste liberado para tentar envio."""
+    """Um arquivo liberado para tentar envio (modo teste ou produção)."""
     pasta: str
     arquivo: str
     codigo: str
     caminho: Path
+    # Chave no banco de progresso; vazia = nome do arquivo (modo teste).
+    # Produção usa "pasta/arquivo", a mesma chave do dry-run.
+    chave_progresso: str = ""
 
 
 def montar_fila_teste(
