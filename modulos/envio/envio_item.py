@@ -10,8 +10,8 @@ import logging
 import re
 from typing import Optional
 
-from modulos.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, contar_tema_hoje
-from modulos.formulario_envio import (
+from modulos.site.lista_redacoes import ler_saldo_creditos, ler_lista_redacoes, contar_tema_hoje
+from modulos.site.formulario_envio import (
     abrir_formulario_envio,
     ler_combo_temas,
     selecionar_tema_por_codigo,
@@ -19,10 +19,10 @@ from modulos.formulario_envio import (
     anexar_arquivo,
     aguardar_upload_aceito,
 )
-from modulos.confirmacao import clicar_enviar, aguardar_confirmacao
-from modulos.fila_teste import ItemFilaTeste
-from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
-from modulos.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
+from modulos.site.confirmacao import clicar_enviar, aguardar_confirmacao
+from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
+from modulos.base.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
 
 
 log = logging.getLogger("automacao_redacoes")

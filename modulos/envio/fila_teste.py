@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from modulos.normalizacao import extrair_codigo_tema
+from modulos.dados.normalizacao import extrair_codigo_tema
 
 
 @dataclass

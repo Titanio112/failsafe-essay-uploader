@@ -10,10 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config
-from modulos.estados import EXATO_UNICO, SEM_CODIGO
-from modulos.planilha_arquivos import Aluno, conciliar
-from modulos.sugestao_temas import carregar_codigos_pasta, registrar_sugestoes_pasta, sugerir_codigos
+from modulos.base.config import Config
+from modulos.base.estados import EXATO_UNICO, SEM_CODIGO
+from modulos.dados.planilha_arquivos import Aluno, conciliar
+from modulos.dados.sugestao_temas import carregar_codigos_pasta, registrar_sugestoes_pasta, sugerir_codigos
 
 ANA = Aluno(nome="Ana Lalara", email="ana@escola.com")
 TEMAS = [("100", "100- Impactos da invisibilidade de filiação para os cidadãos brasileiros"),
@@ -102,7 +102,7 @@ def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
 
 def test_sugestao_de_nome_sai_mesmo_com_pasta_sem_codigo(tmp_path):
     """Nomes e pastas aprovados na mesma rodada (a pasta ainda sem código)."""
-    from modulos.nomes_aprovados import registrar_sugestoes
+    from modulos.dados.nomes_aprovados import registrar_sugestoes
     completa = Aluno(nome="Ana Lalara Larili dos Larito", email="ana@escola.com")
     resultado = conciliar([completa], {PASTA: ["Ana Lalara Larili.JPG", "Ana Lalara Larili dos Larito.JPG"]},
                           codigos_site=["100"])

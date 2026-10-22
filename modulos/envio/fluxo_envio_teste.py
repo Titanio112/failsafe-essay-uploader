@@ -13,14 +13,14 @@ from typing import Optional
 
 from playwright.sync_api import sync_playwright
 
-from modulos.config import Config, obter_email_teste, obter_senha
-from modulos.planilha_arquivos import Aluno, descobrir_arquivos
-from modulos.login import login, confirmar_identidade, DOMINIO_ESPERADO
-from modulos.formulario_envio import verificar_dominio_autorizado
-from modulos.confirmacao import logout
-from modulos.fila_teste import montar_fila_teste
-from modulos.envio_item import enviar_item
-from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO
+from modulos.base.config import Config, obter_email_teste, obter_senha
+from modulos.dados.planilha_arquivos import Aluno, descobrir_arquivos
+from modulos.site.login import login, confirmar_identidade, DOMINIO_ESPERADO
+from modulos.site.formulario_envio import verificar_dominio_autorizado
+from modulos.site.confirmacao import logout
+from modulos.envio.fila_teste import montar_fila_teste
+from modulos.envio.envio_item import enviar_item
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO
 
 
 log = logging.getLogger("automacao_redacoes")
@@ -116,7 +116,7 @@ def executar_envio_teste(
 
 if __name__ == "__main__":
     # Execucao direta para teste rapido
-    from modulos.progresso_relatorio import configurar_logging
+    from modulos.base.progresso_relatorio import configurar_logging
 
     configurar_logging()
     cfg = Config()

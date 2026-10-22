@@ -10,15 +10,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config, _ler_ini
-from modulos.estados import EXATO_UNICO
-from modulos.planilha_arquivos import (
+from modulos.base.config import Config, _ler_ini
+from modulos.base.estados import EXATO_UNICO
+from modulos.dados.planilha_arquivos import (
     Aluno,
     ItemConciliacao,
     ResultadoConciliacao,
     carregar_alunos,
 )
-from modulos.progresso_relatorio import gerar_fila_dry_run, gerar_relatorio_conciliacao
+from modulos.base.progresso_relatorio import gerar_fila_dry_run, gerar_relatorio_conciliacao
 
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -27,7 +27,7 @@ def test_codigo_nao_menciona_sala():
     """Nenhum .py de modulos/ nem o main.py usa a palavra "sala"."""
     padrao = re.compile(r"\bsalas?\b", re.IGNORECASE)
     achados = []
-    for arquivo in sorted((RAIZ_PROJETO / "modulos").glob("*.py")) + [RAIZ_PROJETO / "main.py"]:
+    for arquivo in sorted((RAIZ_PROJETO / "modulos").rglob("*.py")) + [RAIZ_PROJETO / "main.py"]:
         for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
             if padrao.search(linha):
                 achados.append(f"{arquivo.name}:{n}: {linha.strip()}")

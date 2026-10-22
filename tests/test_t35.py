@@ -13,12 +13,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.estados import EXATO_UNICO, REVISAO_MANUAL
-from modulos.fila_producao import montar_lote_producao
-from modulos.fila_teste import ItemFilaTeste
-from modulos.lista_redacoes import ItemListaRedacao, contar_tema_hoje
-from modulos.planilha_arquivos import Aluno, conciliar
-from modulos.progresso_relatorio import ENVIADO, ERRO, JA_ENVIADO, Progresso
+from modulos.base.estados import EXATO_UNICO, REVISAO_MANUAL
+from modulos.envio.fila_producao import montar_lote_producao
+from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.site.lista_redacoes import ItemListaRedacao, contar_tema_hoje
+from modulos.dados.planilha_arquivos import Aluno, conciliar
+from modulos.base.progresso_relatorio import ENVIADO, ERRO, JA_ENVIADO, Progresso
 from tests.test_lista_redacoes_layout_real import PaginaFalsa, _html_lista
 
 ANA = Aluno(nome="ANA LALARA LARILI DOS LARITO", email="ana@escola.com")
@@ -87,7 +87,7 @@ def test_caderno_conta_so_os_de_hoje_deste_tema(tmp_path):
 
 @pytest.fixture
 def envio(tmp_path):
-    from modulos import envio_item
+    from modulos.envio import envio_item
     prog = Progresso(tmp_path / "p.db")
     pagina = MagicMock()
     pagina.locator.return_value.first.inner_text.return_value = "000- DISSERTATIVO ARGUMENTATIVO"
@@ -156,9 +156,9 @@ def _pagina(*situacoes):
 
 
 def test_confirmacao_espera_a_linha_nova_e_nao_aceita_a_antiga():
-    from modulos import confirmacao
-    from modulos.excecoes import ConfirmacaoInconclusiva
-    with patch("modulos.confirmacao.time.sleep"):
+    from modulos.site import confirmacao
+    from modulos.base.excecoes import ConfirmacaoInconclusiva
+    with patch("modulos.site.confirmacao.time.sleep"):
         # só a linha da 1ª redação: a 2ª ainda não chegou -> inconclusivo
         with pytest.raises(ConfirmacaoInconclusiva):
             confirmacao.aguardar_confirmacao(_pagina("Pendente"), "000", timeout_segundos=0.05,

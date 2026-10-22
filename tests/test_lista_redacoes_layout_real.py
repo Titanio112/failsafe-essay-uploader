@@ -16,8 +16,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.login import DOMINIO_ESPERADO
-from modulos.lista_redacoes import (
+from modulos.site.login import DOMINIO_ESPERADO
+from modulos.site.lista_redacoes import (
     ItemListaRedacao,
     contar_tema_hoje,
     ler_lista_redacoes,
@@ -125,10 +125,10 @@ def test_detectar_lista_vazia_pode_enviar():
 # ---- E1: confirmacao importa e usa a lista real ----
 
 def test_aguardar_confirmacao_acha_pendente_de_hoje():
-    from modulos import confirmacao
+    from modulos.site import confirmacao
 
     hoje = datetime.now().strftime("%d/%m/%Y")
     linha = LINHA_REAL.replace("21/10/2026", hoje)
     pagina = PaginaFalsa(_html_lista(linha))
-    with patch("modulos.confirmacao.time.sleep"):
+    with patch("modulos.site.confirmacao.time.sleep"):
         assert confirmacao.aguardar_confirmacao(pagina, "0", timeout_segundos=5) is True

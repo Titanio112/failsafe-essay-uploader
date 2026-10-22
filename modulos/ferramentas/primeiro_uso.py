@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
-from modulos.config import Config, RAIZ_PASTA_REDACOES_LEIAME
+from modulos.base.config import Config, RAIZ_PASTA_REDACOES_LEIAME
 
 CABECALHO_ALUNOS = "Nome;Email\n"
 

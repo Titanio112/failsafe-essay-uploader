@@ -17,9 +17,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from modulos.fila_teste import ItemFilaTeste
-from modulos.planilha_arquivos import Aluno, ResultadoConciliacao
-from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, REVISAO_MANUAL
+from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, REVISAO_MANUAL
 
 ESTADOS_SEM_REENVIO = {ENVIADO, JA_ENVIADO, REVISAO_MANUAL}
 

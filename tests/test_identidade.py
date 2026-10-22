@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import MagicMock
-from modulos.planilha_arquivos import Aluno
-from modulos.excecoes import IdentidadeDivergente
+from modulos.dados.planilha_arquivos import Aluno
+from modulos.base.excecoes import IdentidadeDivergente
 
 
 def test_confirmar_identidade_sucesso():
     """confirmar_identidade deve retornar True quando o nome bate (seletor dropdown)."""
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
     from unittest.mock import MagicMock
 
     page = MagicMock()
@@ -95,8 +95,8 @@ def test_confirmar_identidade_acentos_maiusculas():
     """confirmar_identidade deve normalizar acentos e maiúsculas."""
     from unittest.mock import MagicMock
     from playwright.sync_api import TimeoutError as PWTimeoutError
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -145,8 +145,8 @@ def test_confirmar_identidade_elemento_ausente():
     """confirmar_identidade deve levantar IdentidadeDivergente com diagnóstico quando elemento não existe."""
     from unittest.mock import MagicMock
     from playwright.sync_api import TimeoutError as PWTimeoutError
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -194,8 +194,8 @@ def test_confirmar_identidade_elemento_ausente():
 def test_confirmar_identidade_texto_vazio():
     """confirmar_identidade deve levantar IdentidadeDivergente quando texto vem vazio."""
     from unittest.mock import MagicMock
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -239,8 +239,8 @@ def test_confirmar_identidade_fallback():
     """confirmar_identidade deve usar fallback (a[href='#'] >> text=Testes) quando seletor principal falha."""
     from unittest.mock import MagicMock
     from playwright.sync_api import TimeoutError as PWTimeoutError
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -293,10 +293,10 @@ def test_confirmar_identidade_nome_diferente():
     """confirmar_identidade deve levantar IdentidadeDivergente quando nome normalizado não bate."""
     from unittest.mock import MagicMock
     from playwright.sync_api import TimeoutError as PWTimeoutError
-    import modulos.login as login_module
-    from modulos.login import confirmar_identidade
+    import modulos.site.login as login_module
+    from modulos.site.login import confirmar_identidade
     import pytest
-    from modulos.excecoes import IdentidadeDivergente
+    from modulos.base.excecoes import IdentidadeDivergente
 
     page = MagicMock()
     page.url = "https://www.esquemaredacao.com.br/minhas-redacoes"
@@ -349,7 +349,7 @@ def test_confirmar_identidade_nome_diferente():
 
 def test_mascarar_email():
     """Teste unitário da função mascarar_email."""
-    from modulos.planilha_arquivos import mascarar_email
+    from modulos.dados.planilha_arquivos import mascarar_email
 
     assert mascarar_email("teste@esquema.com") == "te***@esquema.com"
     assert mascarar_email("a@b.com") == "a***@b.com"

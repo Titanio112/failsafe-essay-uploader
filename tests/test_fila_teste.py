@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.fila_teste import montar_fila_teste
+from modulos.envio.fila_teste import montar_fila_teste
 
 
 def _criar(raiz: Path, arquivos: dict[str, list[str]]) -> dict[str, list[str]]:

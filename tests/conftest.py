@@ -11,11 +11,11 @@ def raiz_temporaria(request, tmp_path_factory, monkeypatch):
     """Nenhum teste escreve em relatorios/ ou dados/ de verdade (T36).
 
     Os caminhos padrão do Config (banco de progresso, relatórios, nomes e
-    pastas aprovados) são calculados a partir de modulos.config.RAIZ na hora
+    pastas aprovados) são calculados a partir de modulos.base.config.RAIZ na hora
     em que o Config é criado; aqui RAIZ aponta para uma pasta temporária.
     Teste que confere os caminhos reais usa ``@pytest.mark.raiz_real``
     (só lê os caminhos; não grava nada)."""
     if request.node.get_closest_marker("raiz_real"):
         return
-    from modulos import config
+    from modulos.base import config
     monkeypatch.setattr(config, "RAIZ", tmp_path_factory.mktemp("raiz"))

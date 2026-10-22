@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos import config as config_mod
-from modulos.config import Config
-from modulos.primeiro_uso import preparar, verificar
+from modulos.base import config as config_mod
+from modulos.base.config import Config
+from modulos.ferramentas.primeiro_uso import preparar, verificar
 
 
 def test_pasta_padrao_e_redacoes_plataforma():

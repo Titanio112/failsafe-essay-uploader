@@ -6,22 +6,15 @@ import sys
 
 def test_pyflakes_no_undefined():
     """pyflakes não deve reportar undefined name nem referenced before assignment."""
-    # Módulos do projeto (raiz)
-    modulos_raiz = [
-        "main.py", "config.py", "estados.py", "normalizacao.py",
-        "descoberta_arquivos.py", "conciliacao.py", "planilha_arquivos.py",
-        "excecoes.py", "login.py", "lista_redacoes.py", "formulario_envio.py",
-        "confirmacao.py", "progresso.py", "relatorios.py",
-        "logging_config.py", "progresso_relatorio.py", "tabelas.py",
-        "fluxo_dryrun.py", "fluxo_envio_teste.py", "fluxo_analise_remota.py",
-    ]
-    # Módulos de testes
-    modulos_tests = [
-        "tests/test_essenciais.py", "tests/test_identidade.py",
-        "tests/test_imports_reais.py", "tests/test_login_criterio.py",
-        "tests/test_urls_confirmadas.py", "tests/test_estatico.py",
-    ]
-    todos = modulos_raiz + modulos_tests
+    # T39: main.py + todos os módulos (modulos/ e subpastas) + todos os testes.
+    # A lista antiga citava arquivos da raiz que não existem mais (config.py,
+    # login.py...), então o pyflakes não checava nenhum módulo de verdade.
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parent.parent
+    todos = ([str(raiz / "main.py")]
+             + sorted(str(p) for p in (raiz / "modulos").rglob("*.py"))
+             + sorted(str(p) for p in (raiz / "tests").glob("*.py")))
+    assert len(todos) > 40, todos  # nunca checar "nada" em silêncio
 
     resultado = subprocess.run(
         [sys.executable, "-m", "pyflakes"] + todos,

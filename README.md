@@ -5,7 +5,7 @@ www.esquemaredacao.com.br, entrando na conta de cada aluno.
 
 > **Hoje o envio para alunos reais está BLOQUEADO** (decisão de 22/10/2026).
 > Só a conta de teste envia. Para liberar: `PRODUCAO_BLOQUEADA = False` em
-> `modulos/config.py`, só com ordem do Antônio.
+> `modulos/base/config.py`, só com ordem do Antônio.
 
 ## Primeira vez
 
@@ -66,5 +66,16 @@ Folha sem redação: ponha "em branco" no nome do arquivo; ela nunca é enviada.
 
 ## Para quem mexe no código
 
-`AGENTS.md` (regras e fatos do site), `PROJECT_MEMORY.md` (estado),
-`docs/TAREFAS_ATUAIS.md` (o que está aberto), `docs/historico/` (histórico).
+```
+main.py                 linha de comando (só orquestra)
+modulos/base/           configuração, estados, erros, banco de progresso
+modulos/dados/          lista de alunos, arquivos, conciliação, aprovações
+modulos/site/           login, lista de redações, formulário, confirmação
+modulos/envio/          filas e fluxos de envio (teste e produção)
+modulos/ferramentas/    revisão no terminal e primeiro uso
+tests/                  testes offline (pytest)
+dados/                  lista de alunos, temas do site, aprovações
+relatorios/             banco de progresso e relatórios (fora do git)
+docs/                   tarefas, decisões, bugs (qa-issues) e histórico
+```
+Regras e fatos do site: `AGENTS.md`. Estado: `PROJECT_MEMORY.md`.

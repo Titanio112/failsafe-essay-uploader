@@ -7,7 +7,7 @@ from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
-from modulos.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
+from modulos.site.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
 
 
 CABECALHO_ESPERADO = ["data", "tema", "nota", "situação"]

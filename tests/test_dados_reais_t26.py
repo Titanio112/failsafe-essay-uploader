@@ -12,11 +12,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config, RAIZ
-from modulos.estados import EXATO_UNICO
-from modulos.nomes_aprovados import carregar_nomes_aprovados, registrar_sugestoes
-from modulos.planilha_arquivos import Aluno, PlanilhaError, carregar_alunos, conciliar
-from modulos.sugestao_temas import sugerir_codigos
+from modulos.base.config import Config, RAIZ
+from modulos.base.estados import EXATO_UNICO
+from modulos.dados.nomes_aprovados import carregar_nomes_aprovados, registrar_sugestoes
+from modulos.dados.planilha_arquivos import Aluno, PlanilhaError, carregar_alunos, conciliar
+from modulos.dados.sugestao_temas import sugerir_codigos
 
 ANA = Aluno(nome="Ana Lalara Larili dos Larito", email="ana@escola.com")
 ANA_M = Aluno(nome="Ana Lalara Larisa", email="anam@escola.com")

@@ -14,11 +14,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config
-from modulos.estados import EXATO_UNICO
-from modulos.excecoes import CaptchaOuBloqueio, LoginFalhou
-from modulos.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao
-from modulos.progresso_relatorio import Progresso, ENVIADO, ERRO, REVISAO_MANUAL
+from modulos.base.config import Config
+from modulos.base.estados import EXATO_UNICO
+from modulos.base.excecoes import CaptchaOuBloqueio, LoginFalhou
+from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, ERRO, REVISAO_MANUAL
 
 ANA = Aluno(nome="Ana Lalara", email="ana@escola.com")
 BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
@@ -28,7 +28,7 @@ BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
 def producao_liberada_so_no_teste(monkeypatch):
     """Estes testes exercitam o fluxo com mocks; a trava de 22/10 tem testes
     próprios em tests/test_t29.py."""
-    from modulos import config as config_mod
+    from modulos.base import config as config_mod
     monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", False)
 
 
@@ -69,15 +69,15 @@ def progresso(tmp_path):
 
 @pytest.fixture
 def mocks():
-    with patch("modulos.fluxo_envio_producao.sync_playwright") as mock_pw, \
+    with patch("modulos.envio.fluxo_envio_producao.sync_playwright") as mock_pw, \
          patch("builtins.input", return_value="ENVIAR") as mock_input, \
-         patch("modulos.fluxo_envio_producao.obter_senha", return_value="senha-falsa"), \
-         patch("modulos.fluxo_envio_producao.time.sleep") as mock_sleep, \
-         patch("modulos.fluxo_envio_producao.verificar_dominio_autorizado", autospec=True), \
-         patch("modulos.fluxo_envio_producao.login", autospec=True) as mock_login, \
-         patch("modulos.fluxo_envio_producao.confirmar_identidade", autospec=True) as mock_ident, \
-         patch("modulos.fluxo_envio_producao.logout", autospec=True), \
-         patch("modulos.fluxo_envio_producao.enviar_item", autospec=True) as mock_enviar:
+         patch("modulos.envio.fluxo_envio_producao.obter_senha", return_value="senha-falsa"), \
+         patch("modulos.envio.fluxo_envio_producao.time.sleep") as mock_sleep, \
+         patch("modulos.envio.fluxo_envio_producao.verificar_dominio_autorizado", autospec=True), \
+         patch("modulos.envio.fluxo_envio_producao.login", autospec=True) as mock_login, \
+         patch("modulos.envio.fluxo_envio_producao.confirmar_identidade", autospec=True) as mock_ident, \
+         patch("modulos.envio.fluxo_envio_producao.logout", autospec=True), \
+         patch("modulos.envio.fluxo_envio_producao.enviar_item", autospec=True) as mock_enviar:
         mock_browser = MagicMock()
         mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = mock_browser
         mock_enviar.return_value = ENVIADO
@@ -93,7 +93,7 @@ def _enviados(mocks):
 
 
 def _executar(cfg, resultado, progresso=None, **kw):
-    from modulos.fluxo_envio_producao import executar_envio_producao
+    from modulos.envio.fluxo_envio_producao import executar_envio_producao
     return executar_envio_producao(cfg, resultado, progresso, **kw)
 
 
@@ -133,7 +133,7 @@ def test_login_falha_marca_erro_do_aluno_e_segue(cfg, resultado, progresso, mock
 
 
 def test_identidade_divergente_nao_envia_nada_do_aluno(cfg, resultado, mocks):
-    from modulos.excecoes import IdentidadeDivergente
+    from modulos.base.excecoes import IdentidadeDivergente
     mocks["ident"].side_effect = [IdentidadeDivergente("outro nome"), True]
 
     _executar(cfg, resultado)

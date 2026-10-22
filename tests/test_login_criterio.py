@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import pytest
 from playwright.sync_api import Page
 
-from modulos.login import login
-from modulos.excecoes import LoginFalhou
-import modulos.login as login_module
+from modulos.site.login import login
+from modulos.base.excecoes import LoginFalhou
+import modulos.site.login as login_module
 
 
 class MockLocator:

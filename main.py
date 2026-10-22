@@ -13,30 +13,30 @@ try:
 except (AttributeError, ValueError):
     pass
 
-from modulos import config as config_mod
-from modulos.config import MENSAGEM_BLOQUEIO, carregar_config
-from modulos.planilha_arquivos import (
+from modulos.base import config as config_mod
+from modulos.base.config import MENSAGEM_BLOQUEIO, carregar_config
+from modulos.dados.planilha_arquivos import (
     Aluno,
     carregar_alunos,
     conciliar,
     descobrir_arquivos,
 )
-from modulos.progresso_relatorio import (
+from modulos.base.progresso_relatorio import (
     Progresso,
     configurar_logging,
     gerar_fila_dry_run,
     gerar_relatorio_conciliacao,
 )
-from modulos.fluxo_envio_teste import executar_envio_teste
-from modulos.fluxo_envio_producao import executar_envio_producao
-from modulos.analise_remota import executar_analise_remota
-from modulos.revisao_interativa import desfazer_renomeacoes, executar_revisao
-from modulos.primeiro_uso import mostrar_guia, preparar
-from modulos.nomes_aprovados import (
+from modulos.envio.fluxo_envio_teste import executar_envio_teste
+from modulos.envio.fluxo_envio_producao import executar_envio_producao
+from modulos.site.analise_remota import executar_analise_remota
+from modulos.ferramentas.revisao_interativa import desfazer_renomeacoes, executar_revisao
+from modulos.ferramentas.primeiro_uso import mostrar_guia, preparar
+from modulos.dados.nomes_aprovados import (
     carregar_nomes_aprovados,
     registrar_sugestoes,
 )
-from modulos.sugestao_temas import (
+from modulos.dados.sugestao_temas import (
     SCORE_PROVAVEL,
     carregar_codigos_pasta,
     ler_temas_site,

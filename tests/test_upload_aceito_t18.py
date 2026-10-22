@@ -54,7 +54,7 @@ SELETORES = {
 @pytest.mark.real
 def test_upload_aceito_t18():
     """Valida que aguardar_upload_aceito() detecta o sinal real de upload aceito."""
-    from modulos.formulario_envio import aguardar_upload_aceito
+    from modulos.site.formulario_envio import aguardar_upload_aceito
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)

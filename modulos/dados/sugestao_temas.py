@@ -14,7 +14,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
-from modulos.normalizacao import extrair_codigo_tema, normalizar_nome
+from modulos.dados.normalizacao import extrair_codigo_tema, normalizar_nome
 
 SCORE_MINIMO = 60.0   # abaixo disso: nenhum tema parecido
 SCORE_PROVAVEL = 85.0  # a partir disso: provável; entre os dois: fraco, conferir

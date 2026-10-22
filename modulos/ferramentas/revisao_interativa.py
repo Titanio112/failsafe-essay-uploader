@@ -31,12 +31,12 @@ from typing import Callable
 
 from rapidfuzz import fuzz
 
-from modulos.estados import REVISAO_MANUAL
-from modulos.nomes_aprovados import _sugestoes_para
-from modulos.normalizacao import PADRAO_CODIGO_ARQUIVO, extrair_codigo_tema, normalizar_nome
-from modulos.planilha_arquivos import Aluno, ResultadoConciliacao, eh_folha_em_branco
-from modulos.progresso_relatorio import ENVIADO, ENVIANDO, JA_ENVIADO
-from modulos.sugestao_temas import SCORE_PROVAVEL, _titulo, aprovar_pasta
+from modulos.base.estados import REVISAO_MANUAL
+from modulos.dados.nomes_aprovados import _sugestoes_para
+from modulos.dados.normalizacao import PADRAO_CODIGO_ARQUIVO, extrair_codigo_tema, normalizar_nome
+from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao, eh_folha_em_branco
+from modulos.base.progresso_relatorio import ENVIADO, ENVIANDO, JA_ENVIADO
+from modulos.dados.sugestao_temas import SCORE_PROVAVEL, _titulo, aprovar_pasta
 
 ESTADOS_TRAVADOS = {ENVIADO, ENVIANDO, JA_ENVIADO, REVISAO_MANUAL}
 COLUNAS_LOG = ["pasta", "antes", "depois", "aluno_email"]

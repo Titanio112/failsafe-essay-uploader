@@ -10,10 +10,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.estados import EXATO_UNICO, SUGESTAO_FUZZY, AMBIGUO
-from modulos.fila_producao import montar_lote_producao
-from modulos.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao
-from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ERRO
+from modulos.base.estados import EXATO_UNICO, SUGESTAO_FUZZY, AMBIGUO
+from modulos.envio.fila_producao import montar_lote_producao
+from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ERRO
 
 ANA = Aluno(nome="Ana Lalara", email="ana@escola.com")
 BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")

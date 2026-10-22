@@ -3,7 +3,7 @@
 import pytest
 
 def test_import_login():
-    from modulos.login import (
+    from modulos.site.login import (
         DOMINIO_ESPERADO,
         verificar_dominio_autorizado,
         login,
@@ -12,7 +12,7 @@ def test_import_login():
     assert DOMINIO_ESPERADO == "www.esquemaredacao.com.br"
 
 def test_import_lista_redacoes():
-    from modulos.lista_redacoes import (
+    from modulos.site.lista_redacoes import (
         ItemListaRedacao,
         ler_saldo_creditos,
         ler_lista_redacoes,
@@ -23,7 +23,7 @@ def test_import_lista_redacoes():
     )
 
 def test_import_formulario_envio():
-    from modulos.formulario_envio import (
+    from modulos.site.formulario_envio import (
         abrir_formulario_envio,
         ler_combo_temas,
         selecionar_tema_por_codigo,
@@ -33,31 +33,31 @@ def test_import_formulario_envio():
     )
 
 def test_import_confirmacao():
-    from modulos.confirmacao import (
+    from modulos.site.confirmacao import (
         clicar_enviar,
         aguardar_confirmacao,
         logout,
     )
 
 def test_import_plataforma():
-    from modulos.login import (
+    from modulos.site.login import (
         login as login_plataforma,
         confirmar_identidade as confirmar_identidade_plataforma,
     )
-    from modulos.lista_redacoes import (
+    from modulos.site.lista_redacoes import (
         ler_lista_redacoes as ler_lista_redacoes_plataforma,
     )
-    from modulos.formulario_envio import (
+    from modulos.site.formulario_envio import (
         ler_combo_temas as ler_combo_temas_plataforma,
     )
-    from modulos.formulario_envio import (
+    from modulos.site.formulario_envio import (
         selecionar_tema_por_codigo as selecionar_tema_por_codigo_plataforma,
     )
-    from modulos.planilha_arquivos import Aluno
-    from modulos.config import Config
+    from modulos.dados.planilha_arquivos import Aluno
+    from modulos.base.config import Config
 
 def test_import_planilha_arquivos():
-    from modulos.planilha_arquivos import (
+    from modulos.dados.planilha_arquivos import (
         Aluno as AlunoPlanilha,
         normalizar_nome,
         extrair_pessoa,
@@ -80,16 +80,16 @@ def test_import_planilha_arquivos():
     )
 
 def test_import_config():
-    from modulos.config import Config, obter_email_teste, obter_senha, exigir_envio_real
+    from modulos.base.config import Config, obter_email_teste, obter_senha, exigir_envio_real
 
 def test_import_progresso():
-    from modulos.progresso_relatorio import Progresso
+    from modulos.base.progresso_relatorio import Progresso
 
 def test_import_normalizacao():
-    from modulos.normalizacao import validar_codigo_site, extrair_codigo_tema
+    from modulos.dados.normalizacao import validar_codigo_site, extrair_codigo_tema
 
 def test_import_excecoes():
-    from modulos.excecoes import (
+    from modulos.base.excecoes import (
         CaptchaOuBloqueio,
         LoginFalhou,
         IdentidadeDivergente,

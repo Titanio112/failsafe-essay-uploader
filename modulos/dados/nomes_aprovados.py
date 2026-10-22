@@ -17,8 +17,8 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
-from modulos.normalizacao import normalizar_nome
-from modulos.planilha_arquivos import (
+from modulos.dados.normalizacao import normalizar_nome
+from modulos.dados.planilha_arquivos import (
     Aluno, ResultadoConciliacao, _emitir_aviso, candidatos_nome_parcial, eh_folha_em_branco,
 )
 

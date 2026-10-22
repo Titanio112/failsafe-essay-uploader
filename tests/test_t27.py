@@ -14,14 +14,14 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config
-from modulos.estados import EXATO_UNICO, REVISAO_MANUAL, SIMULADO
-from modulos.excecoes import ConfirmacaoInconclusiva
-from modulos.fila_teste import ItemFilaTeste
-from modulos.lista_redacoes import ItemListaRedacao
-from modulos.login import DOMINIO_ESPERADO, nomes_compativeis
-from modulos.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, conciliar
-from modulos.progresso_relatorio import Progresso, ENVIADO, ERRO
+from modulos.base.config import Config
+from modulos.base.estados import EXATO_UNICO, REVISAO_MANUAL, SIMULADO
+from modulos.base.excecoes import ConfirmacaoInconclusiva
+from modulos.envio.fila_teste import ItemFilaTeste
+from modulos.site.lista_redacoes import ItemListaRedacao
+from modulos.site.login import DOMINIO_ESPERADO, nomes_compativeis
+from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, conciliar
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, ERRO
 
 
 # ---- Q2: identidade tolerante a nome abreviado ----
@@ -53,7 +53,7 @@ class _Relogio:
 
 def _aguardar(situacoes: list[str], data: str | None = None):
     from datetime import datetime
-    from modulos import confirmacao
+    from modulos.site import confirmacao
     hoje = data or datetime.now().strftime("%d/%m/%Y")
     itens = [[ItemListaRedacao(codigo="0", tema="0- Narração", data=hoje, situacao=s)] if s else []
              for s in situacoes]
@@ -86,7 +86,7 @@ def test_linha_de_outro_dia_nao_conta():
 
 def test_folha_em_branco_vai_para_revisao_mesmo_aprovada():
     ana = Aluno(nome="Ana Lalara Larili", email="ana@escola.com")
-    from modulos.normalizacao import normalizar_nome
+    from modulos.dados.normalizacao import normalizar_nome
     aprovados = {normalizar_nome("Ana em branco"): ana}
 
     resultado = conciliar([ana], {"100 - Tema": ["Ana em branco.JPG", "Ana Lalara Larili.JPG"]},
@@ -115,7 +115,7 @@ def test_conciliacao_marca_codigo_repetido_como_simulado():
 
 
 def test_envio_item_nao_clica_com_codigo_repetido_no_combo(tmp_path):
-    from modulos import envio_item
+    from modulos.envio import envio_item
     prog = Progresso(tmp_path / "p.db")
     item = ItemFilaTeste("0000 - Simulado", "Ana.JPG", "0000", tmp_path / "Ana.JPG", "0000 - Simulado/Ana.JPG")
     with patch.object(envio_item, "ler_saldo_creditos", return_value=10), \
@@ -135,7 +135,7 @@ def test_envio_item_nao_clica_com_codigo_repetido_no_combo(tmp_path):
 # ---- Q1: análise remota ----
 
 def test_gravar_temas_csv_mantem_repetidos_e_faz_backup(tmp_path):
-    from modulos.analise_remota import gravar_temas_csv
+    from modulos.site.analise_remota import gravar_temas_csv
     caminho = tmp_path / "temas_site.csv"
     caminho.write_text("codigo,texto\n9,antigo\n", encoding="utf-8")
 
@@ -149,7 +149,7 @@ def test_gravar_temas_csv_mantem_repetidos_e_faz_backup(tmp_path):
 
 @pytest.fixture
 def analise_mocks():
-    from modulos import analise_remota as ar
+    from modulos.site import analise_remota as ar
     with patch.object(ar, "sync_playwright") as pw, \
          patch.object(ar, "obter_email_teste", return_value="teste@x.com"), \
          patch.object(ar, "obter_senha", return_value="s"), \
@@ -163,7 +163,7 @@ def analise_mocks():
 
 
 def test_analise_remota_grava_o_combo(tmp_path, analise_mocks):
-    from modulos.analise_remota import executar_analise_remota
+    from modulos.site.analise_remota import executar_analise_remota
     analise_mocks["combo"].return_value = [("0", "0- Narração"), ("100", "100- Filiação")]
     caminho = tmp_path / "temas_site.csv"
 
@@ -173,7 +173,7 @@ def test_analise_remota_grava_o_combo(tmp_path, analise_mocks):
 
 
 def test_analise_remota_combo_vazio_nao_mexe_no_csv(tmp_path, analise_mocks):
-    from modulos.analise_remota import executar_analise_remota
+    from modulos.site.analise_remota import executar_analise_remota
     analise_mocks["combo"].return_value = []
     caminho = tmp_path / "temas_site.csv"
     caminho.write_text("codigo,texto\n9,antigo\n", encoding="utf-8")
@@ -184,7 +184,7 @@ def test_analise_remota_combo_vazio_nao_mexe_no_csv(tmp_path, analise_mocks):
 
 
 def test_analise_remota_sem_ANALISAR_nao_faz_login(tmp_path, analise_mocks):
-    from modulos.analise_remota import executar_analise_remota
+    from modulos.site.analise_remota import executar_analise_remota
     analise_mocks["input"].return_value = "analisar"
 
     assert executar_analise_remota(Config(), tmp_path / "t.csv") == 2
@@ -196,8 +196,8 @@ def test_analise_remota_sem_ANALISAR_nao_faz_login(tmp_path, analise_mocks):
 # ---- Q5: relatório do envio de produção ----
 
 def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path, monkeypatch):
-    from modulos import config as config_mod
-    from modulos.fluxo_envio_producao import executar_envio_producao
+    from modulos.base import config as config_mod
+    from modulos.envio.fluxo_envio_producao import executar_envio_producao
     monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", False)  # fluxo com mocks; trava testada na T29
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "pend"
@@ -216,7 +216,7 @@ def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path, monkeypatc
         progresso.marcar(aluno_id, item.chave_progresso, ERRO, pasta=item.codigo, detalhe="falha simulada")
         return ERRO
 
-    from modulos import fluxo_envio_producao as fluxo
+    from modulos.envio import fluxo_envio_producao as fluxo
     with patch.object(fluxo, "sync_playwright"), patch("builtins.input", return_value="ENVIAR"), \
          patch.object(fluxo, "obter_senha", return_value="s"), patch.object(fluxo, "time"), \
          patch.object(fluxo, "verificar_dominio_autorizado"), patch.object(fluxo, "login"), \

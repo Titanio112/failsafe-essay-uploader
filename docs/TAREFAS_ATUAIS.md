@@ -66,4 +66,29 @@ $ python -m pytest -m "not real" -q
 $ python main.py        (sem --pasta: lê "Redações plataforma")
 Pastas de temas: 4 | JPGs encontrados: 130
 ```
-## T39 - Fase 3: módulos em subpastas [ ]
+## T39 - Fase 3: módulos em subpastas [x]
+
+- `modulos/base/` (config, estados, excecoes, progresso_relatorio),
+  `modulos/dados/` (planilha_arquivos, normalizacao, nomes_aprovados,
+  sugestao_temas), `modulos/site/` (login, lista_redacoes, formulario_envio,
+  confirmacao, analise_remota), `modulos/envio/` (envio_item, fila_teste,
+  fila_producao, fluxo_envio_teste, fluxo_envio_producao),
+  `modulos/ferramentas/` (revisao_interativa, primeiro_uso). `git mv` (histórico
+  preservado). Imports atualizados em main.py, modulos e tests (37 arquivos;
+  em tests/test_essenciais.py só o caminho dos imports mudou).
+- `RAIZ` agora é `parents[2]` (config.py ficou um nível mais fundo);
+  test_pos_f3 confere.
+- Testes que varrem os .py (test_sem_sala, test_pos_f3) passaram a usar
+  rglob: com glob("*.py") eles passariam sem checar nada.
+- test_estatico (pyflakes) corrigido: a lista antiga citava arquivos da raiz
+  que não existem (config.py, login.py...); agora varre main.py + modulos/** +
+  tests/. Prova: um arquivo plantado em modulos/site/ com nome indefinido e a
+  palavra "sala" fez test_estatico e test_sem_sala FALHAREM; apagado depois.
+- AGENTS.md (módulos, pastas, segurança, testes, git), PROJECT_MEMORY.md e
+  README.md atualizados.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+219 passed, 4 deselected
+```

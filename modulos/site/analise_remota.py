@@ -18,10 +18,10 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from modulos.config import Config, obter_email_teste, obter_senha
-from modulos.formulario_envio import abrir_formulario_envio, ler_combo_temas
-from modulos.login import DOMINIO_ESPERADO, confirmar_identidade, login, verificar_dominio_autorizado
-from modulos.planilha_arquivos import Aluno, mascarar_email
+from modulos.base.config import Config, obter_email_teste, obter_senha
+from modulos.site.formulario_envio import abrir_formulario_envio, ler_combo_temas
+from modulos.site.login import DOMINIO_ESPERADO, confirmar_identidade, login, verificar_dominio_autorizado
+from modulos.dados.planilha_arquivos import Aluno, mascarar_email
 
 log = logging.getLogger("automacao_redacoes")
 
@@ -108,5 +108,5 @@ def _ordem(codigo: str) -> tuple[int, str]:
 
 
 def ler_temas_csv(caminho: Path) -> list[tuple[str, str]]:
-    from modulos.sugestao_temas import ler_temas_site
+    from modulos.dados.sugestao_temas import ler_temas_site
     return ler_temas_site(caminho)

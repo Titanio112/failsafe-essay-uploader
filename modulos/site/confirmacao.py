@@ -6,9 +6,9 @@ from playwright.sync_api import Page
 import logging
 import time
 
-from modulos.excecoes import ConfirmacaoInconclusiva
-from modulos.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
-from modulos.lista_redacoes import ler_lista_redacoes
+from modulos.base.excecoes import ConfirmacaoInconclusiva
+from modulos.site.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
+from modulos.site.lista_redacoes import ler_lista_redacoes
 
 log = logging.getLogger("automacao_redacoes")
 

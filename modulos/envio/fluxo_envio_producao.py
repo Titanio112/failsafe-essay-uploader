@@ -19,15 +19,15 @@ from typing import Optional
 
 from playwright.sync_api import sync_playwright
 
-from modulos.config import Config, obter_senha
-from modulos.login import login, confirmar_identidade, DOMINIO_ESPERADO
-from modulos.formulario_envio import verificar_dominio_autorizado
-from modulos.confirmacao import logout
-from modulos.planilha_arquivos import ResultadoConciliacao, mascarar_email
-from modulos.fila_producao import LoteAluno, montar_lote_producao
-from modulos.envio_item import enviar_item
-from modulos.excecoes import CaptchaOuBloqueio
-from modulos.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
+from modulos.base.config import Config, obter_senha
+from modulos.site.login import login, confirmar_identidade, DOMINIO_ESPERADO
+from modulos.site.formulario_envio import verificar_dominio_autorizado
+from modulos.site.confirmacao import logout
+from modulos.dados.planilha_arquivos import ResultadoConciliacao, mascarar_email
+from modulos.envio.fila_producao import LoteAluno, montar_lote_producao
+from modulos.envio.envio_item import enviar_item
+from modulos.base.excecoes import CaptchaOuBloqueio
+from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
 
 
 log = logging.getLogger("automacao_redacoes")
@@ -116,7 +116,7 @@ def executar_envio_producao(
 ) -> int:
     """Retorna 0 = tudo enviado/já enviado; 1 = houve ERRO/REVISAO_MANUAL ou
     parada; 2 = cancelado na confirmação ou produção bloqueada."""
-    from modulos import config as config_mod
+    from modulos.base import config as config_mod
     if config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
         print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
         return 2

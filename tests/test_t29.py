@@ -13,13 +13,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from modulos.config import Config
-from modulos.planilha_arquivos import Aluno, conciliar
-from modulos.progresso_relatorio import ENVIADO, Progresso
-from modulos.revisao_interativa import (
+from modulos.base.config import Config
+from modulos.dados.planilha_arquivos import Aluno, conciliar
+from modulos.base.progresso_relatorio import ENVIADO, Progresso
+from modulos.ferramentas.revisao_interativa import (
     desfazer_renomeacoes, grupos_para_revisar, nome_arquivo_para, revisar_nomes, revisar_pastas,
 )
-from modulos.sugestao_temas import aprovar_pasta, carregar_codigos_pasta, registrar_sugestoes_pasta
+from modulos.dados.sugestao_temas import aprovar_pasta, carregar_codigos_pasta, registrar_sugestoes_pasta
 
 ANA = Aluno(nome="ANA LALARA LARILI DOS LARITO", email="ana@escola.com")
 ANA_M = Aluno(nome="ANA LALARA LARISA LAMORA", email="anam@escola.com")
@@ -272,7 +272,7 @@ def test_main_conta_aluno_fora_da_lista_da_erro(tmp_path, monkeypatch, capsys):
 
 @pytest.fixture
 def analise_mocks():
-    from modulos import analise_remota as ar
+    from modulos.site import analise_remota as ar
     with patch.object(ar, "sync_playwright"), \
          patch.object(ar, "obter_email_teste", return_value="teste@x.com") as email_teste, \
          patch.object(ar, "obter_senha", return_value="s") as senha, \
@@ -287,7 +287,7 @@ def analise_mocks():
 
 
 def test_analise_remota_na_conta_do_aluno_usa_senha_padrao(tmp_path, analise_mocks, capsys):
-    from modulos.analise_remota import executar_analise_remota
+    from modulos.site.analise_remota import executar_analise_remota
     caminho = tmp_path / "temas_site.csv"
     caminho.write_text("codigo,texto\n100,100- Filiação\n", encoding="utf-8")
     analise_mocks["combo"].return_value = [("100", "100- Filiação"), ("102", "102- Aporofobia")]
@@ -304,7 +304,7 @@ def test_analise_remota_na_conta_do_aluno_usa_senha_padrao(tmp_path, analise_moc
 # ─── Trava: nada vai para aluno real (Antônio, 22/10) ────────
 
 def test_producao_bloqueada_por_padrao():
-    from modulos import config as config_mod
+    from modulos.base import config as config_mod
     assert config_mod.PRODUCAO_BLOQUEADA is True
 
 
@@ -324,7 +324,7 @@ def test_main_envio_real_de_producao_bloqueado_sem_ler_alunos(tmp_path, monkeypa
 
 
 def test_fluxo_de_producao_bloqueado_mesmo_chamado_direto(tmp_path, monkeypatch):
-    from modulos import fluxo_envio_producao as fep
+    from modulos.envio import fluxo_envio_producao as fep
     monkeypatch.setattr(fep, "montar_lote_producao", lambda *a, **k: (_ for _ in ()).throw(AssertionError("montou lote")))
     with patch("builtins.input", side_effect=AssertionError("pediu ENVIAR")):
         assert fep.executar_envio_producao(Config(), conciliar([], {}, codigos_site=[])) == 2
@@ -350,7 +350,7 @@ def test_sem_terminal_nao_sai_codigo_de_cor(tmp_path):
 
 
 def test_com_cores_a_barra_fica_verde_quando_provavel(monkeypatch):
-    from modulos import revisao_interativa as ri
+    from modulos.ferramentas import revisao_interativa as ri
     monkeypatch.setitem(ri._cores, "ativas", True)
     assert "\033[32m" in ri._barra(95.0)
     assert "\033[33m" in ri._barra(65.0)
