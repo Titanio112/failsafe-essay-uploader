@@ -195,8 +195,10 @@ def test_analise_remota_sem_ANALISAR_nao_faz_login(tmp_path, analise_mocks):
 
 # ---- Q5: relatório do envio de produção ----
 
-def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path):
+def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path, monkeypatch):
+    from modulos import config as config_mod
     from modulos.fluxo_envio_producao import executar_envio_producao
+    monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", False)  # fluxo com mocks; trava testada na T29
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "pend"
     cfg.pasta_relatorios = tmp_path / "relatorios"

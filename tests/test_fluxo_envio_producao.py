@@ -24,6 +24,14 @@ ANA = Aluno(nome="Ana Lalara", email="ana@escola.com")
 BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
 
 
+@pytest.fixture(autouse=True)
+def producao_liberada_so_no_teste(monkeypatch):
+    """Estes testes exercitam o fluxo com mocks; a trava de 22/10 tem testes
+    próprios em tests/test_t29.py."""
+    from modulos import config as config_mod
+    monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", False)
+
+
 @pytest.fixture
 def cfg(tmp_path):
     cfg = Config()

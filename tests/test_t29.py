@@ -281,3 +281,32 @@ def test_analise_remota_na_conta_do_aluno_usa_senha_padrao(tmp_path, analise_moc
     assert analise_mocks["login"].call_args.args[2] == ANA.email
     assert analise_mocks["identidade"].call_args.args[1] is ANA
     assert "Codigos novos em relacao ao CSV anterior: ['102']" in capsys.readouterr().out
+
+
+# ─── Trava: nada vai para aluno real (Antônio, 22/10) ────────
+
+def test_producao_bloqueada_por_padrao():
+    from modulos import config as config_mod
+    assert config_mod.PRODUCAO_BLOQUEADA is True
+
+
+def test_main_envio_real_de_producao_bloqueado_sem_ler_alunos(tmp_path, monkeypatch, capsys):
+    import main as main_mod
+    cfg = _cfg(tmp_path, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: cfg)
+
+    def proibido(*a, **k):
+        raise AssertionError("passou da trava")
+    monkeypatch.setattr(main_mod, "carregar_alunos", proibido)
+    monkeypatch.setattr(main_mod, "executar_envio_producao", proibido)
+
+    assert main_mod.main(["--envio-real", "--pasta", str(tmp_path)]) == 2
+    assert "Envio para alunos reais desativado" in capsys.readouterr().out
+
+
+def test_fluxo_de_producao_bloqueado_mesmo_chamado_direto(tmp_path, monkeypatch):
+    from modulos import fluxo_envio_producao as fep
+    monkeypatch.setattr(fep, "montar_lote_producao", lambda *a, **k: (_ for _ in ()).throw(AssertionError("montou lote")))
+    with patch("builtins.input", side_effect=AssertionError("pediu ENVIAR")):
+        assert fep.executar_envio_producao(Config(), conciliar([], {}, codigos_site=[])) == 2

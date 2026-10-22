@@ -17,6 +17,15 @@ RAIZ = Path(__file__).resolve().parent.parent
 
 MENSAGEM_BLOQUEIO = "[BLOQUEADO] Envio real desativado."
 
+# Regra do Antônio (22/10/2026): por enquanto NENHUMA redação é enviada nas
+# contas dos alunos de verdade. Só o modo teste (conta de teste) envia.
+# Liberar = trocar para False, só com ordem expressa do Antônio.
+PRODUCAO_BLOQUEADA = True
+MENSAGEM_PRODUCAO_BLOQUEADA = (
+    "[BLOQUEADO] Envio para alunos reais desativado por decisao do Antonio (22/10).\n"
+    "[BLOQUEADO] So o modo teste envia (--modo-teste --envio-real). Nada foi enviado."
+)
+
 
 class EnvioBloqueado(RuntimeError):
     """Levantada quando uma ação de envio real é tentada sem autorização."""

@@ -972,7 +972,7 @@ Dropped refs/stash@{0} (8e358da3c487158f21a8465acae8c1df475cf538)
 $ (mesmo comando, T24)
 5 passed, 59 deselected in 1.08s
 
-## T25 - F4: primeiro envio real de produção (1 aluno) — executado pelo Antônio [ ]
+## T25 - F4: primeiro envio real de produção (1 aluno) — executado pelo Antônio [ ] (SUSPENSA pela trava da T30)
 - Pré-requisitos (Antônio) — atualizado na T26:
   1. Lista de alunos: `dados/dados_alunos.csv` (já existe; Nome;Email; a
      coluna Senha é ignorada e pode ser apagada).
@@ -1287,6 +1287,28 @@ $ python -m pytest -m "not real" -q
   - REGRA do Antônio (22/10): nunca enviar redação nas contas dos alunos de
     verdade. Claude não envia, não digita ENVIAR e não loga em conta de aluno.
   - `python -m pytest -m "not real" -q` -> 195 passed, 4 deselected.
+
+---
+
+## T30 - Trava: nada é enviado para alunos reais (por enquanto) [x]
+
+Ordem do Antônio (22/10): "o script deve bloquear o envio dos alunos reais,
+por enquanto".
+- `modulos/config.py`: `PRODUCAO_BLOQUEADA = True`. Liberar = trocar para
+  False, só com ordem expressa do Antônio.
+- Duas travas: `main.py` (`--envio-real` sem `--modo-teste` retorna 2 antes
+  de ler a lista de alunos) e `executar_envio_producao` (retorna 2 antes de
+  montar o lote ou pedir ENVIAR, mesmo chamado direto).
+- Modo teste (`--modo-teste --envio-real`, conta de teste) continua igual.
+- Testes do fluxo de produção com mocks desligam a trava só dentro do teste
+  (monkeypatch); a trava tem 3 testes próprios em tests/test_t29.py.
+- T25 (1º envio real de produção) fica suspensa enquanto a trava existir.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+198 passed, 4 deselected
+```
 
 ---
 

@@ -13,6 +13,7 @@ try:
 except (AttributeError, ValueError):
     pass
 
+from modulos import config as config_mod
 from modulos.config import MENSAGEM_BLOQUEIO, carregar_config
 from modulos.planilha_arquivos import (
     Aluno,
@@ -157,6 +158,9 @@ def main(argv=None) -> int:
             if not ler_codigos_site_csv(TEMAS_SITE_CSV):
                 print(f"[ERRO] Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
                 print("[ERRO] Nada foi enviado.")
+                return 2
+            if config_mod.PRODUCAO_BLOQUEADA:
+                print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
                 return 2
             # Senha padrão vem do .env (ou getpass)
             from dotenv import load_dotenv

@@ -115,7 +115,11 @@ def executar_envio_producao(
     limite_redacoes: Optional[int] = None,
 ) -> int:
     """Retorna 0 = tudo enviado/já enviado; 1 = houve ERRO/REVISAO_MANUAL ou
-    parada; 2 = cancelado na confirmação."""
+    parada; 2 = cancelado na confirmação ou produção bloqueada."""
+    from modulos import config as config_mod
+    if config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
+        print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
+        return 2
     lotes, ignorados = montar_lote_producao(
         resultado, Path(cfg.pasta_raiz), progresso,
         max_por_aluno=cfg.max_envios_por_aluno,
