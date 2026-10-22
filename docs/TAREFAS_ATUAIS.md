@@ -1,11 +1,14 @@
 # TAREFAS_ATUAIS.md — o que está aberto agora
 
 Histórico completo (T1–T36, com as provas): `docs/historico/TAREFAS_T1_a_T36.md`.
-Bugs: `docs/qa-issues/`. Regra de cada tarefa: só vira [x] com PROVA colada.
+Bugs: `docs/qa-issues/`. Pontos em aberto: `docs/PENDENCIAS.md`.
+Regra de cada tarefa: só vira [x] com PROVA colada.
 
 ## Estado em 22/10/2026
 
 - Branch `f4-producao` (não juntada à `limpeza`; sem remoto, sem push).
+- Branch `revisao-autonoma` (saiu da `f4-producao` em 22/10): T42–T46,
+  para o Antônio revisar e juntar ou descartar. A `f4-producao` não mudou.
 - Envio para alunos reais BLOQUEADO (`PRODUCAO_BLOQUEADA = True`, T30).
   Só o modo teste envia. Liberar só com ordem do Antônio.
 - Pastas aprovadas: aporofobia -> 000 (genérico). Faltam filiação (100),
@@ -18,6 +21,9 @@ Bugs: `docs/qa-issues/`. Regra de cada tarefa: só vira [x] com PROVA colada.
       (temas 0, 000, 000, 100), todas "Pendente". Contagem do 000 confirmada.
 - [ ] Rodar `--revisar`: Enter na filiação, `g` na discriminação e na
       tecnologia, depois os nomes.
+- [ ] Revisar a branch `revisao-autonoma` (T42–T46): juntar ou descartar.
+- [ ] Rodar o ensaio: `python main.py --ensaio 3`, depois com
+      `--envio-real` (ENVIAR TESTE). Confere também o critério ENEM (T44) no site.
 - [ ] Decidir quando liberar o envio para alunos reais (T25 suspensa).
 
 ## Reorganização pedida em 22/10 (limpeza, sobras, módulos)
@@ -34,7 +40,9 @@ Pedido do Antônio: "pode fazer as limpezas".
   teste em `redacoes_pendentes/`, `__pycache__/` e `.pytest_cache/`.
   As pastas `logs/` e `diagnosticos/` ficam (o código grava nelas).
 - Documentos: na raiz ficam só `AGENTS.md` e `PROJECT_MEMORY.md` (+ README na
-  Fase 2). `DECISOES_PENDENTES.md` e `REGRAS_CLINE_AUTOMACAO.md` -> `docs/`.
+  Fase 2). `DECISOES_PENDENTES.md` e `REGRAS_CLINE_AUTOMACAO.md` -> `docs/`
+  (em 22/10, depois da T46, `DECISOES_PENDENTES.md` -> `docs/historico/`;
+  o que segue aberto está em `docs/PENDENCIAS.md`).
   Desatualizados -> `docs/historico/`: TAREFAS (T1–T36), AUDITORIA_SELETORES,
   FLUXO_FASE3, INVENTARIO, PROMPT_CLINE, HANDOFF, COMO_TESTAR_DRYRUN.
   Referências corrigidas em AGENTS.md, PROJECT_MEMORY.md, REGRAS e fila_producao.py.
@@ -48,7 +56,7 @@ Pedidos do Antônio (22/10): "não era pra ter limite do aluno"; pasta padrão
   teste protegido usa (marcados "não usado pelo fluxo").
 - Pasta padrão: `Redações plataforma/` (constante `PASTA_REDACOES`).
   `redacoes_pendentes/` removida.
-- Primeiro uso: `python main.py --preparar` (modulos/primeiro_uso.py) cria a
+- Primeiro uso: `python main.py --preparar` (modulos/ferramentas/primeiro_uso.py) cria a
   pasta com LEIA-ME.md (era .txt; trocado a pedido do Antônio), `dados/dados_alunos.csv` (Nome;Email) e `.env` a partir
   do `.env.example`, sem sobrescrever nada, e mostra ✔/✘ do que falta. O
   dry-run sem lista de alunos ou sem pasta mostra o guia (antes: erro do Python).
@@ -144,4 +152,99 @@ PROVA:
 ```
 $ python -m pytest -m "not real" -q
 228 passed, 4 deselected
+```
+
+## Revisão autônoma pedida em 22/10 (branch `revisao-autonoma`)
+
+## T42 - Ensaio: redações reais na conta de teste [x]
+
+Por quê: testar fotos, temas reais (inclusive o 000) e aprovações do
+`--revisar` antes de liberar a produção, sem abrir conta de aluno.
+- `python main.py --ensaio [N]` (padrão 3): conciliação real (lista de
+  alunos, `Redações plataforma/`, aprovações de `dados/`), amostra da fila
+  validada em rodízio entre pastas, TODA para a conta de teste. Sem
+  `--envio-real` só lista; com ele pede ENVIAR TESTE e usa ESQUEMA_SENHA_TESTE.
+- Chave no banco `ensaio/pasta/arquivo` na conta de teste; o registro do
+  aluno real nunca é tocado; o que já foi no ensaio não volta.
+- Funciona com `PRODUCAO_BLOQUEADA = True`. Recusa se ESQUEMA_EMAIL_TESTE
+  for e-mail de aluno. Não combina com --modo-teste/--revisar/--analise-remota.
+- Arquivos: main.py, modulos/envio/ensaio.py (novo),
+  modulos/envio/fluxo_envio_producao.py, tests/test_t42.py.
+- Commit: c522337.
+
+## T43 - Nomes e arquivos como vêm de verdade [x]
+
+- "Ana 2.jpg" / "Ana (2).jpg" identificam a mesma aluna e mandam os arquivos
+  dela na pasta para REVISAO_MANUAL (página 2? cópia?).
+- Número no início do ARQUIVO numa pasta SEM código de tema → REVISAO_MANUAL
+  (é página, não tema). `_` no nome separa palavras (em `extrair_pessoa`;
+  `normalizar_nome` igual por causa do teste protegido).
+- Ignorados calados: `._*`, `~$*`, Thumbs.db, desktop.ini. Subpasta dentro
+  do tema: aviso e ignorada.
+- CSV do Excel (cp1252), cabeçalho "E-mail" e linha `sep=;` aceitos;
+  acrescentar linha em CSV sem quebra final corrigido
+  (modulos/dados/arquivos_csv.py, novo).
+- pastas_aprovadas: linha cujo `tema` começa por outro código que o
+  `codigo` é ignorada com aviso (Excel tira os zeros: 000 -> 0).
+- `--desfazer-renomeacao` recusa arquivo com estado de envio no banco; a
+  revisão grava o log antes de renomear; banco ilegível bloqueia renomear.
+- main explica lista de alunos ilegível (antes: traceback); `--pasta` com
+  `--modo-teste` é recusado.
+- Arquivos: main.py, modulos/dados/{arquivos_csv, conciliacao_completa,
+  nomes_aprovados, normalizacao, planilha_arquivos, sugestao_temas}.py,
+  modulos/ferramentas/{primeiro_uso, revisao_interativa}.py, tests/test_t43.py.
+- Commit: 97e220d.
+
+## T44 - Segurança do envio [x]
+
+- Critério ENEM conferido (`option:checked` value 1); senão ERRO sem clique.
+- CAPTCHA/bloqueio de domínio durante um item para a execução INTEIRA (P6).
+- Confirmação julga só a linha NOVA (linhas do mesmo tema hoje que já
+  existiam, ex.: Corrigida ou erro antigo, não dão falso erro).
+- Tabela achada pelo cabeçalho Data|Tema|Nota|Situação; paginação → fail-closed.
+- Mesma foto (sha256) não vai duas vezes: no lote, nem se já registrada
+  para o aluno com outro nome/pasta.
+- "Hoje" = Brasília (UTC-3 fixo, modulos/base/relogio.py); nada entre
+  23:55 e 00:05.
+- Um envio por vez: trava do sistema em `relatorios/envio.trava`
+  (modulos/base/trava.py).
+- Domínio exatamente www.esquemaredacao.com.br; identidade exata na conta
+  de teste; depois do clique espera sair de /wordings/new (30 s); sqlite
+  timeout 30 s; traceback com palavra de segredo não vai para o log; modo
+  teste recusa e-mail de teste que é de aluno.
+- Arquivos: modulos/base/{relogio, trava}.py (novos),
+  progresso_relatorio.py, modulos/envio/{ensaio, envio_item, fila_producao,
+  fila_teste, fluxo_envio_producao, fluxo_envio_teste}.py,
+  modulos/site/{confirmacao, formulario_envio, lista_redacoes, login}.py,
+  main.py, tests/test_t44.py (+ ajustes de mock em 7 testes).
+- Commits: e9565c5 (+ 0c806a3: teste offline do clique, sem retry, espera sair do formulário).
+
+## T45 - Conferência mais curta, log em arquivo, roda de qualquer pasta [x]
+
+- Dry-run: pasta sem código de tema vira uma linha de resumo (nomes
+  exatos/parecidos/sem aluno/a decidir).
+- "Proximo passo" sugere `python main.py --ensaio 3` quando há fila validada.
+- Log gravado em `logs/automacao.log`.
+- `python main.py` de outra pasta funciona (chdir para o projeto).
+- Arquivos: main.py, tests/conftest.py, tests/test_t45.py.
+- Commit: aae436c.
+
+## T46 - Opções fora de lugar recusadas, aprovação antiga, saldo [x]
+
+- `--conta-aluno` sem `--analise-remota` e `--limite-*` fora do
+  `--envio-real` de produção → recusados (saída 2).
+- Aprovação "nome parcial" antiga é ignorada quando a lista passa a ter mais
+  de um aluno que combina.
+- Teste de coleta sem caminho fixo (tests/test_imports_reais.py).
+- Saldo só pelo texto "Você tem N crédito(s)" (sem o fallback que pegava
+  qualquer número + "crédito").
+- Arquivos: main.py, modulos/dados/nomes_aprovados.py,
+  modulos/site/lista_redacoes.py, tests/test_imports_reais.py, tests/test_t46.py.
+- Commits: 93fc944, 5cd0610.
+
+PROVA (suíte completa depois da T46, 22/10; totais de cada tarefa não
+foram medidos em separado):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+300 passed, 4 deselected
 ```
