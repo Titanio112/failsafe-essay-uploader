@@ -172,6 +172,15 @@ def main(argv=None) -> int:
     if (args.revisar or args.desfazer_renomeacao) and args.envio_real:
         tela.erro("--revisar/--desfazer-renomeacao nao combinam com --envio-real.")
         return 2
+    # T46: opção que não vale na combinação pedida é recusada (não ignorada calada)
+    if args.conta_aluno and not args.analise_remota:
+        tela.erro("--conta-aluno so vale com --analise-remota.")
+        return 2
+    if (args.limite_alunos is not None or args.limite_redacoes is not None) and (
+            not args.envio_real or args.modo_teste or args.ensaio is not None):
+        tela.erro("--limite-alunos/--limite-redacoes so valem no envio de producao (--envio-real); "
+                  "no ensaio use --ensaio N.")
+        return 2
     if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
         tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
         return 2

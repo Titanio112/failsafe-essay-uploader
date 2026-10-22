@@ -55,6 +55,13 @@ def carregar_nomes_aprovados(caminho: Path, alunos: list[Aluno]) -> dict[str, Al
         if aluno is None:
             _emitir_aviso(f"nomes_aprovados: e-mail fora da lista de alunos para '{linha.get('nome_no_arquivo')}'; ignorado.")
             continue
+        if (linha.get("motivo", "") == "nome parcial"
+                and len(candidatos_nome_parcial(norm, alunos)) > 1):
+            # T46: na aprovação só um aluno combinava; a lista mudou e agora
+            # combinam vários -> a aprovação antiga não vale mais.
+            _emitir_aviso(f"nomes_aprovados: '{linha.get('nome_no_arquivo')}' agora combina com mais de um "
+                          "aluno da lista; aprovacao ignorada (aprove de novo).")
+            continue
         if norm in aprovados and aprovados[norm] is not aluno:
             conflitos.add(norm)
         aprovados[norm] = aluno

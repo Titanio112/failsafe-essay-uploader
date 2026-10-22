@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Testes offline: importar todos os símbolos que os testes reais usam (sem navegador)."""
+from pathlib import Path
+
 import pytest
 
 def test_import_login():
@@ -104,14 +106,13 @@ def test_coleta_testes_reais():
     import sys
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-m", "real", "-q"],
-        cwd="d:\\%USERNAME%\\Documents\\VS-CODE\\Ambientes\\esquema\\automacao-redacoes",
+        cwd=str(Path(__file__).resolve().parent.parent),
         capture_output=True,
         text=True,
         timeout=30
     )
-    # O comando deve rodar sem erro (exit code 0 ou 5 - no tests collected)
-    # Exit code 2 pode ocorrer se houver arquivos nao-test com erro de encoding
-    assert result.returncode in (0, 2, 5), f"pytest collect falhou: {result.stderr}"
+    # T46: só 0 (2 = erro de coleta, não pode passar)
+    assert result.returncode == 0, f"pytest collect falhou: {result.stdout}\n{result.stderr}"
     # Nao deve ter erro de importacao
     assert "ImportError" not in result.stderr
     assert "ModuleNotFoundError" not in result.stderr
@@ -119,5 +120,6 @@ def test_coleta_testes_reais():
     # Deve coletar pelo menos o teste real
     assert "test_real_leitura_conta_teste" in result.stdout
     assert "test_launch" in result.stdout
+    assert "test_upload_aceito_t18" in result.stdout and "test_upload_sinal_observacao" in result.stdout
     print("STDOUT:", result.stdout)
     print("STDERR:", result.stderr)
