@@ -232,6 +232,11 @@ def descobrir_arquivos(cfg: Config) -> dict[str, list[str]]:
     return resultado
 
 
+def eh_folha_em_branco(norm: str) -> bool:
+    """Nome do arquivo (normalizado) marca folha em branco: "x em branco" (T27)."""
+    return " em branco" in f" {norm}"
+
+
 def candidatos_nome_parcial(norm: str, alunos: list[Aluno]) -> list[Aluno]:
     """Alunos cujo nome contém TODAS as palavras do nome do arquivo (T26).
 
@@ -291,7 +296,7 @@ def conciliar(
             pessoa = extrair_pessoa(nome_arquivo)
             norm = normalizar_nome(pessoa)
             codigo = extrair_codigo_tema(nome_arquivo, pasta)
-            if codigo and codigo != "":
+            if codigo and codigo != "" and not eh_folha_em_branco(norm):
                 exatos, _ = _resolver_alunos(norm, por_norm, nomes_aprovados)
                 if len(exatos) == 1:
                     aluno_match = exatos[0]
@@ -305,6 +310,15 @@ def conciliar(
         for nome_arquivo in arquivos:
             pessoa = extrair_pessoa(nome_arquivo)
             norm = normalizar_nome(pessoa)
+
+            # Folha em branco nunca entra na fila, nem com nome aprovado (T27)
+            if eh_folha_em_branco(norm):
+                itens.append(ItemConciliacao(
+                    pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
+                    estado=REVISAO_MANUAL, observacao="folha em branco: decidir a mao",
+                    codigo_tema=extrair_codigo_tema(nome_arquivo, pasta) or "",
+                ))
+                continue
 
             # Extrair códigos do arquivo e da pasta separadamente para detectar conflito
             stem = Path(nome_arquivo).stem

@@ -54,6 +54,18 @@ def login(page: Page, cfg: Config, email: str, senha: str) -> None:
             raise LoginFalhou(f"Login incerto — sem saldo visível e sem menu do usuário. URL: {page.url}")
 
 
+def nomes_compativeis(no_site: str, na_lista: str) -> bool:
+    """Nomes já normalizados. Iguais, ou um contido no outro com a mesma
+    1ª palavra e ao menos 2 palavras no menor (site pode abreviar:
+    "ana lalara" x "ana lalara larili dos larito") (T27)."""
+    if no_site == na_lista:
+        return True
+    a, b = no_site.split(), na_lista.split()
+    if min(len(a), len(b)) < 2 or a[0] != b[0]:
+        return False
+    return set(a) <= set(b) or set(b) <= set(a)
+
+
 def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> bool:
     """Confirma se o aluno logado corresponde ao esperado.
 
@@ -115,7 +127,7 @@ def confirmar_identidade(page: Page, aluno: Aluno, modo_teste: bool = False) -> 
     nome_normalizado = normalizar_nome(texto_visivel)
     esperado_normalizado = normalizar_nome(aluno.nome)
 
-    if nome_normalizado != esperado_normalizado:
+    if not nomes_compativeis(nome_normalizado, esperado_normalizado):
         url_sem_query = page.url.split("?")[0]
         diagnostico = (
             f"URL: {url_sem_query} | "

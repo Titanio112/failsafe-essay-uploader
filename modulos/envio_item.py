@@ -69,7 +69,13 @@ def enviar_item(
 
         # 3. Formulario e codigo no combo (fail-closed)
         abrir_formulario_envio(page)
-        codigos_disponiveis = {t[0] for t in ler_combo_temas(page)}
+        codigos_combo = [t[0] for t in ler_combo_temas(page)]
+        codigos_disponiveis = set(codigos_combo)
+        if codigos_combo.count(codigo) > 1:
+            # Bug 001: ex. 0000 = dois Simulados; selecionar pegaria o 1º às cegas
+            log.error("Codigo %s aparece %dx no combo. Nao envia (revisao manual).",
+                      codigo, codigos_combo.count(codigo))
+            return marcar(ERRO, f"Codigo {codigo} repetido no combo (revisao manual)")
         if codigo not in codigos_disponiveis:
             log.error("Codigo %s nao encontrado no combo de temas do site. Disponiveis: %s",
                       codigo, sorted(codigos_disponiveis))

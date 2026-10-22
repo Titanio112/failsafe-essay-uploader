@@ -19,7 +19,9 @@ from rapidfuzz import fuzz
 
 from modulos.estados import AMBIGUO, ARQUIVO_SEM_ALUNO, SUGESTAO_FUZZY
 from modulos.normalizacao import normalizar_nome
-from modulos.planilha_arquivos import Aluno, ResultadoConciliacao, _emitir_aviso, candidatos_nome_parcial
+from modulos.planilha_arquivos import (
+    Aluno, ResultadoConciliacao, _emitir_aviso, candidatos_nome_parcial, eh_folha_em_branco,
+)
 
 COLUNAS = ["nome_no_arquivo", "aluno_nome", "aluno_email", "aprovado", "motivo"]
 RESPOSTAS_SIM = {"sim", "s", "x", "ok", "yes"}
@@ -88,7 +90,7 @@ def registrar_sugestoes(resultado: ResultadoConciliacao, alunos: list[Aluno], ca
         norm = normalizar_nome(item.pessoa)
         if not norm or norm in ja_tem_nome:
             continue
-        if " em branco" in f" {norm}":
+        if eh_folha_em_branco(norm):
             continue  # folha em branco: nunca sugerir aluno (decidir à mão)
         ja_tem_nome.add(norm)
         for aluno, motivo in _sugestoes_para(norm, alunos):

@@ -748,14 +748,17 @@ def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_t
 
 
 def test_fail_closed_analise_remota_sem_codigos_site(monkeypatch, tmp_path, config_teste):
-    """--analise-remota sem códigos do site deve abortar com erro claro."""
+    """--analise-remota sem a confirmação ANALISAR deve abortar (retorno 2)
+    sem abrir navegador, sem login e sem tocar em dados/temas_site.csv.
+    (T27: a análise remota foi implementada; antes ela sempre abortava.)"""
     from main import main
     import sys
-    # O config_teste já tem planilha e pasta configurados
     monkeypatch.setattr(sys, 'argv', ['main.py', '--analise-remota'])
-    # Mockar carregar_alunos para não precisar de planilha real
     from unittest.mock import patch
-    with patch('main.carregar_alunos', return_value=[]):
+    with patch('builtins.input', return_value=''), \
+         patch('modulos.analise_remota.sync_playwright', side_effect=AssertionError("abriu navegador")), \
+         patch('modulos.analise_remota.gravar_temas_csv', side_effect=AssertionError("gravou CSV")), \
+         patch('main.carregar_alunos', side_effect=AssertionError("leu planilha")):
         result = main()
     assert result == 2
 

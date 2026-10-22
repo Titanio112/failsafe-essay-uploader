@@ -984,6 +984,9 @@ $ (mesmo comando, T24)
      (o dry-run sugere o código).
   4. `dados/temas_site.csv` com os códigos do combo (tem 108, de 01/10).
   5. (Recomendado) a troca do banco de progresso explicada na T22.
+- Passo 0 (T27), atualizar os códigos dos temas (só leitura no site, conta
+  de teste; digitar ANALISAR):
+  python main.py --analise-remota
 - Passo 1, dry-run (não envia, não abre navegador):
   python main.py
   Conferir `relatorios/relatorio_conciliacao.csv` e, em
@@ -1083,6 +1086,75 @@ $ git stash pop
 Dropped refs/stash@{0} (1640594de31c33172e9ea1c7420c6e65728e09e9)
 $ (mesmo comando, T26)
 9 passed in 0.62s
+
+## T27 - F4: análise remota, identidade tolerante, "Processando", folha em branco, relatório [x]
+- Pedido do Antônio (22/10): "pode implementar todas" as sugestões da T26;
+  gostou da análise remota; deixar o script "mais inteligente" (pode passar
+  um pouco do MVP); achou erro -> reportar e resolver.
+- Decisões de bom senso (revisar):
+  - Q1 Análise remota `--analise-remota` + confirmação `ANALISAR`: login na
+    CONTA DE TESTE (nenhum aluno é usado), abre /wordings/new, lê o combo de
+    temas e regrava `dados/temas_site.csv` (backup do anterior em
+    `dados/temas_site.<data>.bak.csv`). Só leitura no site: nada é enviado.
+  - Q2 Identidade: aceita nome igual OU um nome contido no outro com a mesma
+    1ª palavra (site abreviado: "Ana Lalara" x "Ana Lalara Larili dos Larito").
+    Pessoa diferente continua IdentidadeDivergente (aluno inteiro ERRO).
+  - Q3 "Processando arquivo": se no fim dos 120 s a linha nova do tema de hoje
+    está em "Processando arquivo", conta como RECEBIDA (ENVIADO). Antes do
+    envio a lista não tinha esse tema hoje (checagem de duplicidade), então a
+    linha só pode ser a nossa. Sem linha nenhuma -> REVISAO_MANUAL, como antes.
+  - Q4 Folha "em branco" (nome do arquivo com "em branco"): nunca entra na
+    fila, nem aprovada em nomes_aprovados.csv -> REVISAO_MANUAL.
+  - Q5 (extra) Ao fim do envio de produção grava
+    `relatorios/envio_<data_hora>.csv` (aluno, e-mail mascarado, arquivo,
+    tema, estado, detalhe) para conferir o que aconteceu.
+- Bugs achados viram `docs/qa-issues/NNN-*.md` (regra 9 do AGENTS.md); sem
+  remoto no GitHub, `gh issue` não é possível neste repositório.
+- Bugs achados e resolvidos:
+  - 001 (`docs/qa-issues/001-codigo-repetido-no-combo.md`): `0000` aparece 2x
+    no combo, mas main.py lia os códigos num set (sumia o repetido) e a trava
+    antes do clique escolhia o 1º `0000` às cegas -> redação podia ir para o
+    Simulado errado. Agora: lista com repetidos (conciliação marca SIMULADO) e
+    `envio_item` dá ERRO sem clicar se o código aparece 2x no combo.
+  - (pego pelo teste novo antes do commit) folha em branco ainda contava em
+    "dois arquivos do mesmo aluno no mesmo tema" e bloqueava a redação
+    verdadeira do aluno. Corrigido na 1ª passada da conciliação.
+- Teste protegido alterado (justificativa): `test_fail_closed_analise_remota_sem_codigos_site`
+  fixava "--analise-remota sempre aborta" (não existia). Agora: sem digitar
+  ANALISAR -> retorna 2 sem abrir navegador, sem gravar CSV e sem ler planilha.
+  Mesmos 50 testes; asserts 155 -> 155.
+- pyflakes de tests/test_essenciais.py: 45 avisos antigos (imports sem uso),
+  iguais aos de antes; nenhum novo.
+PROVA:
+$ python -m py_compile main.py modulos/login.py modulos/confirmacao.py modulos/envio_item.py modulos/planilha_arquivos.py modulos/fluxo_envio_producao.py modulos/analise_remota.py modulos/nomes_aprovados.py
+[exit 0]
+$ python -m pyflakes main.py modulos/confirmacao.py modulos/envio_item.py modulos/fluxo_envio_producao.py modulos/analise_remota.py modulos/nomes_aprovados.py tests/test_t27.py
+[exit 0]  (tests/test_essenciais.py: 45 avisos antigos, ver acima)
+$ python -m pytest tests/test_t27.py -v -m "not real"
+============================= 20 passed in 0.96s ==============================
+[exit 0]
+$ python -m pytest -m "not real" -q
+........................................................................ [ 42%]
+........................................................................ [ 85%]
+........................                                                 [100%]
+168 passed, 4 deselected, 8 warnings in 6.59s
+[exit 0]
+$ git diff --check
+[exit 0]
+$ testes e asserts em test_essenciais.py: HEAD x agora
+def test_ HEAD=50 agora=50 | assert HEAD=155 agora=155
+$ git stash push -- modulos/confirmacao.py modulos/envio_item.py main.py
+Saved working directory and index state WIP on f4-producao: 8216f96 T26: lista de alunos em dados/, nomes aprovados por humano, sugestao de codigo de tema; senha so no .env
+$ python -m pytest tests/test_t27.py -q -m "not real"   (confirmacao/envio_item/main de 8216f96)
+FAILED tests/test_t27.py::test_processando_ate_o_fim_conta_como_recebido - mo...
+FAILED tests/test_t27.py::test_main_le_codigos_com_repetidos - AssertionError...
+FAILED tests/test_t27.py::test_envio_item_nao_clica_com_codigo_repetido_no_combo
+3 failed, 17 passed in 1.08s
+[exit 1]
+$ git stash pop
+Dropped refs/stash@{0} (1725fbf1422644c532fd4ca6273a87bb695dc453)
+$ python -m pytest tests/test_t27.py -q -m "not real"   (T27)
+20 passed in 1.07s
 
 ---
 

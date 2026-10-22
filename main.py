@@ -28,6 +28,7 @@ from modulos.progresso_relatorio import (
 )
 from modulos.fluxo_envio_teste import executar_envio_teste
 from modulos.fluxo_envio_producao import executar_envio_producao
+from modulos.analise_remota import executar_analise_remota
 from modulos.nomes_aprovados import (
     carregar_nomes_aprovados,
     registrar_sugestoes,
@@ -38,13 +39,15 @@ from modulos.sugestao_temas import SCORE_PROVAVEL, ler_temas_site, sugerir_codig
 TEMAS_SITE_CSV = Path("dados/temas_site.csv")
 
 
-def ler_codigos_site_csv(caminho: Path) -> set[str]:
-    """Códigos (strings exatas) da coluna 'codigo' do CSV; vazio se não existir."""
+def ler_codigos_site_csv(caminho: Path) -> list[str]:
+    """Códigos (strings exatas) da coluna 'codigo' do CSV, NA ORDEM e com os
+    repetidos (ex.: 0000 duas vezes), para a conciliação marcar código
+    duplicado no combo (bug 001). Vazio se não existir."""
     import csv
     if not Path(caminho).is_file():
-        return set()
+        return []
     with open(caminho, newline="", encoding="utf-8-sig") as f:
-        return {row["codigo"] for row in csv.DictReader(f) if row.get("codigo")}
+        return [row["codigo"] for row in csv.DictReader(f) if row.get("codigo")]
 
 
 def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes) -> None:
@@ -76,7 +79,7 @@ def parse_args(argv=None):
     p.add_argument("--envio-real", action="store_true",
                    help="habilita envio real (teste: ENVIAR TESTE; producao: ENVIAR)")
     p.add_argument("--analise-remota", action="store_true",
-                   help="somente leitura: login, lista redacoes, combo temas, logout")
+                   help="so leitura: login na conta de teste, le o combo de temas e atualiza dados/temas_site.csv (confirmacao ANALISAR)")
     p.add_argument("--limite-alunos", type=int, default=None)
     p.add_argument("--limite-redacoes", type=int, default=None)
     return p.parse_args(argv)
@@ -88,6 +91,12 @@ def main(argv=None) -> int:
     log = configurar_logging()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    # Análise remota (T27): só lê o combo de temas do site e atualiza o CSV
+    if args.analise_remota:
+        from dotenv import load_dotenv
+        load_dotenv()
+        return executar_analise_remota(cfg, TEMAS_SITE_CSV)
 
     # Modo teste: usa conta de teste e pasta de teste
     if args.modo_teste:
@@ -124,25 +133,17 @@ def main(argv=None) -> int:
     print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {total_jpgs}")
 
     # Determinar codigos_site com fail-closed
-    codigos_site = set()
-    # Análise remota exige o combo real (ainda não implementada): aborta.
-    # Envio (teste ou produção) usa o CSV só como referência; a trava real é o
-    # combo da conta logada, conferido item a item antes do clique (T18D).
-    if args.analise_remota:
-        print("[ERRO] Códigos do site não disponíveis. Execute a análise remota primeiro para obter o combo de temas.")
-        print("[ERRO] Use --analise-remota no mesmo dia para preencher dados/temas_site.csv.")
-        return 2
-    else:
-        # dados/temas_site.csv como referência (pode estar vazio/desatualizado)
-        temas_csv = TEMAS_SITE_CSV
-        if temas_csv.exists():
-            codigos_site = ler_codigos_site_csv(temas_csv)
-            if codigos_site:
-                print(f"[AVISO] Dry-run: usando {len(codigos_site)} códigos de dados/temas_site.csv (referência, pode estar desatualizado)")
-            else:
-                print("[AVISO] Dry-run: dados/temas_site.csv existe mas sem códigos válidos")
+    codigos_site: list[str] = []
+    # O CSV é só referência; a trava real é o combo da conta logada,
+    # conferido item a item antes do clique (T18D).
+    if TEMAS_SITE_CSV.exists():
+        codigos_site = ler_codigos_site_csv(TEMAS_SITE_CSV)
+        if codigos_site:
+            print(f"[AVISO] Usando {len(set(codigos_site))} códigos de dados/temas_site.csv (referência; atualize com --analise-remota)")
         else:
-            print("[AVISO] Dry-run: dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
+            print("[AVISO] dados/temas_site.csv existe mas sem códigos válidos")
+    else:
+        print("[AVISO] dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
 
     # Nomes de arquivo aprovados por humano (T26); não vale no modo teste
     nomes_aprovados = {} if args.modo_teste else carregar_nomes_aprovados(cfg.arquivo_nomes_aprovados, alunos)

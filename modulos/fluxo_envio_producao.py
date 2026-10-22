@@ -85,6 +85,28 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
     return None
 
 
+def gravar_relatorio_envio(lotes: list[LoteAluno], progresso: Progresso, pasta: Path) -> Path:
+    """relatorios/envio_<data_hora>.csv com o estado final de cada item do
+    lote, lido do banco (T27). Item sem tentativa fica com o estado anterior
+    (ex.: A_ENVIAR)."""
+    import csv
+    from datetime import datetime
+    caminho = Path(pasta) / f"envio_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+        escritor = csv.writer(f, delimiter=";")
+        escritor.writerow(["aluno", "email_mascarado", "arquivo", "tema", "estado", "detalhe", "atualizado_em"])
+        for lote in lotes:
+            for item in lote.itens:
+                registro = progresso.obter(lote.aluno.id, item.chave_progresso) or {}
+                escritor.writerow([
+                    lote.aluno.nome, mascarar_email(lote.aluno.email), item.chave_progresso,
+                    item.codigo, registro.get("estado", "NAO_TENTADO"),
+                    registro.get("detalhe", ""), registro.get("atualizado_em", ""),
+                ])
+    return caminho
+
+
 def executar_envio_producao(
     cfg: Config,
     resultado: ResultadoConciliacao,
@@ -152,4 +174,6 @@ def executar_envio_producao(
         print(f"  {estado}: {contagem.get(estado, 0)}")
     if parou:
         print("Execucao PARADA antes do fim. Confira REVISAO_MANUAL no site antes de rodar de novo.")
+    if progresso:
+        print(f"Relatorio do envio: {gravar_relatorio_envio(lotes, progresso, cfg.pasta_relatorios)}")
     return 1 if parou or contagem[ERRO] or contagem[REVISAO_MANUAL] else 0
