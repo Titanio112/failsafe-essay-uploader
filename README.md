@@ -42,11 +42,32 @@ Folha sem redação: ponha "em branco" no nome do arquivo; ela nunca é enviada.
      arquivo é renomeado para o nome exato do aluno (dá para desfazer com o
      comando que aparece no fim).
 4. Rode o dry-run de novo e confira a fila.
-5. Envio (hoje só na conta de teste):
-   ```
-   python main.py --modo-teste --envio-real
-   ```
-   Digite `ENVIAR TESTE` para confirmar.
+5. Envio: hoje só na conta de teste (veja abaixo).
+
+## Testar na conta de teste primeiro
+
+O modo teste faz **exatamente o mesmo caminho** do envio real (temas das
+pastas, tema genérico, revisão de nomes, contagem do dia), mas o único
+"aluno" é a conta de teste e as redações ficam em `testes/redacoes_teste/`.
+As aprovações de teste ficam em `testes/` e nunca se misturam com as reais.
+
+```
+testes/redacoes_teste/
+├── 0 - Narração/                           pasta com código: vai direto
+├── Efeitos da aporofobia/                  tema que não existe: g (000)
+├── Discriminação no trabalho/              2º no 000 no mesmo dia + nome curto + folha em branco
+└── Impactos da invisibilidade da filiação/ Enter no tema 100 + nome com erro
+```
+
+```
+python main.py --modo-teste                 confere, sem enviar
+python main.py --modo-teste --revisar       g, g, Enter e os nomes
+python main.py --modo-teste                 a fila deve ter 4 redações
+python main.py --modo-teste --envio-real    digite ENVIAR TESTE
+```
+Cada redação enviada gasta 1 crédito da conta de teste. Pode criar mais
+subpastas para testar outros casos: os arquivos devem ter o nome da conta
+de teste (`Usuario Testes Ignorar`) ou algo parecido, para a revisão perguntar.
 
 ## Outros comandos
 

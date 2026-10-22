@@ -8,7 +8,7 @@ Fluxo:
 4. Navegar para /wordings/new
 5. Selecionar tema confirmado (código '0' - disponível na conta de teste)
 6. Selecionar critério ENEM (value='1')
-7. Anexar 1 JPG de testes/redacoes_teste/0/
+7. Anexar 1 JPG de testes/redacoes_teste/0 - Narração/
 8. CHAMAR A FUNÇÃO OFICIAL aguardar_upload_aceito(page)
 9. AFIRMAR que retorna True (sinal detectado)
 10. Logout e fechar navegador em finally
@@ -32,9 +32,9 @@ EMAIL_TESTE = os.getenv("ESQUEMA_EMAIL_TESTE")
 SENHA_TESTE = os.getenv("ESQUEMA_SENHA_TESTE")
 
 # Arquivo de teste JPG (primeiro da pasta 0)
-JPGS_DIR = Path(__file__).parent.parent / "testes" / "redacoes_teste" / "0"
+JPGS_DIR = Path(__file__).parent.parent / "testes" / "redacoes_teste" / "0 - Narração"  # T40
 JPGS = sorted(JPGS_DIR.glob("*.jpg"))
-assert JPGS, "Nenhum JPG encontrado em testes/redacoes_teste/0/"
+assert JPGS, "Nenhum JPG encontrado em testes/redacoes_teste/0 - Narração/"
 ARQUIVO_TESTE = JPGS[0]
 print(f"[DEBUG] Arquivo de teste: {ARQUIVO_TESTE}")
 

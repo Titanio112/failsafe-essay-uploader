@@ -113,11 +113,16 @@ def executar_envio_producao(
     progresso: Optional[Progresso] = None,
     limite_alunos: Optional[int] = None,
     limite_redacoes: Optional[int] = None,
+    conta_teste: Optional[str] = None,
 ) -> int:
     """Retorna 0 = tudo enviado/já enviado; 1 = houve ERRO/REVISAO_MANUAL ou
-    parada; 2 = cancelado na confirmação ou produção bloqueada."""
+    parada; 2 = cancelado na confirmação ou produção bloqueada.
+
+    ``conta_teste`` (T40): e-mail da conta de teste. O mesmo fluxo, mas só
+    aceita lote em que TODOS os alunos são essa conta, pede ENVIAR TESTE e usa
+    ESQUEMA_SENHA_TESTE. Assim a trava de produção não se aplica a ele."""
     from modulos.base import config as config_mod
-    if config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
+    if not conta_teste and config_mod.PRODUCAO_BLOQUEADA:  # segunda trava, além da do main (22/10)
         print(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA)
         return 2
     lotes, ignorados = montar_lote_producao(
@@ -130,8 +135,13 @@ def executar_envio_producao(
     if not total:
         print("Nada para enviar nesta execucao.")
         return 0
+    if conta_teste and any(l.aluno.email.casefold() != conta_teste.casefold() for l in lotes):
+        print("[ERRO] Lote de teste com aluno que nao e a conta de teste. Nada foi enviado.")
+        return 2
 
-    print(f"Lote de producao: {len(lotes)} aluno(s), {total} redacao(oes).")
+    rotulo = "teste" if conta_teste else "producao"
+    palavra = "ENVIAR TESTE" if conta_teste else "ENVIAR"
+    print(f"Lote de {rotulo}: {len(lotes)} aluno(s), {total} redacao(oes).")
     print("Ja enviados hoje (mesmo tema) serao pulados. ERRO para so o aluno;")
     print("resultado inconclusivo apos o clique para a execucao inteira.")
     for lote in lotes:
@@ -139,12 +149,15 @@ def executar_envio_producao(
         for item in lote.itens:
             print(f"    tema {item.codigo}: {item.chave_progresso}")
     print()
-    confirmacao = input("Digite ENVIAR para confirmar o lote (qualquer outro texto cancela): ").strip()
-    if confirmacao != "ENVIAR":
+    try:
+        confirmacao = input(f"Digite {palavra} para confirmar o lote (qualquer outro texto cancela): ").strip()
+    except (EOFError, OSError):
+        confirmacao = ""  # sem terminal para digitar: cancela
+    if confirmacao != palavra:
         print("Cancelado pelo usuario.")
         return 2
 
-    senha = obter_senha("ESQUEMA_SENHA_PADRAO")
+    senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
 
@@ -172,7 +185,7 @@ def executar_envio_producao(
             browser.close()
 
     print()
-    print("Resumo do envio de producao:")
+    print(f"Resumo do envio de {rotulo}:")
     for estado in (ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL):
         print(f"  {estado}: {contagem.get(estado, 0)}")
     if parou:

@@ -22,6 +22,8 @@ dados/*alunos*.csv
 dados/nomes_aprovados.csv
 dados/pastas_aprovadas.csv
 dados/*.bak.csv
+# Aprovações do modo teste (têm o e-mail da conta de teste)
+testes/*.csv
 *.xlsx
 *.xls
 *.jpg

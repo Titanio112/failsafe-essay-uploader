@@ -19,6 +19,18 @@ MENSAGEM_BLOQUEIO = "[BLOQUEADO] Envio real desativado."
 
 # Pasta padrão das redações (T38): o Antônio guarda as redações aqui.
 PASTA_REDACOES = "Redações plataforma"
+
+# Modo teste (T40): mesmo caminho da produção, só com a conta de teste,
+# a pasta de teste e arquivos de aprovação separados dos reais.
+NOME_CONTA_TESTE = "Usuario Testes Ignorar"
+PASTA_TESTE = Path("testes") / "redacoes_teste"
+
+
+def configurar_modo_teste(cfg: "Config") -> None:
+    """Aponta a pasta e as aprovações para testes/ (nunca mistura com as reais)."""
+    cfg.pasta_raiz = RAIZ / PASTA_TESTE
+    cfg.arquivo_nomes_aprovados = RAIZ / "testes" / "nomes_aprovados_teste.csv"
+    cfg.arquivo_pastas_aprovadas = RAIZ / "testes" / "pastas_aprovadas_teste.csv"
 RAIZ_PASTA_REDACOES_LEIAME = """# 📂 Redações para enviar
 
 Coloque aqui as redações que o script vai enviar para a plataforma.

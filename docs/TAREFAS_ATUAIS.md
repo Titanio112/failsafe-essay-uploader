@@ -14,6 +14,8 @@ Bugs: `docs/qa-issues/`. Regra de cada tarefa: só vira [x] com PROVA colada.
 
 ## Pendências do Antônio
 
+- [ ] Testar na conta de teste (T40): `python main.py --modo-teste --revisar`
+      (g, g, Enter, nomes) e depois `--modo-teste --envio-real` (4 redações).
 - [ ] Rodar `--revisar`: Enter na filiação, `g` na discriminação e na
       tecnologia, depois os nomes.
 - [ ] Decidir quando liberar o envio para alunos reais (T25 suspensa).
@@ -92,3 +94,32 @@ PROVA:
 $ python -m pytest -m "not real" -q
 219 passed, 4 deselected
 ```
+
+## T40 - Modo teste no mesmo caminho da produção + pastas de teste novas [x]
+
+Pedido do Antônio (22/10): testar tudo na conta de teste antes do aluno real;
+pastas de teste sem "3B" na frente.
+- `testes/redacoes_teste/` refeita (antigas 0/00/000 em
+  ..	estes_antigos_automacao_20261022.zip): `0 - Narração` (código direto),
+  `Efeitos da aporofobia` (g), `Discriminação no trabalho` (2º no 000 + nome
+  curto + "em branco"), `Impactos da invisibilidade da filiação` (Enter 100 +
+  nome com erro). JPGs = cópias das imagens de teste antigas.
+- Modo teste: `configurar_modo_teste` (pasta e aprovações em testes/),
+  aprovações e `--revisar` valem no modo teste, o envio usa
+  `executar_envio_producao(..., conta_teste=email)`: só lote da conta de
+  teste, ENVIAR TESTE, ESQUEMA_SENHA_TESTE; a trava de produção não se aplica.
+- `modulos/dados/conciliacao_completa.py`: conciliação + aprovações (uma só).
+- Saiu `montar_fila_teste` (e tests/test_fila_teste.py). Testes do fluxo de
+  teste ajustados (chave "pasta/arquivo", nome exato da conta de teste;
+  arquivo inexistente agora = "nada para enviar", retorno 0).
+- Testes reais de upload apontam para `0 - Narração/`.
+
+PROVA:
+```
+$ python -m pytest -m "not real" -q
+222 passed, 4 deselected
+```
+Simulação numa cópia (sem site, sem envio): dry-run -> fila 1; --revisar
+(g, g, Enter, Enter, Enter) -> 3 pastas aprovadas, 2 renomeados; dry-run ->
+fila 4 (0, 000, 000, 100); --envio-real respondendo "nao" -> mostra o lote de
+teste e cancela, sem login.

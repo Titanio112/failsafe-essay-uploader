@@ -14,13 +14,8 @@ except (AttributeError, ValueError):
     pass
 
 from modulos.base import config as config_mod
-from modulos.base.config import MENSAGEM_BLOQUEIO, carregar_config
-from modulos.dados.planilha_arquivos import (
-    Aluno,
-    carregar_alunos,
-    conciliar,
-    descobrir_arquivos,
-)
+from modulos.base.config import MENSAGEM_BLOQUEIO, NOME_CONTA_TESTE, carregar_config, configurar_modo_teste
+from modulos.dados.planilha_arquivos import Aluno, carregar_alunos
 from modulos.base.progresso_relatorio import (
     Progresso,
     configurar_logging,
@@ -32,45 +27,33 @@ from modulos.envio.fluxo_envio_producao import executar_envio_producao
 from modulos.site.analise_remota import executar_analise_remota
 from modulos.ferramentas.revisao_interativa import desfazer_renomeacoes, executar_revisao
 from modulos.ferramentas.primeiro_uso import mostrar_guia, preparar
-from modulos.dados.nomes_aprovados import (
-    carregar_nomes_aprovados,
-    registrar_sugestoes,
+from modulos.dados.conciliacao_completa import (  # noqa: F401 (ler_codigos_site_csv: testes usam main.)
+    TEMAS_SITE_CSV,
+    conciliar_com_aprovacoes,
+    ler_codigos_site_csv,
 )
+from modulos.dados.nomes_aprovados import registrar_sugestoes
 from modulos.dados.sugestao_temas import (
     SCORE_PROVAVEL,
-    carregar_codigos_pasta,
     ler_temas_site,
     registrar_sugestoes_pasta,
     sugerir_codigos,
 )
 
 
-TEMAS_SITE_CSV = Path("dados/temas_site.csv")
-
-
-def ler_codigos_site_csv(caminho: Path) -> list[str]:
-    """Códigos (strings exatas) da coluna 'codigo' do CSV, NA ORDEM e com os
-    repetidos (ex.: 0000 duas vezes), para a conciliação marcar código
-    duplicado no combo (bug 001). Vazio se não existir."""
-    import csv
-    if not Path(caminho).is_file():
-        return []
-    with open(caminho, newline="", encoding="utf-8-sig") as f:
-        return [row["codigo"] for row in csv.DictReader(f) if row.get("codigo")]
-
-
-def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pastas, codigos_pasta) -> None:
+def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pastas, codigos_pasta,
+                       revisar: str = "python main.py --revisar") -> None:
     """Sugestões para o humano resolver (T26/T28): nomes e códigos de tema. Só sugere."""
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
     if novas:
         print()
         print(f"{novas} sugestao(oes) nova(s) de nome em {arquivo_nomes}.")
-        print("Para confirmar os nomes: python main.py --revisar")
+        print(f"Para confirmar os nomes: {revisar}")
 
     pastas = [p for p in arquivos if p not in codigos_pasta]
     sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
     if sugestoes:
-        novas_pastas = registrar_sugestoes_pasta(sugestoes, arquivo_pastas)
+        registrar_sugestoes_pasta(sugestoes, arquivo_pastas)
         print()
         print("Pastas SEM codigo de tema aprovado (nada delas sera enviado):")
         for pasta, codigo, texto, score in sugestoes:
@@ -79,7 +62,7 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
             else:
                 nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
                 print(f"  {pasta}: {nivel} -> {texto} ({score:.0f}%)")
-        print("Para escolher o tema de cada pasta: python main.py --revisar")
+        print(f"Para escolher o tema de cada pasta: {revisar}")
         print(f"(ou edite {arquivo_pastas} e escreva 'sim' em 'aprovado').")
 
 
@@ -124,9 +107,11 @@ def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-    if (args.revisar or args.desfazer_renomeacao) and (args.envio_real or args.modo_teste):
-        print("[ERRO] --revisar/--desfazer-renomeacao nao combinam com --envio-real nem --modo-teste.")
+    if (args.revisar or args.desfazer_renomeacao) and args.envio_real:
+        print("[ERRO] --revisar/--desfazer-renomeacao nao combinam com --envio-real.")
         return 2
+    if args.modo_teste:
+        configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
     if args.desfazer_renomeacao:
         desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz)
         return 0
@@ -150,12 +135,10 @@ def main(argv=None) -> int:
         import os
         from dotenv import load_dotenv
         load_dotenv()
-        cfg.planilha = Path("testes") / "planilha_teste.xlsx"  # placeholder, não usado
-        cfg.pasta_raiz = Path("testes/redacoes_teste")
-        # Apenas aluno virtual
+        # T40: mesmo caminho da produção; o único aluno é a conta de teste
         email_teste = os.getenv("ESQUEMA_EMAIL_TESTE", "teste@esquema.com")
-        alunos = [Aluno(nome="Usuario Testes Ignorar", email=email_teste)]
-        log.info("Modo teste: processando aluno virtual Usuario Testes Ignorar")
+        alunos = [Aluno(nome=NOME_CONTA_TESTE, email=email_teste)]
+        log.info("Modo teste: conta de teste, pasta %s", cfg.pasta_raiz)
     else:
         if args.envio_real:
             # Produção (F4/T24): fail-closed sem a referência de códigos do site
@@ -184,9 +167,6 @@ def main(argv=None) -> int:
         alunos = carregar_alunos(cfg)
         print(f"Alunos carregados: {len(alunos)}")
 
-    arquivos = descobrir_arquivos(cfg)
-    total_jpgs = sum(len(v) for v in arquivos.values())
-    print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {total_jpgs}")
 
     # Determinar codigos_site com fail-closed
     codigos_site: list[str] = []
@@ -201,23 +181,18 @@ def main(argv=None) -> int:
     else:
         print("[AVISO] dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
 
-    # Nomes de arquivo aprovados por humano (T26); não vale no modo teste
-    nomes_aprovados = {} if args.modo_teste else carregar_nomes_aprovados(cfg.arquivo_nomes_aprovados, alunos)
+    # Conciliação com as aprovações do humano (T26/T28); T40: vale também no modo teste
+    conciliacao = conciliar_com_aprovacoes(cfg, alunos, codigos_site)
+    resultado, arquivos = conciliacao.resultado, conciliacao.arquivos
+    nomes_aprovados, codigos_pasta = conciliacao.nomes_aprovados, conciliacao.codigos_pasta
+    print(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {sum(len(v) for v in arquivos.values())}")
     if nomes_aprovados:
         print(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
-    codigos_pasta = {} if args.modo_teste else carregar_codigos_pasta(cfg.arquivo_pastas_aprovadas)
     for pasta, codigo in sorted(codigos_pasta.items()):
         if pasta in arquivos:
             aviso = "" if not codigos_site or codigo in codigos_site else "  [AVISO] codigo fora do temas_site.csv"
             print(f"Pasta aprovada: {pasta} -> tema {codigo}{aviso}")
 
-    resultado = conciliar(
-        alunos, arquivos,
-        codigos_site=codigos_site,
-        limiar=cfg.limiar_fuzzy, margem=cfg.margem_minima,
-        nomes_aprovados=nomes_aprovados,
-        codigos_pasta=codigos_pasta,
-    )
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
     if args.revisar:
@@ -271,9 +246,9 @@ def main(argv=None) -> int:
     print("Revise o CSV antes de autorizar qualquer envio. Fuzzy/ambiguo/sem par")
     print("exigem revisao humana e nao entram na fila real.")
 
-    if not args.modo_teste:
-        _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
-                           cfg.arquivo_pastas_aprovadas, codigos_pasta)
+    _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
+                       cfg.arquivo_pastas_aprovadas, codigos_pasta,
+                       "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar")
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:

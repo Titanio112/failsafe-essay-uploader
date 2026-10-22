@@ -4,6 +4,10 @@
 Testam a lógica de marcação REVISAO_MANUAL vs ERRO
 exercitando o código de produção executar_envio_teste
 com mocks completos, sem navegador, sem login, sem envio.
+
+T40: o modo teste passou a usar o caminho da produção (conciliação ->
+lote -> fluxo_envio_producao com a conta de teste). Os arquivos têm o nome
+exato da conta de teste e a chave no banco é "pasta/arquivo".
 """
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ class TestFailClosedPosClique:
 
     @pytest.fixture
     def arquivo_teste(self):
-        return "redacao_0.jpg"
+        return "Usuario Testes Ignorar.jpg"
 
     @pytest.fixture
     def codigo_tema(self):
@@ -52,19 +56,20 @@ class TestFailClosedPosClique:
         cfg.pasta_raiz = tmp_path
         cfg.headless = True
         cfg.slow_mo_ms = 0
+        cfg.pausa_envio_min_segundos = cfg.pausa_envio_max_segundos = 0  # T40: sem espera entre itens
         return cfg
 
     @pytest.fixture
     def mocks_completos(self, codigo_tema):
         """Configura todos os mocks necessários para executar_envio_teste."""
-        with patch("modulos.envio.fluxo_envio_teste.sync_playwright") as mock_pw, \
+        with patch("modulos.envio.fluxo_envio_producao.sync_playwright") as mock_pw, \
              patch("builtins.input", return_value="ENVIAR TESTE") as mock_input, \
              patch("modulos.envio.fluxo_envio_teste.obter_email_teste", return_value="teste@teste.com"), \
-             patch("modulos.envio.fluxo_envio_teste.obter_senha", return_value="senha123"), \
-             patch("modulos.envio.fluxo_envio_teste.descobrir_arquivos", autospec=True, return_value={"0": ["redacao_0.jpg"]}) as mock_descobrir, \
-             patch("modulos.envio.fluxo_envio_teste.verificar_dominio_autorizado", autospec=True) as mock_dominio, \
-             patch("modulos.envio.fluxo_envio_teste.login", autospec=True) as mock_login, \
-             patch("modulos.envio.fluxo_envio_teste.confirmar_identidade", autospec=True) as mock_identidade, \
+             patch("modulos.envio.fluxo_envio_producao.obter_senha", return_value="senha123"), \
+             patch("modulos.dados.conciliacao_completa.descobrir_arquivos", autospec=True, return_value={"0": ["Usuario Testes Ignorar.jpg"]}) as mock_descobrir, \
+             patch("modulos.envio.fluxo_envio_producao.verificar_dominio_autorizado", autospec=True) as mock_dominio, \
+             patch("modulos.envio.fluxo_envio_producao.login", autospec=True) as mock_login, \
+             patch("modulos.envio.fluxo_envio_producao.confirmar_identidade", autospec=True) as mock_identidade, \
              patch("modulos.envio.envio_item.ler_saldo_creditos", autospec=True) as mock_saldo, \
              patch("modulos.envio.envio_item.ler_lista_redacoes", autospec=True) as mock_lista, \
              patch("modulos.envio.envio_item.contar_tema_hoje", autospec=True) as mock_dup, \
@@ -76,7 +81,7 @@ class TestFailClosedPosClique:
              patch("modulos.envio.envio_item.aguardar_upload_aceito", autospec=True) as mock_upload, \
              patch("modulos.envio.envio_item.clicar_enviar", autospec=True) as mock_clicar, \
              patch("modulos.envio.envio_item.aguardar_confirmacao", autospec=True) as mock_confirma, \
-             patch("modulos.envio.fluxo_envio_teste.logout", autospec=True) as mock_logout:
+             patch("modulos.envio.fluxo_envio_producao.logout", autospec=True) as mock_logout:
 
             # Configurar playwright mock
             mock_page = MagicMock()
@@ -124,7 +129,9 @@ class TestFailClosedPosClique:
             }
 
     def _ler_estado_banco(self, progresso, aluno_id, arquivo):
-        """Lê o estado gravado no banco de progresso."""
+        """Lê o estado gravado no banco de progresso. Chave "pasta/arquivo"
+        (T40); só o nome do arquivo = pasta "0"."""
+        arquivo = arquivo if "/" in arquivo else f"0/{arquivo}"
         row = progresso.con.execute(
             "SELECT estado, pasta, detalhe FROM progresso WHERE aluno_id=? AND arquivo=?",
             (aluno_id, str(arquivo))
@@ -254,12 +261,13 @@ class TestFailClosedPosClique:
     def test_arquivo_inexistente_aborta_sem_login(
         self, progresso_mock, cfg, arquivo_teste, codigo_tema, mocks_completos
     ):
-        """T18D B: JPG não existe no disco -> retorna 1, sem login e sem clique"""
+        """T18D B: JPG não existe no disco -> fica fora do lote, nada a enviar
+        (T40: retorna 0, como na produção), sem login e sem clique"""
         mocks = mocks_completos
         (cfg.pasta_raiz / codigo_tema / arquivo_teste).unlink()
 
         from modulos.envio.fluxo_envio_teste import executar_envio_teste
-        assert executar_envio_teste(cfg, progresso=progresso_mock) == 1
+        assert executar_envio_teste(cfg, progresso=progresso_mock) == 0
 
         assert mocks["login"].call_count == 0
         assert self._contar_clicar_enviar(mocks) == 0
@@ -320,10 +328,11 @@ class TestFailClosedPosClique:
     # ---- Fila com vários itens (T21) ----
 
     def _fila_dois_itens(self, cfg, mocks):
-        """Itens: tema "0" (redacao_0.jpg) e tema "00" (redacao_00.jpg)."""
+        """Itens: tema "0" e tema "00", o mesmo aluno (conta de teste)."""
         (cfg.pasta_raiz / "00").mkdir()
-        (cfg.pasta_raiz / "00" / "redacao_00.jpg").write_bytes(b"jpg-falso")
-        mocks["descobrir"].return_value = {"0": ["redacao_0.jpg"], "00": ["redacao_00.jpg"]}
+        (cfg.pasta_raiz / "00" / "Usuario Testes Ignorar.jpg").write_bytes(b"jpg-falso")
+        mocks["descobrir"].return_value = {"0": ["Usuario Testes Ignorar.jpg"],
+                                           "00": ["Usuario Testes Ignorar.jpg"]}
         mocks["combo"].return_value = [("0", "0 - Tema Teste"), ("00", "00 - Outro")]
 
     def test_fila_pula_ja_enviado_e_envia_o_proximo(
@@ -341,7 +350,7 @@ class TestFailClosedPosClique:
         assert mocks["input"].call_count == 1
         assert self._contar_clicar_enviar(mocks) == 1
         assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == JA_ENVIADO
-        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg")
+        estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", "00/Usuario Testes Ignorar.jpg")
         assert estado["estado"] == ENVIADO
         assert estado["pasta"] == "00"
 
@@ -358,7 +367,7 @@ class TestFailClosedPosClique:
 
         assert self._contar_clicar_enviar(mocks) == 1
         assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == REVISAO_MANUAL
-        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg") is None
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "00/Usuario Testes Ignorar.jpg") is None
 
     def test_fila_para_no_primeiro_erro_pre_clique(
         self, progresso_mock, cfg, arquivo_teste, mocks_completos
@@ -373,7 +382,7 @@ class TestFailClosedPosClique:
 
         assert self._contar_clicar_enviar(mocks) == 0
         assert self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)["estado"] == ERRO
-        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "redacao_00.jpg") is None
+        assert self._ler_estado_banco(progresso_mock, "teste@teste.com", "00/Usuario Testes Ignorar.jpg") is None
 
     def test_fila_cancelada_nao_faz_login(
         self, progresso_mock, cfg, mocks_completos
