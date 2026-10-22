@@ -16,6 +16,9 @@ __pycache__/
 .coverage
 
 # Dados reais
+# Lista de alunos (nome, e-mail; pode ter senha) — nunca versionar
+dados/dados_alunos*.csv
+dados/*alunos*.csv
 *.xlsx
 *.xls
 *.jpg
