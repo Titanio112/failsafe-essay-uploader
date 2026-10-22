@@ -31,6 +31,7 @@ def _csv(caminho: Path, linhas: list[list[str]], sep: str = ";") -> Path:
 
 # ---- R1: lista de alunos em CSV ----
 
+@pytest.mark.raiz_real
 def test_padrao_e_dados_alunos_csv():
     assert Config().planilha == RAIZ / "dados" / "dados_alunos.csv"
 

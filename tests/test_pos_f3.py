@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
@@ -15,12 +17,14 @@ RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---- R1: RAIZ é a raiz do projeto, não modulos/ ----
 
+@pytest.mark.raiz_real
 def test_raiz_e_a_pasta_do_projeto():
     from modulos.config import RAIZ
     assert RAIZ == RAIZ_PROJETO
     assert (RAIZ / "main.py").is_file()
 
 
+@pytest.mark.raiz_real
 def test_caminhos_padrao_ficam_na_raiz():
     from modulos.config import Config
     cfg = Config()
