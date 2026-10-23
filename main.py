@@ -125,6 +125,8 @@ def parse_args(argv=None):
                         "no site (confirmacao CONFERIR); nao envia nada")
     p.add_argument("--enviar-faltantes", action="store_true",
                    help="envia so as que a conferencia no site de HOJE marcou como faltando (ENVIAR)")
+    p.add_argument("--arquivar", action="store_true",
+                   help="arquivo morto: move pastas de tema ja enviadas para \"Arquivo morto/<data>\" (nada e apagado)")
     p.add_argument("--resolver", action="store_true",
                    help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
@@ -200,10 +202,20 @@ def main(argv=None) -> int:
             return 2
     if args.preparar:
         return preparar(cfg, config_mod.RAIZ)
+    if args.arquivar:
+        # T57: só move pastas (nada de site nem caderno)
+        if args.envio_real or args.modo_teste or args.revisar or args.analise_remota or args.ensaio is not None:
+            tela.erro("--arquivar roda sozinho.")
+            return 2
+        from modulos.ferramentas.arquivo_morto import executar_arquivar
+        return executar_arquivar(cfg.pasta_raiz, config_mod.RAIZ, cfg.pasta_relatorios)
     # Os avisos já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
     log = configurar_logging(config_mod.RAIZ / "logs")  # T45: logs/automacao.log guarda cada execução
+    # T57: o log diz qual comando rodou (o Antônio quer acompanhar pelos logs)
+    log.info("Inicio: python main.py %s", " ".join(argv if argv is not None else sys.argv[1:]) or "(conferencia)",
+             extra={"so_no_arquivo": True})
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
@@ -306,7 +318,7 @@ def main(argv=None) -> int:
             # Senha padrão vem do .env (ou getpass)
             from dotenv import load_dotenv
             load_dotenv()
-            log.info("Iniciando conciliacao para envio de producao.")
+            log.info("Iniciando conciliacao para envio (%s).", "ensaio" if args.ensaio is not None else "producao")
         if (args.envio_real or args.enviar_faltantes) and not Path(cfg.planilha).is_file():
             tela.erro(f"Planilha de alunos nao encontrada: {cfg.planilha}")
             return 2

@@ -62,7 +62,12 @@ def montar_lote_producao(
         elif (aluno.id, codigo, item.pasta) in vistos:
             ignorados.append((chave, f"codigo {codigo} repetido para o aluno na mesma pasta (revisao manual)"))
         elif registro and registro["estado"] in ESTADOS_SEM_REENVIO:
-            ignorados.append((chave, f"ja registrado como {registro['estado']}"))
+            motivo = f"ja registrado como {registro['estado']}"
+            # T57: mesmo nome de pasta/arquivo, foto diferente = redação NOVA com
+            # nome repetido (pasta reaproveitada). Continua fora (seguro), mas diz por quê.
+            if registro.get("hash_arquivo") and caminho.is_file() and hash_do_arquivo(caminho) != registro["hash_arquivo"]:
+                motivo += "; a FOTO E OUTRA (nome repetido de redacao ja enviada): use um nome de pasta novo"
+            ignorados.append((chave, motivo))
         elif not caminho.is_file():
             ignorados.append((chave, "arquivo nao encontrado"))
         elif (h := hash_do_arquivo(caminho)) in conteudos:

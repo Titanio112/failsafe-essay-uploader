@@ -303,6 +303,8 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
             comparar(conf)
         for _, estado, _ in conf.linhas:
             contagem[NAO_CONFERIDO if conf.erro else estado] += 1
+    log.info("Conferencia no site: %s%s", ", ".join(f"{k}={v}" for k, v in contagem.items()),
+             " (PAROU antes do fim)" if parou else "", extra={"so_no_arquivo": True})  # T57
     tela.secao("Resumo da conferência no site", saida)
     tela.contagens([("Já estão no site", contagem[NO_SITE], "ok"),
                     ("Tema no site, mas menos vezes que as fotos", contagem[EM_PARTE], "aviso"),

@@ -51,3 +51,13 @@ Antônio decide.
   página da lista e progresso ao vivo conferidos.
 - `v` (ver a foto): testar no menu 4 -> r (a pasta de teste tem um "nome parecido").
 
+## T57 (23/10)
+
+- **Decisão do Antônio (vai conferir):** a filiação foi mandada à mão como
+  tema 000, mas a pasta está aprovada como 100 (o tema existe no site).
+  Nas próximas, qual vale? Muda o que a correção recebe.
+- O caderno identifica a redação por pasta/arquivo: redação nova com o mesmo
+  nome de pasta e arquivo de uma já enviada é pulada (seguro, com aviso).
+  Usar nomes de pasta novos a cada lote (ex.: com a data).
+- `v` nos temas e nos nomes: testar de novo no menu 4 -> r.
+

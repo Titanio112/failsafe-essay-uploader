@@ -150,8 +150,11 @@ def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
                 f"Colunas encontradas: {colunas}"
             )
         if "senha" in colunas:
-            _emitir_aviso("Coluna 'Senha' da lista de alunos ignorada; a senha vem de "
-                          "ESQUEMA_SENHA_PADRAO no .env.")
+            # T57: aparecia em toda tela sem ajudar; agora só no log (e no warning, para testes)
+            mensagem = "Coluna 'Senha' da lista de alunos ignorada; a senha vem de ESQUEMA_SENHA_PADRAO no .env."
+            import logging
+            logging.getLogger("automacao_redacoes").info(mensagem, extra={"so_no_arquivo": True})
+            warnings.warn(f"[AVISO] {mensagem}", UserWarning, stacklevel=2)
         idx_nome = colunas.index(_coluna(cfg.coluna_nome))
         idx_email = colunas.index(_coluna(cfg.coluna_email))
         alunos = []

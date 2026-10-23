@@ -55,3 +55,6 @@ storage_state*.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# Arquivo morto (T57): redações já enviadas, fora do git
+Arquivo morto/

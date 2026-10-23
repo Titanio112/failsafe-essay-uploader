@@ -101,7 +101,8 @@ def _linha_tema(codigo: str, tema: str, score: float | None) -> list[str]:
 
 
 def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_aprovadas: Path,
-                   entrada: Entrada | None = None, saida: Callable = print) -> tuple[int, bool]:
+                   entrada: Entrada | None = None, saida: Callable = print,
+                   pasta_raiz: Path | None = None) -> tuple[int, bool]:
     """Pergunta o código de cada pasta sem código. Retorna (aprovadas, saiu).
     Temas do mais parecido para o menos, com barra e %; ``g`` = tema genérico."""
     contagem = {}
@@ -146,13 +147,20 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
             menu.append(("numero", "escolher o tema (ex.: 100)"))
             if tem_generico:
                 menu.append(("g", f"tema generico: {_sem_codigo(texto_de[TEMA_GENERICO])} ({TEMA_GENERICO})"))
-            menu += [("palavra", "procurar tema (ex.: rua)"), ("t", "ver todos os temas"),
-                     ("p", "pular esta pasta"), ("q", "sair (o que ja fez fica salvo)")]
+            menu += [("palavra", "procurar tema (ex.: rua)"), ("t", "ver todos os temas")]
+            if pasta_raiz:  # T57: abrir a pasta ajuda a decidir o tema (o Antônio apertou v aqui)
+                menu.append(("v", "ver as fotos desta pasta"))
+            menu += [("p", "pular esta pasta"), ("q", "sair (o que ja fez fica salvo)")]
             tela.menu(menu, saida)
             resp = _perguntar(entrada, "  > ")
             low = resp.lower()
             if low == "q":
                 return aprovadas, True
+            if low == "v" and pasta_raiz:
+                motivo = tela.abrir(Path(pasta_raiz) / pasta)
+                if motivo:
+                    saida(tela.c(f"  ✘ Não abriu a pasta: {motivo}", "erro"))
+                continue
             if low == "p" or (not resp and not melhor):
                 saida(tela.c("  Pulada (nada desta pasta sera enviado).", "aviso"))
                 break
@@ -322,7 +330,7 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
     aprovadas, saiu = (0, False)
     if pastas and temas:
         tela.secao(f"Parte 1: {len(pastas)} pasta(s) sem codigo de tema", saida)
-        aprovadas, saiu = revisar_pastas(pastas, temas, caminho_pastas, entrada, saida)
+        aprovadas, saiu = revisar_pastas(pastas, temas, caminho_pastas, entrada, saida, pasta_raiz=pasta_raiz)
     elif pastas:
         tela.aviso("Parte 1 pulada: dados/temas_site.csv vazio (rode --analise-remota).", saida)
     renomeados = 0

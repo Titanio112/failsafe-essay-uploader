@@ -508,3 +508,28 @@ $ git stash pop ; python -m pytest -m "not real" -q -p no:warnings
 403 passed, 4 deselected in 14.88s
 ```
 
+## T57 - Arquivo morto, limite no envio, `v` nos temas, logs [x]
+
+Pedido do Antônio (23/10): o `v` não abriu (ele estava na parte dos TEMAS da
+revisão, onde `v` virava busca de tema); fazer as melhorias recomendadas
+(limite no menu 6, calar o aviso da Senha); pasta de arquivo morto; ficar
+atento aos logs.
+- Logs (logs/automacao.log, 120 linhas, 22-23/10): nenhum ERROR; 4 WARNING
+  normais ("Fora do lote ... ja registrado como ENVIADO" no modo teste).
+  Faltava saber o comando de cada execução e o resumo da conferência:
+  agora vão para o log (só no arquivo).
+- `revisar_pastas(..., pasta_raiz=)`: `v` = abre a pasta do tema.
+- Menu 6: "Quantos alunos desta vez?" / "Quantas redações no máximo?" ->
+  `--limite-alunos` / `--limite-redacoes` (1º envio real pequeno).
+- Aviso "Coluna 'Senha' ignorada" só no log (+ UserWarning para o teste T26).
+- `modulos/ferramentas/arquivo_morto.py` + `--arquivar` + menu 11.
+- `fila_producao`: registro ENVIADO com hash diferente da foto atual = nome
+  repetido de redação já enviada: continua fora, motivo explicado.
+- Testes: tests/test_t57.py (+ t47/t52 renumerados).
+
+PROVA (23/10):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+415 passed, 4 deselected in 14.04s
+```
+

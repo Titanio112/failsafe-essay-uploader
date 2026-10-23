@@ -121,7 +121,7 @@ def _respostas(*r):
     (["5"], ["--conferir-site"]),
     (["8"], ["--resolver"]),
     (["9"], ["--analise-remota"]),
-    (["11"], ["--preparar"]),
+    (["12"], ["--preparar"]),
 ])
 def test_cada_opcao_vira_os_argumentos_do_main(respostas, argumentos):
     entrada = _respostas(*respostas[1:])

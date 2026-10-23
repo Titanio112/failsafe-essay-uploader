@@ -184,14 +184,14 @@ class Progresso:
     def obter(self, aluno_id: str, arquivo: str) -> dict | None:
         row = self.con.execute(
             "SELECT aluno_id, arquivo, pasta, estado, tentativas, detalhe, "
-            "       criado_em, atualizado_em "
+            "       criado_em, atualizado_em, hash_arquivo "
             "FROM progresso WHERE aluno_id = ? AND arquivo = ?",
             (aluno_id, arquivo),
         ).fetchone()
         if not row:
             return None
         chaves = ("aluno_id", "arquivo", "pasta", "estado",
-                  "tentativas", "detalhe", "criado_em", "atualizado_em")
+                  "tentativas", "detalhe", "criado_em", "atualizado_em", "hash_arquivo")
         return dict(zip(chaves, row))
 
 

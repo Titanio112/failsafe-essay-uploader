@@ -85,7 +85,7 @@ def test_menu_configuracoes_troca_o_navegador(tmp_path, monkeypatch):
     monkeypatch.setattr(configuracoes, "caminho_config", lambda: ini)
     saidas = []
     # T53: pergunta direta s/n ("não" era o que o Antônio digitou e dava "Opção inválida")
-    assert menu.argumentos_da_opcao("12", _respostas("não"), saida=saidas.append) is None
+    assert menu.argumentos_da_opcao("13", _respostas("não"), saida=saidas.append) is None
     assert config_mod.carregar_config(ini).headless is True
     assert any("escondido" in s for s in saidas)
     configuracoes.executar_configuracoes(ini, _respostas("x", "s"), lambda *_: None)
@@ -98,7 +98,7 @@ def test_menu_mostra_11_opcoes_e_navegador():
     saidas = []
     menu.mostrar_menu(saidas.append)
     texto = "\n".join(saidas)
-    assert "12) Configurações" in texto and "navegador: aparece" in texto
+    assert "13) Configurações" in texto and "navegador: aparece" in texto
     assert " 5) Conferir no site" in texto
 
 

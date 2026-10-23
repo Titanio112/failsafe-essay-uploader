@@ -44,8 +44,9 @@ Enviar                      6) Enviar para os alunos        (hoje: bloqueado)
                             8) Resolver revisões manuais    chegou no site? sim/não
 Ferramentas                 9) Atualizar os temas do site
                            10) Desfazer uma renomeação
-                           11) Primeiro uso / o que falta
-                           12) Configurações                navegador aparece ou não (s/n)
+                           11) Arquivo morto                guarda as pastas já enviadas
+                           12) Primeiro uso / o que falta
+                           13) Configurações                navegador aparece ou não (s/n)
                             0) Sair
 ```
 Cada opção chama o mesmo comando com flags (abaixo), com as mesmas travas e
@@ -63,7 +64,8 @@ Onde o terminal disser "rode `python main.py`", é este menu.
    python main.py --revisar
    ```
    - Tema: Enter confirma o provável, um número escolhe, `g` = tema genérico
-     (000, quando o tema não existe no site), uma palavra procura.
+     (000, quando o tema não existe no site), uma palavra procura, `v` abre
+     a pasta para ver as fotos (T57).
    - Nomes: Enter confirma, número escolhe, texto procura outro aluno. O
      arquivo é renomeado para o nome exato do aluno (dá para desfazer com o
      comando que aparece no fim).
@@ -136,7 +138,7 @@ Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
    Durante o envio aparece o **progresso ao vivo** (T51):
    `▶ 23 de 61 redações  ████░░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min`.
    O navegador aparece na tela (para acompanhar); para deixar rodando sem a
-   janela: menu **12) Configurações** (fica salvo no `config.ini`) ou
+   janela: menu **13) Configurações** (fica salvo no `config.ini`) ou
    `--sem-janela` numa execução só.
 4. **Pulos automáticos (sem erro):** a redação daquele tema que já está no
    site hoje ("já estava no site") e a mesma foto que já foi enviada, mesmo
@@ -204,6 +206,23 @@ mandado à mão depois).
 Na tela, cada foto é uma linha curta: `✔ no site  tema 000  30/09/2026
 pasta`, `⚠ outro tema?  tema 100  como 000?  pasta`, `• falta ...`. O nome
 da pasta abre a foto (Ctrl+clique).
+
+## Arquivo morto (T57)
+
+Menu **11** (`python main.py --arquivar`): mostra as pastas de tema e move
+as escolhidas (`t` = todas, ou números: `1,3`) para
+`Arquivo morto/<data_hora>/`, na raiz do projeto. Nada é apagado; para
+trazer de volta, mova a pasta de novo. Cada movimento fica em
+`relatorios/arquivamento_<data>.csv`. Não roda durante um envio.
+Use para tirar as redações já enviadas (as antigas, mandadas à mão) antes de
+colocar as novas. **Dica:** dê nomes de pasta novos às redações novas: o
+caderno lembra "pasta/arquivo"; uma foto nova com o nome de uma já enviada é
+pulada (com o aviso "a FOTO E OUTRA ... use um nome de pasta novo").
+
+## Primeiro envio de verdade (quando liberado)
+
+Menu **6** pergunta "Quantos alunos desta vez?" e "Quantas redações no
+máximo?" (Enter = todos). Para o primeiro envio: `1` e `1`.
 
 ## Resolver as revisões manuais
 
