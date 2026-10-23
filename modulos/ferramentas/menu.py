@@ -22,7 +22,7 @@ OPCOES = [
     ("Preparar", "1", "Conferir as redações", "não envia nada"),
     ("Preparar", "2", "Revisar temas e nomes", "escolhe temas, confirma alunos"),
     ("Testar (nada vai para os alunos)", "3", "Ensaio com redações reais", "algumas reais → conta de teste"),
-    ("Testar (nada vai para os alunos)", "4", "Modo teste", "pasta testes/redacoes_teste"),
+    ("Testar (nada vai para os alunos)", "4", "Modo teste", "conferir, revisar ou enviar"),
     ("Testar (nada vai para os alunos)", "5", "Conferir no site", "lê as contas dos alunos, não envia"),
     ("Enviar", "6", "Enviar para os alunos", "envio de verdade"),
     ("Enviar", "7", "Enviar as que faltam no site", "usa a conferência de hoje (5)"),
@@ -79,9 +79,19 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
             return ["--ensaio", n, "--envio-real"]
         return ["--ensaio", n]
     if opcao == "4":
-        if _sim(entrada, "Enviar a pasta de teste agora? (n = so conferir)"):
+        # T55: a revisão da pasta de teste não tinha caminho pelo menu
+        tela.menu([("Enter / c", "só conferir a pasta de teste"),
+                   ("r", "revisar temas e nomes da pasta de teste"),
+                   ("e", "enviar para a conta de teste")], saida)
+        escolha = _perguntar(entrada, "  > ").lower()
+        if escolha in ("", "c"):
+            return ["--modo-teste"]
+        if escolha == "r":
+            return ["--modo-teste", "--revisar"]
+        if escolha in ("e", "s"):
             return ["--modo-teste", "--envio-real"]
-        return ["--modo-teste"]
+        tela.erro("Opção inválida.", saida)
+        return None
     if opcao == "5":
         return ["--conferir-site"]
     if opcao == "6":

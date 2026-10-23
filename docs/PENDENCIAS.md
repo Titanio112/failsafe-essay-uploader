@@ -51,3 +51,10 @@ Antônio decide.
   estão no site (hoje é só relatório; pede decisão do Antônio).
 - Ideia para depois (Antônio, 23/10): nos créditos do menu, o nome dele
   como link clicável (GitHub). Não fazer agora.
+
+## T55 (23/10)
+
+- Ensaio no site real ✔ (23/10 02:17, 3 enviadas e confirmadas): critério ENEM,
+  página da lista e progresso ao vivo conferidos.
+- `v` (ver a foto): testar no menu 4 -> r (a pasta de teste tem um "nome parecido").
+

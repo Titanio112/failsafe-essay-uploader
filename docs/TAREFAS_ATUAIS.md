@@ -463,3 +463,15 @@ $ python -m pytest -m "not real" -q -p no:warnings
     ⚠ outro tema?  tema 100  como 000?     3B - Impacatos da Invisibilidade da …
 ```
 
+## T55 - Ensaio real ok; revisão da pasta de teste pelo menu [x]
+
+23/10 02:17-02:18, o Antônio rodou o ENSAIO (menu 3) com 3 redações reais
+da Alice -> conta de teste: 3 enviadas, todas "Pendente", "Tudo certo",
+progresso ao vivo 1/3 -> 3/3 (1 min 21 s). Confirmado no site real:
+critério ENEM conferido, leitura da lista (T48: HTTP, endereço, saldo),
+confirmação só da linha nova, cópia do caderno antes do envio.
+Ele tentou testar o `v` mas a pasta real não tinha nada para revisar e o
+menu não tinha como revisar a pasta de teste (só `--modo-teste --revisar`).
+- Menu 4 agora pergunta: Enter/c = conferir, r = revisar, e = enviar.
+- Testes: t47/t52 ajustados.
+

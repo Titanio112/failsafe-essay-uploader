@@ -103,7 +103,7 @@ def test_menu_mostra_11_opcoes_e_navegador():
 
 
 def test_envio_pelo_menu_nao_pergunta_mais_do_navegador():
-    assert menu.argumentos_da_opcao("4", _respostas("s")) == ["--modo-teste", "--envio-real"]
+    assert menu.argumentos_da_opcao("4", _respostas("e"), saida=lambda *_: None) == ["--modo-teste", "--envio-real"]
 
 
 # ─── Conferência no site ─────────────────────────────────────
