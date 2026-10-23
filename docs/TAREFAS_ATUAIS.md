@@ -435,3 +435,31 @@ $ (regra nova aplicada ao relatorios/conferencia_site_20261023_010426.csv)
 faltam enviar: 0
 ```
 
+## T54 - Tela da conferência limpa, menu "Enviar as que faltam" [x]
+
+O Antônio rodou a conferência de novo (23/10 ~01:24): 98 no site, 28 "talvez
+com outro tema", 0 faltando; relatório clicável e créditos ok. Pediu: tela
+menos poluída (linhas quebravam), opção no menu para enviar as que faltam
+sem refazer a conferência, e entender por que não apareceu "Montar o
+envio?" (resposta: não faltava nenhuma; agora a tela diz isso).
+- `_mostrar_aluno`: linha em branco entre alunos; cada foto em 1 linha
+  (`✔ no site  tema 000  30/09/2026  pasta…`), cabe em 80 colunas; o nome
+  do arquivo saiu (é o do aluno, já no cabeçalho); a pasta abre a foto.
+- O log "Conferencia no site N de M" vai só para o arquivo
+  (`so_no_arquivo`; filtro no console em `configurar_logging`).
+- `faltantes_do_relatorio` + `--enviar-faltantes` + menu 7: só relatório de
+  hoje; só fotos ainda conferidas na pasta; segue `_enviar_faltantes`
+  (bloqueio, lote, ENVIAR). Menu renumerado (8 Resolver ... 12 Configurações).
+- Ideia para depois (não feita, pedido dele): créditos com o nome como link
+  (GitHub).
+- Testes: tests/test_t54.py (+ t47/t49/t52 renumerados).
+
+PROVA (23/10):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+388 passed, 4 deselected in 12.48s
+  THEO VECANO LAVETO  <th***@x.com>
+    ✔ no site      tema 000  30/09/2026    3B - Efeitos da aporofobia
+    ⚠ outro tema?  tema 100  como 000?     3B - Impacatos da Invisibilidade da …
+```
+

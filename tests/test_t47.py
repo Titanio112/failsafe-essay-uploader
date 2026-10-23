@@ -117,9 +117,9 @@ def _respostas(*r):
     (["4", "n"], ["--modo-teste"]),
     (["4", "s"], ["--modo-teste", "--envio-real"]),
     (["5"], ["--conferir-site"]),
-    (["7"], ["--resolver"]),
-    (["8"], ["--analise-remota"]),
-    (["10"], ["--preparar"]),
+    (["8"], ["--resolver"]),
+    (["9"], ["--analise-remota"]),
+    (["11"], ["--preparar"]),
 ])
 def test_cada_opcao_vira_os_argumentos_do_main(respostas, argumentos):
     entrada = _respostas(*respostas[1:])
@@ -135,7 +135,7 @@ def test_producao_bloqueada_nao_chama_o_main():
 def test_desfazer_lista_os_logs_e_escolhe(tmp_path):
     (tmp_path / "renomeacoes_20261022_100000.csv").write_text("x", encoding="utf-8")
     (tmp_path / "renomeacoes_20261023_100000.csv").write_text("x", encoding="utf-8")
-    args = menu.argumentos_da_opcao("9", _respostas("1"), tmp_path, saida=lambda *_: None)
+    args = menu.argumentos_da_opcao("10", _respostas("1"), tmp_path, saida=lambda *_: None)
     assert args == ["--desfazer-renomeacao", str(tmp_path / "renomeacoes_20261023_100000.csv")]
 
 

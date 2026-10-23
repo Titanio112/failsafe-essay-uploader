@@ -49,4 +49,5 @@ Antônio decide.
   liberar a produção, tirar da pasta ou conferir com `--conferir-site`.
 - Ideia não feita: marcar no caderno, a partir da conferência, as que já
   estão no site (hoje é só relatório; pede decisão do Antônio).
-
+- Ideia para depois (Antônio, 23/10): nos créditos do menu, o nome dele
+  como link clicável (GitHub). Não fazer agora.

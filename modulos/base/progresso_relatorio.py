@@ -78,6 +78,8 @@ def configurar_logging(pasta_logs: Path | None = None) -> logging.Logger:
     from modulos.base.tela import FormatoTerminal
     console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
     console.addFilter(_FiltroSanitizador())
+    # T54: log.info(..., extra={"so_no_arquivo": True}) vai só para o arquivo
+    console.addFilter(lambda record: not getattr(record, "so_no_arquivo", False))
     logger.addHandler(console)
     if pasta_logs is not None:
         pasta_logs.mkdir(parents=True, exist_ok=True)

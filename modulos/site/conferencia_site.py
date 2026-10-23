@@ -123,7 +123,8 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
         browser = pw.chromium.launch(headless=cfg.headless, slow_mo=cfg.slow_mo_ms)
         try:
             for n, conf in enumerate(conferencias, 1):
-                log.info("Conferencia no site %d de %d: %s", n, len(conferencias), conf.aluno.nome)
+                log.info("Conferencia no site %d de %d: %s", n, len(conferencias), conf.aluno.nome,
+                         extra={"so_no_arquivo": True})  # T54: a tela já mostra o aluno
                 context = browser.new_context()  # um aluno por contexto: nada de sessão misturada
                 page = context.new_page()
                 try:
@@ -161,20 +162,37 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
     return False
 
 
+# T54: uma linha curta por foto, em colunas, sem quebrar no terminal
+#   ✔ no site      tema 000  30/09/2026    3B - Efeitos da aporofobia
+#   ⚠ outro tema?  tema 100  como 000?     3B - Impactos da Invisibilidade…
+ROTULO_CURTO = {NO_SITE: "no site", EM_PARTE: "em parte", FORA_DO_SITE: "falta",
+                OUTRO_TEMA: "outro tema?", NAO_CONFERIDO: "não conferido"}
+PAPEL = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso"}
+
+
+def _curto(texto: str, largura: int) -> str:
+    return texto if len(texto) <= largura else texto[:max(largura - 1, 1)] + "…"
+
+
 def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = print) -> None:
-    saida(f"  {tela.c(conf.aluno.nome, 'titulo')} {tela.c(f'<{mascarar_email(conf.aluno.email)}>', 'fraco')}")
+    saida("")
+    saida(f"  {tela.c(conf.aluno.nome, 'titulo')}  {tela.c(f'<{mascarar_email(conf.aluno.email)}>', 'fraco')}")
     if conf.erro:
-        tela.status("erro", f"não conferido: {conf.erro}", saida, recuo=4)
+        tela.status("erro", _curto(f"não conferido: {conf.erro}", tela.LARGURA - 6), saida, recuo=4)
         return
-    papel = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso"}
     for item, estado, do_tema in conf.linhas:
-        quando = ", ".join(sorted({r.data for r in do_tema if r.data}))
-        extra = f" ({quando})" if quando else ""
+        datas = sorted({r.data for r in do_tema if r.data})
         if estado == OUTRO_TEMA and do_tema:
-            extra = f" (o site tem uma {do_tema[0].codigo} a mais: {quando})"
-        arquivo = tela.link_arquivo(pasta_raiz, item.pasta, item.arquivo)
-        tela.status(papel.get(estado, "fraco"), f"tema {item.codigo_tema}: {estado}{extra}  {arquivo}",
-                    saida, recuo=4)
+            detalhe = f"como {do_tema[0].codigo}?"
+        elif datas:
+            detalhe = datas[0] + ("+" if len(datas) > 1 else "")
+        else:
+            detalhe = ""
+        inicio = f"{ROTULO_CURTO.get(estado, estado):<12} tema {item.codigo_tema:<4} {detalhe:<12}  "
+        sobra = tela.LARGURA - 6 - len(inicio)
+        # o nome do arquivo é o do aluno (já está em cima): só a pasta, que abre a foto
+        pasta = tela.link(_curto(item.pasta, sobra), Path(pasta_raiz) / item.pasta / item.arquivo)
+        tela.status(PAPEL.get(estado, "fraco"), inicio + pasta, saida, recuo=4)
 
 
 def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
@@ -191,6 +209,31 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
                                    " | ".join(r.data for r in do_tema),
                                    " | ".join(r.situacao for r in do_tema)])
     return caminho
+
+
+def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliacao,
+                           saida: Callable = print) -> list[ItemConciliacao] | None:
+    """T54 (menu 7): as que faltam segundo a conferência de HOJE, sem refazê-la.
+
+    Só vale relatório de hoje (Brasília): de outro dia, alguém pode ter
+    mandado à mão depois. Só entram fotos que continuam conferidas na pasta
+    (mesma pasta, mesmo arquivo, mesmo aluno). None = sem relatório válido."""
+    hoje = relogio.agora().strftime("%Y%m%d")
+    relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
+    if not relatorios:
+        tela.aviso("Ainda não há conferência no site. Rode a opção 5 (Conferir no site) antes.", saida)
+        return None
+    ultimo = relatorios[-1]
+    if not ultimo.name.startswith(f"conferencia_site_{hoje}"):
+        tela.aviso(f"A última conferência ({tela.caminho(ultimo)}) não é de hoje.", saida)
+        tela.status("fraco", "Alguém pode ter enviado à mão depois dela. Rode a opção 5 de novo.", saida)
+        return None
+    with open(ultimo, encoding="utf-8-sig", newline="") as f:
+        faltando = {(l["aluno"], l["pasta"], l["arquivo"]) for l in csv.DictReader(f, delimiter=";")
+                    if l.get("resultado") == FORA_DO_SITE}
+    tela.info(f"Conferência usada: {tela.caminho(ultimo)}", saida)
+    return [item for item in resultado.fila_validada()
+            if item.aluno and item.codigo_tema and (item.aluno.nome, item.pasta, item.arquivo) in faltando]
 
 
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
@@ -243,9 +286,14 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
     if contagem[OUTRO_TEMA]:
-        tela.status("fraco", "\"Talvez com outro tema\": o site tem redações a mais de outro tema (ex.: mandada "
-                             "como 000). Confira no site; essas nunca entram no envio daqui.", saida)
+        tela.status("fraco", "\"Outro tema?\": o site tem redações a mais de outro tema (ex.: mandada como 000).",
+                    saida)
+        tela.status("fraco", "Confira no site se quiser; essas nunca entram no envio.", saida)
     faltam = faltam_enviar(conferencias)
-    if faltam and not parou and depois:
+    if parou:
+        return 1
+    if not faltam:  # T54: dizer por que não pergunta "Montar o envio?"
+        tela.ok("Não falta enviar nenhuma: nada para montar.", saida)
+    elif depois:
         depois(faltam)
     return 1 if parou else 0

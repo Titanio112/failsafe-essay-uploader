@@ -123,6 +123,8 @@ def parse_args(argv=None):
     p.add_argument("--conferir-site", action="store_true",
                    help="so leitura: entra na conta de cada aluno com redacao na pasta e ve se o tema ja esta "
                         "no site (confirmacao CONFERIR); nao envia nada")
+    p.add_argument("--enviar-faltantes", action="store_true",
+                   help="envia so as que a conferencia no site de HOJE marcou como faltando (ENVIAR)")
     p.add_argument("--resolver", action="store_true",
                    help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
@@ -222,6 +224,11 @@ def main(argv=None) -> int:
     if args.ensaio is not None and args.ensaio < 1:
         tela.erro("--ensaio precisa de um numero a partir de 1 (ex.: --ensaio 3).")
         return 2
+    if args.enviar_faltantes and (args.conferir_site or args.envio_real or args.modo_teste or args.revisar
+                                  or args.analise_remota or args.ensaio is not None or args.resolver
+                                  or args.desfazer_renomeacao):
+        tela.erro("--enviar-faltantes roda sozinho.")
+        return 2
     if args.conferir_site and (args.envio_real or args.modo_teste or args.revisar or args.analise_remota
                                or args.ensaio is not None or args.resolver or args.desfazer_renomeacao):
         tela.erro("--conferir-site roda sozinho (so le o site, nao envia).")
@@ -266,7 +273,7 @@ def main(argv=None) -> int:
     modo = ("MODO TESTE (conta de teste)" if args.modo_teste
             else "ENSAIO (redacoes reais -> conta de teste)" if args.ensaio is not None
             else "alunos da lista")
-    if not args.revisar and not args.conferir_site:
+    if not args.revisar and not args.conferir_site and not args.enviar_faltantes:
         tela.titulo(f"CONFERÊNCIA  ·  {modo}  ·  " + ("depois envia" if args.envio_real else "nada é enviado"))
     tela.secao("Dados")
 
@@ -341,6 +348,19 @@ def main(argv=None) -> int:
         from modulos.site.conferencia_site import executar_conferencia_site
         load_dotenv()
         return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam))
+    if args.enviar_faltantes:
+        # T54: usa a conferência de hoje (menu 7), sem abrir as contas de novo
+        from dotenv import load_dotenv
+        from modulos.site.conferencia_site import faltantes_do_relatorio
+        load_dotenv()
+        tela.titulo("ENVIAR AS QUE FALTAM NO SITE")
+        faltam = faltantes_do_relatorio(cfg.pasta_relatorios, resultado)
+        if faltam is None:
+            return 2
+        if not faltam:
+            tela.ok("A conferência de hoje não achou nenhuma faltando: nada para enviar.")
+            return 0
+        return _enviar_faltantes(cfg, faltam)
     if args.revisar:
         return executar_revisao(
             resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,

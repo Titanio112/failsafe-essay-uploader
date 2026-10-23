@@ -40,11 +40,12 @@ Testar (nada vai p/ alunos)  3) Ensaio com redações reais
                             4) Modo teste
                             5) Conferir no site            lê as contas, não envia
 Enviar                      6) Enviar para os alunos        (hoje: bloqueado)
-                            7) Resolver revisões manuais    chegou no site? sim/não
-Ferramentas                 8) Atualizar os temas do site
-                            9) Desfazer uma renomeação
-                           10) Primeiro uso / o que falta
-                           11) Configurações                navegador aparece ou não (s/n)
+                            7) Enviar as que faltam no site (hoje: bloqueado)
+                            8) Resolver revisões manuais    chegou no site? sim/não
+Ferramentas                 9) Atualizar os temas do site
+                           10) Desfazer uma renomeação
+                           11) Primeiro uso / o que falta
+                           12) Configurações                navegador aparece ou não (s/n)
                             0) Sair
 ```
 Cada opção chama o mesmo comando com flags (abaixo), com as mesmas travas e
@@ -71,7 +72,7 @@ Onde o terminal disser "rode `python main.py`", é este menu.
    (veja abaixo).
 6. Envio para os alunos: hoje BLOQUEADO (veja como vai funcionar abaixo).
 7. Se sobrar alguma redação em "Conferir no site", responda com
-   `python main.py --resolver` (menu opção **7**).
+   `python main.py --resolver` (menu opção **8**).
 
 ## Testar com redações reais (ensaio)
 
@@ -135,7 +136,7 @@ Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
    Durante o envio aparece o **progresso ao vivo** (T51):
    `▶ 23 de 61 redações  ████░░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min`.
    O navegador aparece na tela (para acompanhar); para deixar rodando sem a
-   janela: menu **11) Configurações** (fica salvo no `config.ini`) ou
+   janela: menu **12) Configurações** (fica salvo no `config.ini`) ou
    `--sem-janela` numa execução só.
 4. **Pulos automáticos (sem erro):** a redação daquele tema que já está no
    site hoje ("já estava no site") e a mesma foto que já foi enviada, mesmo
@@ -191,7 +192,16 @@ outro tema (ex.: a filiação mandada como 000), a foto aparece como
 real (23/10) foram 28 assim (tema 100 mandado como 000). No fim, as que
 certamente faltam podem ser enviadas na hora: o script pergunta "Montar o
 envio só destas?" e segue o envio normal (lote na tela, `ENVIAR`, todas as
-travas). Hoje a produção está bloqueada, então ele só avisa.
+travas). Hoje a produção está bloqueada, então ele só avisa. Se não falta
+nenhuma, ele diz "Não falta enviar nenhuma" (por isso não pergunta nada).
+Saiu sem querer? Menu **7) Enviar as que faltam no site**
+(`--enviar-faltantes`) usa o relatório da conferência de **hoje**, sem
+abrir as contas de novo (relatório de outro dia não vale: alguém pode ter
+mandado à mão depois).
+
+Na tela, cada foto é uma linha curta: `✔ no site  tema 000  30/09/2026
+pasta`, `⚠ outro tema?  tema 100  como 000?  pasta`, `• falta ...`. O nome
+da pasta abre a foto (Ctrl+clique).
 
 ## Resolver as revisões manuais
 
@@ -200,7 +210,7 @@ conseguiu ver a redação na lista. Ele nunca reenvia sozinho (poderia
 duplicar). Abra o site **na conta do aluno**, em Minhas redações, e rode:
 
 ```
-python main.py --resolver        (ou menu opção 7)
+python main.py --resolver        (ou menu opção 8)
 ```
 Para cada uma: `s` = chegou (vira enviada e nunca mais vai), `n` = não
 chegou (vai de novo na próxima execução), Enter = deixa para depois, `q` =

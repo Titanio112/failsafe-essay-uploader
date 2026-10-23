@@ -25,11 +25,12 @@ OPCOES = [
     ("Testar (nada vai para os alunos)", "4", "Modo teste", "pasta testes/redacoes_teste"),
     ("Testar (nada vai para os alunos)", "5", "Conferir no site", "lê as contas dos alunos, não envia"),
     ("Enviar", "6", "Enviar para os alunos", "envio de verdade"),
-    ("Enviar", "7", "Resolver revisões manuais", "chegou no site? sim/não"),
-    ("Ferramentas", "8", "Atualizar os temas do site", "só leitura"),
-    ("Ferramentas", "9", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
-    ("Ferramentas", "10", "Primeiro uso / o que falta", "cria o que falta e explica"),
-    ("Ferramentas", "11", "Configurações", ""),
+    ("Enviar", "7", "Enviar as que faltam no site", "usa a conferência de hoje (5)"),
+    ("Enviar", "8", "Resolver revisões manuais", "chegou no site? sim/não"),
+    ("Ferramentas", "9", "Atualizar os temas do site", "só leitura"),
+    ("Ferramentas", "10", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
+    ("Ferramentas", "11", "Primeiro uso / o que falta", "cria o que falta e explica"),
+    ("Ferramentas", "12", "Configurações", ""),
 ]
 
 
@@ -48,9 +49,9 @@ def mostrar_menu(saida: Callable = print) -> None:
         if grupo != grupo_atual:
             tela.secao(grupo, saida)
             grupo_atual = grupo
-        if tecla == "6" and config_mod.PRODUCAO_BLOQUEADA:
+        if tecla in ("6", "7") and config_mod.PRODUCAO_BLOQUEADA:
             ajuda = tela.c(f"{tela.SIMBOLOS['bloqueado']} bloqueado (só a conta de teste envia)", "bloqueado")
-        elif tecla == "11":  # T52: mostra a escolha atual
+        elif tecla == "12":  # T52: mostra a escolha atual
             ajuda = tela.c(resumo_navegador(), "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
@@ -89,10 +90,15 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
             return None
         return ["--envio-real"]
     if opcao == "7":
-        return ["--resolver"]
+        if config_mod.PRODUCAO_BLOQUEADA:
+            tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA, saida)
+            return None
+        return ["--enviar-faltantes"]
     if opcao == "8":
-        return ["--analise-remota"]
+        return ["--resolver"]
     if opcao == "9":
+        return ["--analise-remota"]
+    if opcao == "10":
         logs = sorted(Path(pasta_relatorios or config_mod.RAIZ / "relatorios").glob("renomeacoes_*.csv"),
                       reverse=True)[:9]
         if not logs:
@@ -104,9 +110,9 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
         if escolha.isdigit() and 1 <= int(escolha) <= len(logs):
             return ["--desfazer-renomeacao", str(logs[int(escolha) - 1])]
         return None
-    if opcao == "10":
-        return ["--preparar"]
     if opcao == "11":
+        return ["--preparar"]
+    if opcao == "12":
         executar_configuracoes(entrada=entrada, saida=saida)
         return None
     tela.erro("Opção inválida.", saida)
