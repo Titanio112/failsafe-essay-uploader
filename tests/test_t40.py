@@ -132,4 +132,4 @@ def test_main_modo_teste_revisar_g_e_depois_tem_fila(tmp_path, monkeypatch, caps
     capsys.readouterr()
 
     assert main_mod.main(["--modo-teste"]) == 0
-    assert "Exatos unicos (fila real): 1" in capsys.readouterr().out
+    assert "Prontas para enviar:" in capsys.readouterr().out

@@ -33,10 +33,10 @@ def _main(tmp_path, monkeypatch):
 def test_pasta_sem_tema_vira_uma_linha_e_pasta_com_tema_lista_arquivos(tmp_path, monkeypatch, capsys):
     assert _main(tmp_path, monkeypatch).main([]) == 0
     saida = capsys.readouterr().out
-    assert "sem tema aprovado: nenhum arquivo vai ate escolher o tema" in saida
-    assert "nomes: 1 exato(s), 1 parecido(s), 1 sem aluno, 1 para decidir a mao" in saida
-    assert "SEM_CODIGO: Fulano.JPG" not in saida
-    assert "✔ EXATO_UNICO: Ana Souza.JPG -> Ana Souza" in saida
+    assert "sem tema aprovado: nenhum arquivo vai até escolher o tema" in saida
+    assert "nomes: 1 exato(s), 1 parecido(s), 1 sem aluno, 1 para decidir à mão" in saida
+    assert "Fulano.JPG" not in saida
+    assert "✔ pronto: Ana Souza.JPG → Ana Souza" in saida
 
 
 def test_com_fila_sugere_o_ensaio(tmp_path, monkeypatch, capsys):

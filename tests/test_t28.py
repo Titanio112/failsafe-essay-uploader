@@ -96,7 +96,7 @@ def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
 
     saida = capsys.readouterr().out
     assert f"Pasta aprovada: {PASTA} -> tema 100" in saida
-    assert "Exatos unicos (fila real): 1" in saida
+    assert "Prontas para enviar:" in saida
     assert saida.count("Coluna 'Senha'") == 0  # CSV sem coluna Senha
 
 

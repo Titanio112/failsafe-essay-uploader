@@ -251,7 +251,7 @@ def test_main_revisar_e_depois_o_dry_run_tem_fila(tmp_path, monkeypatch, capsys)
     assert "1 pasta(s) aprovada(s), 1 arquivo(s) renomeado(s)" in capsys.readouterr().out
 
     assert main_mod.main(["--pasta", str(raiz)]) == 0
-    assert "Exatos unicos (fila real): 1" in capsys.readouterr().out
+    assert "Prontas para enviar:" in capsys.readouterr().out
 
 
 def test_main_revisar_nao_combina_com_envio_real(tmp_path, monkeypatch):

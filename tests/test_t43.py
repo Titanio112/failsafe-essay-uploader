@@ -172,4 +172,4 @@ def test_main_lista_sem_colunas_explica(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: cfg)
     assert main_mod.main([]) == 2
-    assert "Nao consegui ler a lista de alunos" in capsys.readouterr().out
+    assert "Não consegui ler a lista de alunos" in capsys.readouterr().out

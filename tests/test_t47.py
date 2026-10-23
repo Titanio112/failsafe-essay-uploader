@@ -63,7 +63,7 @@ def test_envio_guarda_copia_antes_de_abrir_o_navegador(tmp_path, navegador_falso
     with Progresso(tmp_path / "p.db") as prog, patch("builtins.input", return_value="ENVIAR TESTE"):
         assert fep.executar_envio_producao(cfg, resultado, prog, conta_teste=TESTE.email) == 0
     assert len(list((cfg.pasta_relatorios / "copias").glob("progresso_*.db"))) == 1
-    assert "Copia de seguranca do caderno" in capsys.readouterr().out
+    assert "Cópia de segurança do caderno" in capsys.readouterr().out
 
 
 def test_sem_copia_nao_envia(tmp_path, navegador_falso, capsys):
@@ -87,10 +87,10 @@ def test_lista_do_que_precisa_de_voce(tmp_path, capsys):
         prog.marcar(ana.id, "000 - G/Ana.JPG", ERRO, pasta="000", detalhe="Upload nao aceito")
         assert fep.mostrar_o_que_precisa_de_voce(lotes, prog) == 3  # + Bia não tentada
     saida = capsys.readouterr().out
-    assert "REVISAO_MANUAL (1): abra o site NA CONTA DESTE ALUNO" in saida
+    assert "Conferir no site (1): abra o site NA CONTA DESTE ALUNO" in saida
     assert "Ana - tema 100 - 100 - T/Ana.JPG: Confirmacao inconclusiva" in saida
-    assert "ERRO (1): nada foi enviado" in saida
-    assert "1 redacao(oes) nao chegaram a ser tentadas" in saida
+    assert "Não enviadas (1): nada foi enviado" in saida
+    assert "1 redação(ões) não chegaram a ser tentadas" in saida
 
 
 def test_tudo_enviado_nao_mostra_a_lista(tmp_path, capsys):
@@ -99,7 +99,7 @@ def test_tudo_enviado_nao_mostra_a_lista(tmp_path, capsys):
     with Progresso(tmp_path / "p.db") as prog:
         prog.marcar(ana.id, "100 - T/Ana.JPG", ENVIADO, pasta="100")
         assert fep.mostrar_o_que_precisa_de_voce(lotes, prog) == 0
-    assert "precisa de voce" not in capsys.readouterr().out
+    assert "precisa de você" not in capsys.readouterr().out
 
 
 # ─── Menu ────────────────────────────────────────────────────
@@ -116,8 +116,9 @@ def _respostas(*r):
     (["3", "5", "s"], ["--ensaio", "5", "--envio-real"]),
     (["4", "n"], ["--modo-teste"]),
     (["4", "s"], ["--modo-teste", "--envio-real"]),
-    (["6"], ["--analise-remota"]),
-    (["8"], ["--preparar"]),
+    (["6"], ["--resolver"]),
+    (["7"], ["--analise-remota"]),
+    (["9"], ["--preparar"]),
 ])
 def test_cada_opcao_vira_os_argumentos_do_main(respostas, argumentos):
     entrada = _respostas(*respostas[1:])
@@ -133,7 +134,7 @@ def test_producao_bloqueada_nao_chama_o_main():
 def test_desfazer_lista_os_logs_e_escolhe(tmp_path):
     (tmp_path / "renomeacoes_20261022_100000.csv").write_text("x", encoding="utf-8")
     (tmp_path / "renomeacoes_20261023_100000.csv").write_text("x", encoding="utf-8")
-    args = menu.argumentos_da_opcao("7", _respostas("1"), tmp_path, saida=lambda *_: None)
+    args = menu.argumentos_da_opcao("8", _respostas("1"), tmp_path, saida=lambda *_: None)
     assert args == ["--desfazer-renomeacao", str(tmp_path / "renomeacoes_20261023_100000.csv")]
 
 

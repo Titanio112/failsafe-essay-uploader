@@ -75,7 +75,7 @@ def enviar_item(
         saldo = ler_saldo_creditos(page)
         if saldo is None or saldo == 0:
             log.warning("Saldo de creditos indisponivel ou zero (%s). Abortando sem enviar.", saldo)
-            return marcar(ERRO, f"Saldo indisponivel/zero: {saldo}")
+            return marcar(ERRO, "Sem créditos na conta" if saldo == 0 else "Não consegui ler o saldo de créditos")
 
         # 2. Duplicidade por contagem (T35): linhas do tema HOJE no site x
         #    arquivos deste aluno/tema que o caderno (banco) marcou hoje.
@@ -94,7 +94,8 @@ def enviar_item(
         if no_site != no_caderno:
             log.error("Tema %s: site tem %d hoje, caderno tem %d. Nao envia; conferir a mao.",
                       codigo, no_site, no_caderno)
-            return marcar(ERRO, f"Contagem diverge: site {no_site} hoje, caderno {no_caderno} (conferir a mao)")
+            return marcar(ERRO, f"Contagem diverge: o site tem {no_site} deste tema hoje e o caderno {no_caderno} "
+                                "(alguém enviou pelo site? confira a conta; amanhã a contagem zera)")
 
         # 3. Formulario e codigo no combo (fail-closed)
         abrir_formulario_envio(page)
@@ -108,7 +109,7 @@ def enviar_item(
         if codigo not in codigos_disponiveis:
             log.error("Codigo %s nao encontrado no combo de temas do site. Disponiveis: %s",
                       codigo, sorted(codigos_disponiveis))
-            return marcar(ERRO, f"Codigo nao existe no combo: {sorted(codigos_disponiveis)}")
+            return marcar(ERRO, f"O tema {codigo} não aparece na lista de temas desta conta")
 
         # 4. Selecionar tema e conferir o codigo selecionado (fail-closed)
         selecionado = selecionar_tema_por_codigo(page, codigo)
@@ -116,7 +117,7 @@ def enviar_item(
         if codigo_selecionado != codigo:
             log.error("Tema nao selecionado/conferido: esperado %s, obtido %s",
                       codigo, codigo_selecionado)
-            return marcar(ERRO, f"Tema selecionado diferente: {codigo_selecionado}")
+            return marcar(ERRO, f"Não consegui marcar o tema {codigo} no formulário")
 
         # 5. Criterio ENEM conferido (T44), anexo e upload aceito
         if not selecionar_criterio(page):

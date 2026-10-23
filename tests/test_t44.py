@@ -301,7 +301,7 @@ def test_fluxo_com_trava_ocupada_nao_abre_o_navegador(tmp_path, capsys):
          patch.object(fep, "sync_playwright") as pw, patch("builtins.input", return_value="ENVIAR TESTE"):
         assert fep.executar_envio_producao(cfg, resultado, conta_teste=teste.email) == 2
     assert pw.call_count == 0
-    assert "Outro envio esta rodando" in capsys.readouterr().out
+    assert "Outro envio está rodando" in capsys.readouterr().out
 
 
 # ─── Domínio e identidade ────────────────────────────────────

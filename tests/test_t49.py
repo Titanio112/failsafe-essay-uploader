@@ -75,4 +75,4 @@ def test_main_resolver_e_menu(monkeypatch):
     assert main_mod.main(["--resolver", "--envio-real"]) == 2
     monkeypatch.setattr("builtins.input", lambda _p: "q")
     assert main_mod.main(["--resolver"]) == 0
-    assert menu.argumentos_da_opcao("9") == ["--resolver"]
+    assert menu.argumentos_da_opcao("6") == ["--resolver"]

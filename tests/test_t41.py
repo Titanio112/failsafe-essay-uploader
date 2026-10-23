@@ -84,7 +84,7 @@ def test_dry_run_tem_titulo_e_secoes(tmp_path, monkeypatch, capsys):
     assert main_mod.main([]) == 0
     saida = capsys.readouterr().out
     assert "CONFERÊNCIA  ·  alunos da lista  ·  nada é enviado" in saida
-    for secao in ("── Dados ", "── Resumo da conciliacao ", "── Detalhes por tema ", "── Arquivos gerados "):
+    for secao in ("── Dados ", "── Resumo ", "── Detalhes por tema ", "── Arquivos gerados "):
         assert secao in saida
-    assert "✔ EXATO_UNICO: Ana Lalara.JPG -> Ana Lalara" in saida
-    assert "⛔ [BLOQUEADO] Envio real desativado." in saida
+    assert "✔ pronto: Ana Lalara.JPG → Ana Lalara" in saida
+    assert "• Só conferência: nada foi enviado." in saida

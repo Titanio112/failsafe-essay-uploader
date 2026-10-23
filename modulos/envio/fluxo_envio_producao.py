@@ -116,9 +116,9 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
 
 # O que fazer com cada estado que pede ação (T47)
 _ACAO = {
-    REVISAO_MANUAL: ("revisao", "abra o site NA CONTA DESTE ALUNO e veja se a redacao deste tema chegou hoje; "
-                                "depois responda em: python main.py --resolver"),
-    ERRO: ("erro", "nada foi enviado; resolva o motivo e rode de novo (ele tenta outra vez)"),
+    REVISAO_MANUAL: ("Conferir no site", "abra o site NA CONTA DESTE ALUNO e veja se a redação deste tema "
+                                         "chegou hoje; depois responda em: python main.py --resolver"),
+    ERRO: ("Não enviadas", "nada foi enviado; resolva o motivo e rode de novo (ele tenta outra vez)"),
 }
 
 
@@ -137,17 +137,17 @@ def mostrar_o_que_precisa_de_voce(lotes: list[LoteAluno], progresso: Progresso) 
                 nao_tentados += 1
     if not pendentes and not nao_tentados:
         return 0
-    tela.secao("O que precisa de voce")
+    tela.secao("O que precisa de você")
     for estado in (REVISAO_MANUAL, ERRO):
         if estado not in pendentes:
             continue
-        _, acao = _ACAO[estado]
+        titulo, acao = _ACAO[estado]
         tela.status("aviso" if estado == REVISAO_MANUAL else "erro",
-                    f"{estado} ({len(pendentes[estado])}): {acao}")
+                    f"{titulo} ({len(pendentes[estado])}): {acao}")
         for nome, item, detalhe in pendentes[estado]:
             tela.status("fraco", f"{nome} - tema {item.codigo} - {item.pasta}/{item.arquivo}: {detalhe}", recuo=6)
     if nao_tentados:
-        tela.status("info", f"{nao_tentados} redacao(oes) nao chegaram a ser tentadas: vao na proxima execucao.")
+        tela.status("info", f"{nao_tentados} redação(ões) não chegaram a ser tentadas: vão na próxima execução.")
     return sum(len(v) for v in pendentes.values()) + nao_tentados
 
 
@@ -202,28 +202,29 @@ def executar_envio_producao(
             log.warning("Fora do lote: %s (%s)", chave, motivo)
     total = sum(len(lote.itens) for lote in lotes)
     if not total:
-        tela.info("Nada para enviar nesta execucao.")
+        tela.info("Nada para enviar agora.")
         return 0
     if conta_teste and any(l.aluno.email.casefold() != conta_teste.casefold() for l in lotes):
         tela.erro("Lote de teste com aluno que nao e a conta de teste. Nada foi enviado.")
         return 2
 
-    rotulo = "teste" if conta_teste else "producao"
+    rotulo = "teste" if conta_teste else "produção"
     palavra = "ENVIAR TESTE" if conta_teste else "ENVIAR"
-    tela.titulo(f"ENVIO DE {rotulo.upper()}  ·  {len(lotes)} aluno(s), {total} redacao(oes)")
+    tela.titulo(f"ENVIO DE {rotulo.upper()}  ·  {len(lotes)} aluno(s), {total} redação(ões)")
     tela.secao(f"Lote de {rotulo}")
     for lote in lotes:
         print(f"  {tela.c(lote.aluno.nome, 'titulo')} {tela.c(f'<{mascarar_email(lote.aluno.email)}>', 'fraco')}")
         for item in lote.itens:
             tela.status("info", f"tema {item.codigo}: {item.chave_progresso}", recuo=4)
-    tela.secao("Regras")
-    tela.status("fraco", "Ja enviados hoje (mesmo tema) serao pulados. ERRO para so o aluno;")
-    tela.status("fraco", "resultado inconclusivo apos o clique para a execucao inteira.")
+    tela.secao("Como funciona")
+    tela.status("fraco", "Vai sozinho, aluno por aluno. O que já está no site hoje é pulado.")
+    tela.status("fraco", "Erro antes do clique: nada é enviado e segue para o próximo aluno.")
+    tela.status("fraco", "Dúvida depois do clique, CAPTCHA ou 2 logins falhando: para tudo e avisa.")
     print()
     confirmacao = tela.perguntar(
         f"  Digite {tela.c(palavra, 'tecla')} para confirmar o lote (qualquer outro texto cancela): ")
     if confirmacao != palavra:
-        tela.aviso("Cancelado pelo usuario.")
+        tela.aviso("Cancelado: nada foi enviado.")
         return 2
     tela.secao("Enviando")
 
@@ -231,7 +232,7 @@ def executar_envio_producao(
         with trava_de_envio(Path(cfg.pasta_relatorios) / "envio.trava"):
             return _enviar_com_navegador(cfg, lotes, progresso, conta_teste, rotulo)
     except TravaOcupada:
-        tela.erro("Outro envio esta rodando agora (outra janela?). Espere ele acabar. Nada foi enviado.")
+        tela.erro("Outro envio está rodando agora (outra janela?). Espere ele acabar. Nada foi enviado.")
         return 2
 
 
@@ -246,10 +247,10 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
         try:
             copia = copiar_caderno(progresso.con, Path(cfg.pasta_relatorios) / "copias")
         except (OSError, sqlite3.Error) as e:
-            tela.erro(f"Nao consegui guardar a copia de seguranca do caderno ({type(e).__name__}). "
+            tela.erro(f"Não consegui guardar a cópia de segurança do caderno ({type(e).__name__}). "
                       "Nada foi enviado.")
             return 2
-        tela.info(f"Copia de seguranca do caderno: {tela.caminho(copia)}")
+        tela.info(f"Cópia de segurança do caderno: {tela.caminho(copia)}")
     senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
@@ -285,10 +286,12 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
             browser.close()
 
     tela.secao(f"Resumo do envio de {rotulo}")
-    tela.contagens([(estado, contagem.get(estado, 0), tela.PAPEL_DO_ESTADO[estado])
-                    for estado in (ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL)])
+    tela.contagens([("Enviadas", contagem.get(ENVIADO, 0), "ok"),
+                    ("Já estavam no site", contagem.get(JA_ENVIADO, 0), "info"),
+                    ("Não enviadas (erro)", contagem.get(ERRO, 0), "erro"),
+                    ("Conferir no site", contagem.get(REVISAO_MANUAL, 0), "aviso")])
     if parou:
-        tela.erro("Execucao PARADA antes do fim. Confira REVISAO_MANUAL no site antes de rodar de novo.")
+        tela.erro("Envio PARADO antes do fim. Veja abaixo o que precisa de você antes de rodar de novo.")
     elif not contagem[ERRO] and not contagem[REVISAO_MANUAL]:
         tela.ok("Tudo certo.")
     if progresso:

@@ -16,7 +16,6 @@ except (AttributeError, ValueError):
 from modulos.base import config as config_mod
 from modulos.base import tela
 from modulos.base.config import (
-    MENSAGEM_BLOQUEIO,
     NOME_CONTA_TESTE,
     carregar_config,
     configurar_modo_teste,
@@ -60,16 +59,16 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
         return
     tela.secao("O que falta revisar")
     if novas:
-        tela.aviso(f"{novas} sugestao(oes) nova(s) de nome em {tela.caminho(arquivo_nomes)}.")
+        tela.aviso(f"{novas} sugestão(ões) nova(s) de nome em {tela.caminho(arquivo_nomes)}.")
     if sugestoes:
         registrar_sugestoes_pasta(sugestoes, arquivo_pastas)
-        tela.aviso("Pastas SEM codigo de tema aprovado (nada delas sera enviado):")
+        tela.aviso("Pastas SEM tema aprovado (nada delas é enviado):")
         for pasta, codigo, texto, score in sugestoes:
             if not codigo:
                 tela.status("fraco", f"{pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)", recuo=4)
             else:
-                nivel = "provavel" if score >= SCORE_PROVAVEL else "FRACO, conferir"
-                print(f"    {tela.porcentagem(score)} {pasta}: {nivel} -> {texto}")
+                nivel = "provável" if score >= SCORE_PROVAVEL else "fraco, conferir"
+                print(f"    {tela.porcentagem(score)} {pasta}: {nivel} → {texto}")
     tela.comando(revisar, "escolher os temas e confirmar os nomes")
 
 
@@ -78,7 +77,7 @@ def _ler_alunos(cfg):
     try:
         return carregar_alunos(cfg)
     except (PlanilhaError, OSError, KeyError) as e:
-        tela.erro(f"Nao consegui ler a lista de alunos {tela.caminho(cfg.planilha)}: {e}")
+        tela.erro(f"Não consegui ler a lista de alunos {tela.caminho(cfg.planilha)}: {e}")
         tela.status("fraco", "O arquivo precisa ter as colunas Nome e Email (separadas por ; ou ,).", recuo=4)
         return None
 
@@ -90,9 +89,9 @@ def _resumo_pasta_sem_tema(itens, alunos) -> None:
     outros = [i for i in itens if i.estado != "REVISAO_MANUAL"]
     com_nome = sum(1 for i in outros if i.aluno and normalizar_nome(i.pessoa) in exatos)
     sem_aluno = sum(1 for i in outros if not i.aluno)
-    tela.status("aviso", "sem tema aprovado: nenhum arquivo vai ate escolher o tema (--revisar)", recuo=5)
+    tela.status("aviso", "sem tema aprovado: nenhum arquivo vai até escolher o tema (--revisar)", recuo=5)
     tela.status("fraco", f"nomes: {com_nome} exato(s), {len(outros) - com_nome - sem_aluno} parecido(s), "
-                         f"{sem_aluno} sem aluno, {len(itens) - len(outros)} para decidir a mao (em branco...)",
+                         f"{sem_aluno} sem aluno, {len(itens) - len(outros)} para decidir à mão (em branco...)",
                 recuo=5)
 
 
@@ -293,7 +292,7 @@ def main(argv=None) -> int:
     conciliacao = conciliar_com_aprovacoes(cfg, alunos, codigos_site)
     resultado, arquivos = conciliacao.resultado, conciliacao.arquivos
     nomes_aprovados, codigos_pasta = conciliacao.nomes_aprovados, conciliacao.codigos_pasta
-    tela.ok(f"Pastas de temas: {len(arquivos)} | JPGs encontrados: {sum(len(v) for v in arquivos.values())}")
+    tela.ok(f"Pastas de tema: {len(arquivos)}  ·  fotos encontradas: {sum(len(v) for v in arquivos.values())}")
     if nomes_aprovados:
         tela.ok(f"Nomes aprovados em {cfg.arquivo_nomes_aprovados.name}: {len(nomes_aprovados)}")
     for pasta, codigo in sorted(codigos_pasta.items()):
@@ -323,17 +322,17 @@ def main(argv=None) -> int:
                 prog.marcar(item.aluno.id, item.chave, "A_ENVIAR", pasta=item.pasta)
 
     resumo = resultado.resumo()
-    tela.secao("Resumo da conciliacao")
+    tela.secao("Resumo")
     tela.contagens([
-        ("Exatos unicos (fila real)", resumo["EXATO_UNICO"], "ok"),
-        ("Sugestoes fuzzy (revisao)", resumo["SUGESTAO_FUZZY"], "aviso"),
-        ("Ambiguos", resumo["AMBIGUO"], "aviso"),
-        ("Arquivos sem aluno", resumo["ARQUIVO_SEM_ALUNO"], "aviso"),
-        ("Alunos sem arquivo", resumo["ALUNO_SEM_ARQUIVO"], "fraco"),
-        ("Sem codigo na pasta", resumo.get("SEM_CODIGO", 0), "aviso"),
-        ("Codigo invalido", resumo.get("CODIGO_INVALIDO", 0), "erro"),
-        ("Codigo repetido no site", resumo.get("SIMULADO", 0), "erro"),
-        ("Revisao manual", resumo.get("REVISAO_MANUAL", 0), "aviso"),
+        ("Prontas para enviar", resumo["EXATO_UNICO"], "ok"),
+        ("Nome parecido (confirmar no --revisar)", resumo["SUGESTAO_FUZZY"], "aviso"),
+        ("Nome de mais de um aluno", resumo["AMBIGUO"], "aviso"),
+        ("Arquivo sem aluno", resumo["ARQUIVO_SEM_ALUNO"], "aviso"),
+        ("Aluno sem arquivo", resumo["ALUNO_SEM_ARQUIVO"], "fraco"),
+        ("Em pasta sem tema", resumo.get("SEM_CODIGO", 0), "aviso"),
+        ("Tema que não existe no site", resumo.get("CODIGO_INVALIDO", 0), "erro"),
+        ("Tema repetido no site", resumo.get("SIMULADO", 0), "erro"),
+        ("Para decidir à mão", resumo.get("REVISAO_MANUAL", 0), "aviso"),
     ])
 
     # Tabela por tema
@@ -346,16 +345,19 @@ def main(argv=None) -> int:
                 _resumo_pasta_sem_tema(itens_tema, alunos)
                 continue
             for item in itens_tema:
-                aluno_nome = item.aluno.nome if item.aluno else "N/A"
-                obs = tela.c(f"  ({item.observacao})", "fraco") if item.observacao else ""
+                aluno_nome = item.aluno.nome if item.aluno else "?"
+                # T50: o texto interno (fixo pelo teste protegido) fica curto na tela
+                texto_obs = item.observacao.replace("revisao humana obrigatoria antes de validar",
+                                                    "confirmar no --revisar")
+                obs = tela.c(f"  ({texto_obs})", "fraco") if texto_obs else ""
                 papel = tela.PAPEL_DO_ESTADO.get(item.estado, "info")
-                tela.status(papel, f"{item.estado}: {item.arquivo} -> {aluno_nome}", recuo=5,
+                tela.status(papel, f"{tela.rotulo(item.estado)}: {item.arquivo} → {aluno_nome}", recuo=5,
                             saida=lambda linha, obs=obs: print(linha + obs))
 
     tela.secao("Arquivos gerados")
-    tela.info(f"Relatorio CSV: {tela.caminho(csv_path)}")
-    tela.info(f"Fila dry-run:  {tela.caminho(txt_path)}")
-    tela.status("fraco", "Fuzzy/ambiguo/sem par exigem revisao humana e nao entram na fila real.")
+    tela.info(f"Relatório (abre no Excel): {tela.caminho(csv_path)}")
+    tela.info(f"Fila do envio:             {tela.caminho(txt_path)}")
+    tela.status("fraco", "Só as \"prontas\" entram no envio; as outras esperam a revisão.")
 
     _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
                        cfg.arquivo_pastas_aprovadas, codigos_pasta,
@@ -380,11 +382,12 @@ def main(argv=None) -> int:
             )
 
     if resultado.fila_validada() and not args.modo_teste:
-        tela.secao("Proximo passo")
+        tela.secao("Próximo passo")
         tela.comando(f"python main.py --ensaio {QUANTIDADE_PADRAO}",
-                     "manda algumas destas para a CONTA DE TESTE, para testar com redacoes reais")
+                     "manda algumas destas para a CONTA DE TESTE, para testar com redações reais")
     print()
-    tela.bloqueado(MENSAGEM_BLOQUEIO + " (dry-run; use --envio-real para enviar)")
+    # T50: fim normal da conferência não é erro (antes saía um ⛔ vermelho)
+    tela.info("Só conferência: nada foi enviado.")
     return 0
 
 

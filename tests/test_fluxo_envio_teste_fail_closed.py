@@ -303,7 +303,7 @@ class TestFailClosedPosClique:
         estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)
         assert estado is not None
         assert estado["estado"] == ERRO
-        assert "Tema selecionado diferente" in estado["detalhe"]
+        assert "Não consegui marcar o tema" in estado["detalhe"]
         assert self._contar_clicar_enviar(mocks) == 0
         assert mocks["anexar"].call_count == 0
 
@@ -321,7 +321,7 @@ class TestFailClosedPosClique:
         estado = self._ler_estado_banco(progresso_mock, "teste@teste.com", arquivo_teste)
         assert estado is not None
         assert estado["estado"] == ERRO
-        assert "Tema selecionado diferente" in estado["detalhe"]
+        assert "Não consegui marcar o tema" in estado["detalhe"]
         assert self._contar_clicar_enviar(mocks) == 0
         assert mocks["anexar"].call_count == 0
 

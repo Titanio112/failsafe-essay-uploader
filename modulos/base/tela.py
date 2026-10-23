@@ -57,6 +57,20 @@ PAPEL_DO_ESTADO = {
     "ALUNO_SEM_ARQUIVO": "fraco",
 }
 
+# Estado -> como aparece na tela (T50): palavras do dia a dia, não códigos
+ROTULO_DO_ESTADO = {
+    "EXATO_UNICO": "pronto", "SUGESTAO_FUZZY": "nome parecido", "AMBIGUO": "mais de um aluno",
+    "ARQUIVO_SEM_ALUNO": "sem aluno", "ALUNO_SEM_ARQUIVO": "aluno sem arquivo",
+    "SEM_CODIGO": "pasta sem tema", "CODIGO_INVALIDO": "tema fora do site",
+    "SIMULADO": "tema repetido no site", "REVISAO_MANUAL": "decidir à mão",
+    "ENVIADO": "enviada", "JA_ENVIADO": "já estava no site", "ERRO": "não enviada (erro)",
+}
+
+
+def rotulo(estado: str) -> str:
+    return ROTULO_DO_ESTADO.get(estado, estado)
+
+
 # ─── Cores ligadas/desligadas ────────────────────────────────
 
 _cores = {"ativas": False}
