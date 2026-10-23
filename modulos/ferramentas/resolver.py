@@ -51,12 +51,13 @@ def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str]
             data = _data_br(quando)
             tela.cabecalho(f"{n} de {len(pendentes)}:  {nomes.get(aluno_id, mascarar_email(aluno_id))}", saida)
             caminho = arquivo.removeprefix("ensaio/")
-            if pasta_raiz and "/" in caminho:  # T51: Ctrl+clique abre a foto
-                caminho = tela.link_arquivo(pasta_raiz, *caminho.split("/", 1))
+            raiz_foto = _raiz_da_foto(pasta_raiz, aluno_id, arquivo, nomes)
+            if raiz_foto and "/" in caminho:  # T51: Ctrl+clique abre a foto
+                caminho = tela.link_arquivo(raiz_foto, *caminho.split("/", 1))
             saida(f"  Arquivo: {caminho}")
             saida(f"  Tema:    {tema}    Enviado em: {data}")
             saida(tela.c(f"  Motivo:  {detalhe}", "fraco"))
-            foto = Path(pasta_raiz) / arquivo.removeprefix("ensaio/") if pasta_raiz else None
+            foto = _foto(pasta_raiz, aluno_id, arquivo, nomes)
             opcoes = [("s", "chegou no site (marca como enviada)"),
                       ("n", "não chegou (vai de novo na próxima vez)")]
             if foto:
@@ -89,6 +90,25 @@ def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str]
     if resolvidos:
         tela.info(f"Registro: {tela.caminho(log_csv)}", saida)
     return resolvidos
+
+
+def _raiz_da_foto(pasta_raiz, aluno_id: str, arquivo: str, nomes: dict) -> Path | None:
+    """T56: registro do modo teste (conta de teste, sem "ensaio/") mora em
+    testes/redacoes_teste, não na pasta real: abrir a real mostraria a foto
+    de outra pessoa com o mesmo nome de pasta/arquivo."""
+    if not pasta_raiz:
+        return None
+    from modulos.base.config import NOME_CONTA_TESTE, PASTA_TESTE, RAIZ
+    if nomes.get(aluno_id) == NOME_CONTA_TESTE and not arquivo.startswith("ensaio/"):
+        return RAIZ / PASTA_TESTE
+    return Path(pasta_raiz)
+
+
+def _foto(pasta_raiz, aluno_id: str, arquivo: str, nomes: dict) -> Path | None:
+    """A foto do registro, só se o arquivo existe (senão não oferece o "v")."""
+    raiz = _raiz_da_foto(pasta_raiz, aluno_id, arquivo, nomes)
+    foto = raiz / arquivo.removeprefix("ensaio/") if raiz else None
+    return foto if foto and foto.is_file() else None
 
 
 def _data_br(quando: str) -> str:

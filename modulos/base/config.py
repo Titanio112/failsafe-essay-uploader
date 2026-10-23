@@ -121,7 +121,7 @@ class Config:
 def _ler_ini(caminho: Path) -> Config:
     cfg = Config()
     parser = configparser.ConfigParser()
-    parser.read(caminho, encoding="utf-8")
+    parser.read(caminho, encoding="utf-8-sig")  # T56: arquivo salvo com BOM (Bloco de Notas)
 
     if parser.has_section("plataforma"):
         sec = parser["plataforma"]
@@ -182,7 +182,7 @@ def carregar_config(caminho: str | Path | None = None) -> Config:
         if c.is_file():
             try:
                 return _ler_ini(c)
-            except configparser.Error as exc:
+            except (configparser.Error, ValueError) as exc:  # T56: "headless = sim" -> ValueError
                 raise ConfigInvalida(f"Erro ao ler {c}: {exc}") from exc
     return Config()
 

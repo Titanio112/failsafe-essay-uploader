@@ -156,7 +156,7 @@ def _executar_ensaio(cfg, resultado, alunos, quantidade: int, envio_real: bool) 
         return executar_envio_producao(cfg, resultado, progresso, conta_teste=conta.email, lotes=lotes)
 
 
-def _enviar_faltantes(cfg, faltam, entrada=None) -> int:
+def _enviar_faltantes(cfg, faltam, entrada=None, resultado=None) -> int:
     """T53: depois da conferência no site, oferece enviar SÓ as fotos que
     certamente não estão lá. Mesmo caminho do envio de produção: trava
     PRODUCAO_BLOQUEADA, lote mostrado, ENVIAR digitado, checagens de sempre."""
@@ -169,12 +169,19 @@ def _enviar_faltantes(cfg, faltam, entrada=None) -> int:
     if tela.perguntar("  Montar o envio só destas? (s/n): ", entrada).lower() not in ("s", "sim"):
         tela.info("Ok, nada foi enviado.")
         return 0
-    so_estas = ResultadoConciliacao(itens=list(faltam))
+    # T56: o lote é montado com a fila INTEIRA (a checagem "mesma foto em duas
+    # pastas" e a contagem por tema precisam de todas) e depois fica só com estas
+    completo = resultado or ResultadoConciliacao(itens=list(faltam))
+    chaves = {(item.aluno.id, item.chave) for item in faltam}
     with Progresso(cfg.banco_progresso) as progresso:
-        lotes, ignorados = montar_lote_producao(so_estas, cfg.pasta_raiz, progresso)
+        lotes, ignorados = montar_lote_producao(completo, cfg.pasta_raiz, progresso)
+        for lote in lotes:
+            lote.itens = [i for i in lote.itens if (lote.aluno.id, i.chave_progresso) in chaves]
+        lotes = [lote for lote in lotes if lote.itens]
         for chave, motivo in ignorados:
-            tela.status("fraco", f"fora do envio: {chave} ({motivo})")
-        return executar_envio_producao(cfg, so_estas, progresso, lotes=lotes)
+            if any(chave == c for _, c in chaves):
+                tela.status("fraco", f"fora do envio: {chave} ({motivo})")
+        return executar_envio_producao(cfg, completo, progresso, lotes=lotes)
 
 
 def main(argv=None) -> int:
@@ -287,7 +294,7 @@ def main(argv=None) -> int:
         alunos = [Aluno(nome=NOME_CONTA_TESTE, email=email_teste)]
         tela.ok(f"Conta de teste: {NOME_CONTA_TESTE}  ·  pasta {tela.caminho(cfg.pasta_raiz)}")
     else:
-        if args.envio_real:
+        if args.envio_real or args.enviar_faltantes:  # T56: as mesmas checagens antes do envio
             # Produção (F4/T24): fail-closed sem a referência de códigos do site
             if not ler_codigos_site_csv(TEMAS_SITE_CSV):
                 tela.erro(f"Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
@@ -300,7 +307,7 @@ def main(argv=None) -> int:
             from dotenv import load_dotenv
             load_dotenv()
             log.info("Iniciando conciliacao para envio de producao.")
-        if args.envio_real and not Path(cfg.planilha).is_file():
+        if (args.envio_real or args.enviar_faltantes) and not Path(cfg.planilha).is_file():
             tela.erro(f"Planilha de alunos nao encontrada: {cfg.planilha}")
             return 2
         if not Path(cfg.planilha).is_file() or not Path(cfg.pasta_raiz).is_dir():
@@ -347,7 +354,7 @@ def main(argv=None) -> int:
         from dotenv import load_dotenv
         from modulos.site.conferencia_site import executar_conferencia_site
         load_dotenv()
-        return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam))
+        return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam, resultado=resultado))
     if args.enviar_faltantes:
         # T54: usa a conferência de hoje (menu 7), sem abrir as contas de novo
         from dotenv import load_dotenv
@@ -360,7 +367,7 @@ def main(argv=None) -> int:
         if not faltam:
             tela.ok("A conferência de hoje não achou nenhuma faltando: nada para enviar.")
             return 0
-        return _enviar_faltantes(cfg, faltam)
+        return _enviar_faltantes(cfg, faltam, resultado=resultado)
     if args.revisar:
         return executar_revisao(
             resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,

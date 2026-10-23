@@ -188,7 +188,9 @@ pula o que está no site **hoje**).
 
 T53: se um tema "não está no site", mas o site tem redações **a mais** de
 outro tema (ex.: a filiação mandada como 000), a foto aparece como
-**"talvez no site com outro tema"** e nunca vai no envio. Na 1ª conferência
+**"talvez no site com outro tema"** e nunca vai no envio. Desde a T56,
+havendo qualquer sobra, **todas** as que "faltariam" daquele aluno ficam
+como "outro tema?" (na dúvida, não envia). Na 1ª conferência
 real (23/10) foram 28 assim (tema 100 mandado como 000). No fim, as que
 certamente faltam podem ser enviadas na hora: o script pergunta "Montar o
 envio só destas?" e segue o envio normal (lote na tela, `ENVIAR`, todas as

@@ -475,3 +475,36 @@ menu não tinha como revisar a pasta de teste (só `--modo-teste --revisar`).
 - Menu 4 agora pergunta: Enter/c = conferir, r = revisar, e = enviar.
 - Testes: t47/t52 ajustados.
 
+## T56 - Revisão do código novo (T51-T55) [x]
+
+Pedido do Antônio (23/10, antes de dormir): revisar o código novo, juntar a
+`revisao-autonoma` na `f4-producao` e abrir a fase seguinte. Feito: junção
+fast-forward (tag `f4-antes-da-revisao`), branch `f5-validacao` (F5 =
+validação com dados reais antes de liberar a produção). Dois revisores
+(conferência/envio e links/menu/config), só leitura. Bloqueio da produção
+confirmado em todos os caminhos. Corrigido, cada um com teste que falhava antes:
+1. `comparar`: fotos do 000 na pasta podiam "gastar" linhas que eram de outro
+   tema e fazer uma redação já enviada parecer faltando -> com qualquer
+   sobra, todas as "não está" do aluno viram "outro tema?" (fail-closed).
+2. Menu 7: relatório também precisa bater o TEMA (pasta reaprovada depois).
+3. Menu 7: lote montado com a fila inteira (mesma foto em duas pastas).
+4. Menu 7: as checagens do `--envio-real` (temas_site.csv, lista, bloqueio).
+5. Conferência: logout + fechar o navegador protegidos no `finally`.
+6. Conferência: navegador caído não perde o relatório (CSV sempre gravado).
+7. Menu 7: relatório salvo pelo Excel (ANSI/vírgulas) -> aviso, sem quebrar.
+8. Resumo: "Não tentadas (parou antes)" separado de "conta não abriu".
+9. Config: `[plataforma] ; nota` não duplica a seção (arquivo não quebra).
+10. Config: `headless = sim` ou config.ini com erro não derrubam o menu.
+11. Config: `[Plataforma]` e BOM: grava onde o script lê; gravação que
+    deixaria o arquivo inválido volta atrás.
+12. Resolver: registro do modo teste abre a foto da pasta de teste (antes
+    abriria uma foto real com o mesmo nome); `v` só aparece se a foto existe.
+
+PROVA (23/10):
+```
+$ git stash (só o código) ; pytest tests/test_t56.py
+12 failed, 1 passed
+$ git stash pop ; python -m pytest -m "not real" -q -p no:warnings
+403 passed, 4 deselected in 14.88s
+```
+

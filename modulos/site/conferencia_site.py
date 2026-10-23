@@ -23,6 +23,7 @@ from modulos.base import relogio, tela
 from modulos.base.config import Config, obter_senha
 from modulos.base.excecoes import CaptchaOuBloqueio, IdentidadeDivergente, LoginFalhou
 from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, mascarar_email
+from modulos.site.confirmacao import logout
 from modulos.site.lista_redacoes import ItemListaRedacao
 
 log = logging.getLogger("automacao_redacoes")
@@ -30,6 +31,7 @@ log = logging.getLogger("automacao_redacoes")
 PALAVRA = "CONFERIR"
 NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não está no site", "não conferido"
 OUTRO_TEMA = "talvez no site com outro tema"
+NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
 COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes"]
 
 
@@ -58,8 +60,9 @@ def comparar(conf: ConferenciaAluno) -> None:
     000): com N linhas no site, as N primeiras contam como "no site" e o
     resto como "em parte" (não dá para saber qual foto é qual)."""
     conf.linhas = []
-    if conf.lista is None:
-        conf.linhas = [(item, NAO_CONFERIDO, []) for item in conf.itens]
+    if conf.lista is None:  # T56: sem erro = a conferência parou antes deste aluno
+        estado = NAO_CONFERIDO if conf.erro else NAO_TENTADO
+        conf.linhas = [(item, estado, []) for item in conf.itens]
         return
     vistos: dict[str, int] = {}
     for item in conf.itens:
@@ -85,14 +88,16 @@ def comparar(conf: ConferenciaAluno) -> None:
     for codigo, n in locais.items():
         if codigo in sobra:
             sobra[codigo] -= n
+    # T56 (revisão): fail-closed. Com QUALQUER sobra, TODAS as "não está" do
+    # aluno viram "outro tema?" (não só tantas quanto a sobra): as fotos do
+    # genérico 000 na pasta podem ter "gastado" linhas que eram de outro
+    # tema, e aí uma foto já enviada pareceria faltando.
+    sobras = sorted(c for c, n in sobra.items() if n > 0)
+    if not sobras:
+        return
     for i, (item, estado, do_tema) in enumerate(conf.linhas):
-        if estado != FORA_DO_SITE:
-            continue
-        outro = next((c for c, n in sorted(sobra.items()) if n > 0), None)
-        if outro is None:
-            break
-        sobra[outro] -= 1
-        conf.linhas[i] = (item, OUTRO_TEMA, [r for r in conf.lista if r.codigo == outro])
+        if estado == FORA_DO_SITE:
+            conf.linhas[i] = (item, OUTRO_TEMA, [r for r in conf.lista if r.codigo in sobras])
 
 
 def faltam_enviar(conferencias: list[ConferenciaAluno]) -> list[ItemConciliacao]:
@@ -126,8 +131,9 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
                 log.info("Conferencia no site %d de %d: %s", n, len(conferencias), conf.aluno.nome,
                          extra={"so_no_arquivo": True})  # T54: a tela já mostra o aluno
                 context = browser.new_context()  # um aluno por contexto: nada de sessão misturada
-                page = context.new_page()
+                page = None
                 try:
+                    page = context.new_page()  # T56: dentro do try (navegador caído = erro do aluno)
                     conf.lista = _ler_conta(page, cfg, senha, conf.aluno)
                     falhas = 0
                 except CaptchaOuBloqueio as e:
@@ -149,7 +155,13 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
                     falhas += 1
                     log.exception("Conferencia: erro inesperado em %s", conf.aluno.nome)
                 finally:
-                    context.close()
+                    # T56: sair da conta e fechar sem deixar um erro aqui esconder o de cima
+                    try:
+                        if page is not None:
+                            logout(page)
+                        context.close()
+                    except Exception:  # noqa: BLE001
+                        log.warning("Conferencia: nao fechou o navegador de %s direito.", conf.aluno.nome)
                 comparar(conf)
                 _mostrar_aluno(conf, cfg.pasta_raiz, saida)
                 andamento.avancar()
@@ -166,7 +178,7 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
 #   ✔ no site      tema 000  30/09/2026    3B - Efeitos da aporofobia
 #   ⚠ outro tema?  tema 100  como 000?     3B - Impactos da Invisibilidade…
 ROTULO_CURTO = {NO_SITE: "no site", EM_PARTE: "em parte", FORA_DO_SITE: "falta",
-                OUTRO_TEMA: "outro tema?", NAO_CONFERIDO: "não conferido"}
+                OUTRO_TEMA: "outro tema?", NAO_CONFERIDO: "não conferido", NAO_TENTADO: "não tentado"}
 PAPEL = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso"}
 
 
@@ -202,8 +214,9 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
         escritor = csv.writer(f, delimiter=";")
         escritor.writerow(COLUNAS_CSV)
         for conf in conferencias:
-            linhas = conf.linhas or [(item, NAO_CONFERIDO, []) for item in conf.itens]
-            for item, estado, do_tema in linhas:
+            if not conf.linhas:
+                comparar(conf)
+            for item, estado, do_tema in conf.linhas:
                 escritor.writerow([conf.aluno.nome, item.pasta, item.arquivo, item.codigo_tema,
                                    conf.erro and NAO_CONFERIDO or estado, len(do_tema),
                                    " | ".join(r.data for r in do_tema),
@@ -228,12 +241,22 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
         tela.aviso(f"A última conferência ({tela.caminho(ultimo)}) não é de hoje.", saida)
         tela.status("fraco", "Alguém pode ter enviado à mão depois dela. Rode a opção 5 de novo.", saida)
         return None
-    with open(ultimo, encoding="utf-8-sig", newline="") as f:
-        faltando = {(l["aluno"], l["pasta"], l["arquivo"]) for l in csv.DictReader(f, delimiter=";")
-                    if l.get("resultado") == FORA_DO_SITE}
+    try:  # T56: relatório mexido no Excel (outra codificação, vírgulas) -> não usa
+        with open(ultimo, encoding="utf-8-sig", newline="") as f:
+            leitor = csv.DictReader(f, delimiter=";")
+            if leitor.fieldnames != COLUNAS_CSV:
+                raise ValueError("colunas diferentes")
+            # T56: o tema também tem de bater (pasta reaprovada com outro tema
+            # depois da conferência = tema que a conferência não olhou)
+            faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in leitor
+                        if l.get("resultado") == FORA_DO_SITE}
+    except (OSError, UnicodeDecodeError, ValueError, KeyError, csv.Error) as e:
+        tela.aviso(f"Não consegui ler {tela.caminho(ultimo)} ({type(e).__name__}). Rode a opção 5 de novo.", saida)
+        return None
     tela.info(f"Conferência usada: {tela.caminho(ultimo)}", saida)
     return [item for item in resultado.fila_validada()
-            if item.aluno and item.codigo_tema and (item.aluno.nome, item.pasta, item.arquivo) in faltando]
+            if item.aluno and item.codigo_tema
+            and (item.aluno.nome, item.pasta, item.arquivo, item.codigo_tema) in faltando]
 
 
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
@@ -264,12 +287,17 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     try:
         with trava_de_envio(Path(cfg.pasta_relatorios) / "envio.trava"):
             senha = obter_senha("ESQUEMA_SENHA_PADRAO")
-            parou = (ler or _ler_no_navegador)(cfg, conferencias, senha, saida)
+            try:
+                parou = (ler or _ler_no_navegador)(cfg, conferencias, senha, saida)
+            except Exception as e:  # noqa: BLE001 - T56: o que já foi lido ainda vai para o relatório
+                log.exception("Conferencia: parou com erro inesperado")
+                tela.erro(f"Erro inesperado ({type(e).__name__}): a conferência parou.", saida)
+                parou = True
     except TravaOcupada:
         tela.erro("Um envio está rodando agora (outra janela?). Espere ele acabar.", saida)
         return 2
 
-    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, OUTRO_TEMA: 0, NAO_CONFERIDO: 0}
+    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, OUTRO_TEMA: 0, NAO_CONFERIDO: 0, NAO_TENTADO: 0}
     for conf in conferencias:
         if not conf.linhas:
             comparar(conf)
@@ -280,7 +308,8 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                     ("Tema no site, mas menos vezes que as fotos", contagem[EM_PARTE], "aviso"),
                     ("Talvez no site com outro tema (não envia)", contagem[OUTRO_TEMA], "aviso"),
                     ("Ainda não estão no site", contagem[FORA_DO_SITE], "info"),
-                    ("Não conferidas (conta não abriu)", contagem[NAO_CONFERIDO], "erro")], saida)
+                    ("Não conferidas (conta não abriu)", contagem[NAO_CONFERIDO], "erro"),
+                    ("Não tentadas (parou antes)", contagem[NAO_TENTADO], "aviso")], saida)
     if parou:
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
     tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios))}", saida)
