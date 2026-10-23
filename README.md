@@ -36,13 +36,15 @@ nomes não vão sozinhos: aparecem para você decidir.
 ```
 Preparar                    1) Conferir as redações         não envia nada
                             2) Revisar temas e nomes
-Testar na conta de teste    3) Ensaio com redações reais
+Testar (nada vai p/ alunos)  3) Ensaio com redações reais
                             4) Modo teste
-Enviar                      5) Enviar para os alunos        (hoje: bloqueado)
-                            6) Resolver revisões manuais    chegou no site? sim/não
-Ferramentas                 7) Atualizar os temas do site
-                            8) Desfazer uma renomeação
-                            9) Primeiro uso / o que falta
+                            5) Conferir no site            lê as contas, não envia
+Enviar                      6) Enviar para os alunos        (hoje: bloqueado)
+                            7) Resolver revisões manuais    chegou no site? sim/não
+Ferramentas                 8) Atualizar os temas do site
+                            9) Desfazer uma renomeação
+                           10) Primeiro uso / o que falta
+                           11) Configurações                navegador aparece ou não
                             0) Sair
 ```
 Cada opção chama o mesmo comando com flags (abaixo), com as mesmas travas e
@@ -69,7 +71,7 @@ Onde o terminal disser "rode `python main.py`", é este menu.
    (veja abaixo).
 6. Envio para os alunos: hoje BLOQUEADO (veja como vai funcionar abaixo).
 7. Se sobrar alguma redação em "Conferir no site", responda com
-   `python main.py --resolver` (menu opção **6**).
+   `python main.py --resolver` (menu opção **7**).
 
 ## Testar com redações reais (ensaio)
 
@@ -117,7 +119,7 @@ de teste (`Usuario Testes Ignorar`) ou algo parecido, para a revisão perguntar.
 ## Como funciona o envio para muitos alunos (produção)
 
 Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
-(menu opção **5**).
+(menu opção **6**).
 
 1. **Uma confirmação só.** O terminal mostra o lote inteiro (aluno por
    aluno, tema e arquivo) e uma parte "Como funciona". Você digita `ENVIAR`
@@ -132,9 +134,9 @@ Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
    de 8 a 15 s. No fim de cada aluno, sai da conta.
    Durante o envio aparece o **progresso ao vivo** (T51):
    `▶ 23 de 61 redações  ████░░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min`.
-   O navegador aparece na tela (para acompanhar); quem quiser deixar rodando
-   sem a janela usa `--sem-janela` (no menu: responda `n` em "Mostrar o
-   navegador?").
+   O navegador aparece na tela (para acompanhar); para deixar rodando sem a
+   janela: menu **11) Configurações** (fica salvo no `config.ini`) ou
+   `--sem-janela` numa execução só.
 4. **Pulos automáticos (sem erro):** a redação daquele tema que já está no
    site hoje ("já estava no site") e a mesma foto que já foi enviada, mesmo
    com outro nome.
@@ -158,9 +160,29 @@ tentadas vão de novo.
 ## Abrir o arquivo direto do terminal
 
 Na conferência, na revisão, no "O que precisa de você" e no `--resolver`,
-os nomes de arquivo e de pasta são **links**: **Ctrl+clique** abre a foto (ou
-a pasta no Explorador), sem precisar procurar. Funciona no Windows Terminal
-(o terminal com abas); fora de um terminal (relatório, log) sai só o texto.
+os nomes de arquivo são **links**: **Ctrl+clique** abre a foto. No terminal
+do VS Code a foto abre numa aba do próprio VS Code (o nome da pasta ali não
+é link); nos outros terminais a pasta também abre no Explorador. Fora de um
+terminal (relatório, log) sai só o texto.
+
+T52: o primeiro jeito (T51) não abria nada: o Windows lê o "ç" codificado
+no link como dois caracteres ("RedaÃ§Ãµes") e não acha a pasta. Se mesmo
+assim o clique não abrir, na revisão (`--revisar`) e no `--resolver` a
+tecla **`v`** abre a foto no visualizador do Windows, sem depender do
+terminal.
+
+## Conferir no site (só leitura)
+
+`python main.py --conferir-site` (menu opção **5**): entra na conta de cada
+aluno que tem redação conferida na pasta (nome exato + tema aprovado), lê
+Minhas redações e diz, foto por foto, se aquele tema **já está no site em
+qualquer data** ("no site", com as datas), "em parte" (tema repetido, ex.:
+genérico 000, com menos linhas no site do que fotos) ou "não está no site".
+Não anexa, não envia e não mexe no caderno. Pede `CONFERIR` (digitado por
+você), usa a senha padrão, mostra o progresso por aluno, para em CAPTCHA ou
+em 2 contas seguidas sem abrir, e grava `relatorios/conferencia_site_<data>.csv`.
+Serve para saber o que já foi mandado à mão antes do script (o envio só
+pula o que está no site **hoje**).
 
 ## Resolver as revisões manuais
 
@@ -169,7 +191,7 @@ conseguiu ver a redação na lista. Ele nunca reenvia sozinho (poderia
 duplicar). Abra o site **na conta do aluno**, em Minhas redações, e rode:
 
 ```
-python main.py --resolver        (ou menu opção 6)
+python main.py --resolver        (ou menu opção 7)
 ```
 Para cada uma: `s` = chegou (vira enviada e nunca mais vai), `n` = não
 chegou (vai de novo na próxima execução), Enter = deixa para depois, `q` =
@@ -198,7 +220,8 @@ e copie a cópia escolhida para esse nome.
 |---|---|
 | `python main.py --ensaio [N]` | Redações reais conferidas -> conta de teste (veja acima) |
 | `python main.py --resolver` | Responde, uma a uma, as redações em "conferir no site" (veja acima) |
-| `... --envio-real --sem-janela` | Envia sem mostrar o navegador (padrão: mostra) |
+| `... --envio-real --sem-janela` | Envia sem mostrar o navegador (padrão: mostra; fixo: menu 11) |
+| `python main.py --conferir-site` | Só lê: o tema de cada foto já está no site? (`CONFERIR`) |
 | `python main.py --analise-remota` | Lê a lista de temas do site e atualiza `dados/temas_site.csv` (digite `ANALISAR`) |
 | `python main.py --analise-remota --conta-aluno EMAIL` | Lê os temas na conta desse aluno (só leitura; entra na conta do aluno). `--conta-aluno` sozinho é recusado |
 | `python main.py --envio-real --limite-alunos N` | Produção: só os N primeiros alunos do lote (só vale no `--envio-real` de produção) |

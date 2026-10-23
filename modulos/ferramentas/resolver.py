@@ -56,10 +56,18 @@ def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str]
             saida(f"  Arquivo: {caminho}")
             saida(f"  Tema:    {tema}    Enviado em: {data}")
             saida(tela.c(f"  Motivo:  {detalhe}", "fraco"))
-            tela.menu([("s", "chegou no site (marca como enviada)"),
-                       ("n", "não chegou (vai de novo na próxima vez)"),
-                       ("Enter", "deixar para depois"), ("q", "sair")], saida)
+            foto = Path(pasta_raiz) / arquivo.removeprefix("ensaio/") if pasta_raiz else None
+            opcoes = [("s", "chegou no site (marca como enviada)"),
+                      ("n", "não chegou (vai de novo na próxima vez)")]
+            if foto:
+                opcoes.append(("v", "ver a foto"))
+            tela.menu(opcoes + [("Enter", "deixar para depois"), ("q", "sair")], saida)
             resposta = tela.perguntar("  > ", entrada).lower()
+            while resposta == "v" and foto:  # T52: abre no visualizador do Windows
+                motivo = tela.abrir(foto)
+                if motivo:
+                    tela.erro(f"Não abriu a foto: {motivo}", saida)
+                resposta = tela.perguntar("  > ", entrada).lower()
             if resposta == "q":
                 break
             if resposta not in ("s", "n"):

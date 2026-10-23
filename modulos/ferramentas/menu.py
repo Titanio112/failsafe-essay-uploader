@@ -13,6 +13,7 @@ from typing import Callable
 
 from modulos.base import config as config_mod
 from modulos.base import tela
+from modulos.ferramentas.configuracoes import executar_configuracoes, resumo_navegador
 
 Entrada = Callable[[str], str]
 
@@ -20,13 +21,15 @@ Entrada = Callable[[str], str]
 OPCOES = [
     ("Preparar", "1", "Conferir as redações", "não envia nada"),
     ("Preparar", "2", "Revisar temas e nomes", "escolhe temas, confirma alunos"),
-    ("Testar na conta de teste", "3", "Ensaio com redações reais", "algumas reais → conta de teste"),
-    ("Testar na conta de teste", "4", "Modo teste", "pasta testes/redacoes_teste"),
-    ("Enviar", "5", "Enviar para os alunos", "envio de verdade"),
-    ("Enviar", "6", "Resolver revisões manuais", "chegou no site? sim/não"),
-    ("Ferramentas", "7", "Atualizar os temas do site", "só leitura"),
-    ("Ferramentas", "8", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
-    ("Ferramentas", "9", "Primeiro uso / o que falta", "cria o que falta e explica"),
+    ("Testar (nada vai para os alunos)", "3", "Ensaio com redações reais", "algumas reais → conta de teste"),
+    ("Testar (nada vai para os alunos)", "4", "Modo teste", "pasta testes/redacoes_teste"),
+    ("Testar (nada vai para os alunos)", "5", "Conferir no site", "lê as contas dos alunos, não envia"),
+    ("Enviar", "6", "Enviar para os alunos", "envio de verdade"),
+    ("Enviar", "7", "Resolver revisões manuais", "chegou no site? sim/não"),
+    ("Ferramentas", "8", "Atualizar os temas do site", "só leitura"),
+    ("Ferramentas", "9", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
+    ("Ferramentas", "10", "Primeiro uso / o que falta", "cria o que falta e explica"),
+    ("Ferramentas", "11", "Configurações", ""),
 ]
 
 
@@ -38,13 +41,6 @@ def _sim(entrada: Entrada | None, texto: str) -> bool:
     return _perguntar(entrada, f"  {texto} (s/n): ").lower() in ("s", "sim")
 
 
-def _janela(entrada: Entrada | None, argumentos: list[str]) -> list[str]:
-    """T51: no envio, pergunta se mostra o navegador (Enter = mostra)."""
-    if _perguntar(entrada, "  Mostrar o navegador enquanto envia? (Enter = sim, n = não): ").lower() in ("n", "nao", "não"):
-        return argumentos + ["--sem-janela"]
-    return argumentos
-
-
 def mostrar_menu(saida: Callable = print) -> None:
     tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  menu", saida)
     grupo_atual = None
@@ -52,13 +48,16 @@ def mostrar_menu(saida: Callable = print) -> None:
         if grupo != grupo_atual:
             tela.secao(grupo, saida)
             grupo_atual = grupo
-        if tecla == "5" and config_mod.PRODUCAO_BLOQUEADA:
+        if tecla == "6" and config_mod.PRODUCAO_BLOQUEADA:
             ajuda = tela.c(f"{tela.SIMBOLOS['bloqueado']} bloqueado (só a conta de teste envia)", "bloqueado")
+        elif tecla == "11":  # T52: mostra a escolha atual
+            ajuda = tela.c(resumo_navegador(), "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
-        saida(f"  {tela.c(tecla + ')', 'tecla')} {nome:<30} {ajuda}")
+        rotulo = f"{tecla})".rjust(3)  # 1) a 11) alinhados
+        saida(f" {tela.c(rotulo, 'tecla')} {nome:<30} {ajuda}")
     saida("")
-    saida(f"  {tela.c('0)', 'tecla')} Sair")
+    saida(f" {tela.c(' 0)', 'tecla')} Sair")
 
 
 def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
@@ -74,22 +73,24 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
             tela.erro("Número inválido.", saida)
             return None
         if _sim(entrada, f"Enviar agora as {n} para a CONTA DE TESTE? (n = so mostrar quais iriam)"):
-            return _janela(entrada, ["--ensaio", n, "--envio-real"])
+            return ["--ensaio", n, "--envio-real"]
         return ["--ensaio", n]
     if opcao == "4":
         if _sim(entrada, "Enviar a pasta de teste agora? (n = so conferir)"):
-            return _janela(entrada, ["--modo-teste", "--envio-real"])
+            return ["--modo-teste", "--envio-real"]
         return ["--modo-teste"]
     if opcao == "5":
+        return ["--conferir-site"]
+    if opcao == "6":
         if config_mod.PRODUCAO_BLOQUEADA:
             tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA, saida)
             return None
-        return _janela(entrada, ["--envio-real"])
-    if opcao == "6":
-        return ["--resolver"]
+        return ["--envio-real"]
     if opcao == "7":
-        return ["--analise-remota"]
+        return ["--resolver"]
     if opcao == "8":
+        return ["--analise-remota"]
+    if opcao == "9":
         logs = sorted(Path(pasta_relatorios or config_mod.RAIZ / "relatorios").glob("renomeacoes_*.csv"),
                       reverse=True)[:9]
         if not logs:
@@ -101,8 +102,11 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
         if escolha.isdigit() and 1 <= int(escolha) <= len(logs):
             return ["--desfazer-renomeacao", str(logs[int(escolha) - 1])]
         return None
-    if opcao == "9":
+    if opcao == "10":
         return ["--preparar"]
+    if opcao == "11":
+        executar_configuracoes(entrada=entrada, saida=saida)
+        return None
     tela.erro("Opção inválida.", saida)
     return None
 

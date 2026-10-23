@@ -62,9 +62,9 @@ class Andamento:
     """T51: progresso ao vivo do envio ("23 de 61 redações · faltam ~19 min").
     A estimativa é o tempo médio por redação até agora (pausas incluídas)."""
 
-    def __init__(self, total: int, saida=print, relogio=time.monotonic):
+    def __init__(self, total: int, saida=print, relogio=time.monotonic, unidade: str = "redações"):
         self.total, self.feitas = total, 0
-        self._saida, self._relogio = saida, relogio
+        self._saida, self._relogio, self._unidade = saida, relogio, unidade
         self._inicio = relogio()
 
     def chegar_a(self, feitas: int) -> None:
@@ -72,7 +72,8 @@ class Andamento:
         feitas = min(max(feitas, self.feitas), self.total)
         if feitas != self.feitas:
             self.feitas = feitas
-            self._saida(tela.linha_progresso(self.feitas, self.total, self._relogio() - self._inicio))
+            self._saida(tela.linha_progresso(self.feitas, self.total, self._relogio() - self._inicio,
+                                             self._unidade))
 
     def avancar(self) -> None:
         self.chegar_a(self.feitas + 1)

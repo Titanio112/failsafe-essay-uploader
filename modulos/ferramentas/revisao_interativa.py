@@ -274,12 +274,18 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
             unico = len(sugestoes) == 1 and opcoes[0][0] is sugestoes[0]
             menu = [("Enter", f"confirmar 1 ({opcoes[0][0].nome})")] if unico else []
             menu += [("numero", "escolher o aluno da lista"), ("texto", "procurar outro aluno (ex.: luiza)"),
-                     ("p", "pular este nome"), ("q", "sair (o que ja fez fica salvo)")]
+                     ("v", "ver a foto"), ("p", "pular este nome"), ("q", "sair (o que ja fez fica salvo)")]
             tela.menu(menu, saida)
             resp = _perguntar(entrada, "  > ")
             low = resp.lower()
             if low == "q":
                 return renomeados, True
+            if low == "v":  # T52: abre no visualizador do Windows, sem depender do terminal
+                for item in itens:
+                    motivo = tela.abrir(Path(pasta_raiz) / item.pasta / item.arquivo)
+                    if motivo:
+                        saida(tela.c(f"  ✘ Não abriu {item.arquivo}: {motivo}", "erro"))
+                continue
             if low == "p" or (not resp and not unico):
                 saida(tela.c("  Pulado (esses arquivos nao serao enviados).", "aviso"))
                 break

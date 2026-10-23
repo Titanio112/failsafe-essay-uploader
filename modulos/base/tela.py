@@ -195,14 +195,39 @@ def caminho(p) -> str:
 # Windows Terminal e outros terminais modernos: Ctrl+clique abre o arquivo.
 # Sem terminal de verdade (teste, arquivo) sai só o texto.
 
-def link(texto: str, alvo) -> str:
+def _no_vscode() -> bool:
+    return os.environ.get("TERM_PROGRAM", "").lower() == "vscode"
+
+
+def uri_de(alvo, pasta: bool = False) -> str:
+    """Endereço do link para ``alvo`` ("" = sem link).
+
+    T52: o Windows lê "%C3%A7" (ç em UTF-8) como dois caracteres, então
+    file:///.../Reda%C3%A7%C3%B5es nunca abria. No terminal do VS Code o link
+    é vscode://file/... (o próprio VS Code abre a foto, sem passar pelo
+    Windows); pasta ali não vira link (abriria uma janela nova do VS Code).
+    Nos outros terminais: file:/// com as letras acentuadas sem codificar.
+    """
+    from pathlib import Path
+    from urllib.parse import quote
+    try:
+        caminho = Path(alvo).resolve()
+        caminho.as_uri()  # caminho relativo/estranho -> ValueError
+    except ValueError:
+        return ""
+    posix = caminho.as_posix()
+    if _no_vscode():
+        return "" if pasta else "vscode://file/" + quote(posix, safe="/:")
+    # quote codifica espaço, %, #, ?; as letras acentuadas voltam como estão
+    return "file:///" + "".join(ch if ord(ch) > 127 else quote(ch, safe="/:") for ch in posix)
+
+
+def link(texto: str, alvo, pasta: bool = False) -> str:
     """``texto`` vira um link para o arquivo/pasta ``alvo`` (Ctrl+clique)."""
     if not _cores["ativas"]:
         return texto
-    from pathlib import Path
-    try:
-        uri = Path(alvo).resolve().as_uri()
-    except ValueError:
+    uri = uri_de(alvo, pasta)
+    if not uri:
         return texto
     return f"\033]8;;{uri}\033\\{texto}\033]8;;\033\\"
 
@@ -212,7 +237,25 @@ def link_arquivo(pasta_raiz, pasta: str, arquivo: str) -> str:
     clicável (abre a pasta no Explorador)."""
     from pathlib import Path
     raiz = Path(pasta_raiz)
-    return f"{link(pasta, raiz / pasta)}/{link(arquivo, raiz / pasta / arquivo)}"
+    return f"{link(pasta, raiz / pasta, pasta=True)}/{link(arquivo, raiz / pasta / arquivo)}"
+
+
+def abrir(alvo) -> str:
+    """T52: abre a foto/pasta no programa padrão do Windows (sem depender do
+    terminal). Retorna "" se abriu ou o motivo de não ter aberto."""
+    from pathlib import Path
+    caminho = Path(alvo)
+    if not caminho.exists():
+        return "não encontrado"
+    try:
+        if hasattr(os, "startfile"):
+            os.startfile(str(caminho))  # type: ignore[attr-defined]
+        else:  # fora do Windows
+            import subprocess
+            subprocess.Popen(["xdg-open" if sys.platform != "darwin" else "open", str(caminho)])
+    except OSError as e:
+        return f"{type(e).__name__}: {e}"
+    return ""
 
 
 # ─── Progresso do envio (T51) ────────────────────────────────
@@ -229,7 +272,7 @@ def tempo(segundos: float) -> str:
     return f"{s} s"
 
 
-def linha_progresso(feitas: int, total: int, passou: float) -> str:
+def linha_progresso(feitas: int, total: int, passou: float, unidade: str = "redações") -> str:
     """"▶ 23 de 61 redações  █████░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min"."""
     total = max(total, 1)
     porcento = feitas / total * 100
@@ -238,7 +281,7 @@ def linha_progresso(feitas: int, total: int, passou: float) -> str:
     restante = f"faltam ~{tempo(passou / feitas * (total - feitas))}" if feitas else "calculando o tempo..."
     if feitas >= total:
         restante = "terminado"
-    return (f"  {c(SIMBOLOS['progresso'], 'info')} {feitas} de {total} redações  {barra_txt}  "
+    return (f"  {c(SIMBOLOS['progresso'], 'info')} {feitas} de {total} {unidade}  {barra_txt}  "
             f"{porcento:3.0f}%  {c('·', 'fraco')}  passou {tempo(passou)}  {c('·', 'fraco')}  {restante}")
 
 

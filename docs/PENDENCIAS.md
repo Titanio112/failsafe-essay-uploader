@@ -38,3 +38,15 @@ Antônio decide.
    enquanto `PRODUCAO_BLOQUEADA = True` (T30). Antes: rodar o ensaio
    (`python main.py --ensaio 3 --envio-real`) e revisar a branch
    `revisao-autonoma` (T42–T50).
+
+## T52 (23/10)
+
+- Ctrl+clique com o link novo: conferir no terminal do VS Code (e no Windows
+  Terminal) se a foto abre. Se não abrir, usar `v` na revisão/resolver.
+- `--conferir-site` nunca rodou no site real: primeira vez com poucos alunos
+  à vista (navegador aparecendo) para ver login, lista e progresso.
+- Redações antigas da pasta já foram enviadas à mão (data incerta): antes de
+  liberar a produção, tirar da pasta ou conferir com `--conferir-site`.
+- Ideia não feita: marcar no caderno, a partir da conferência, as que já
+  estão no site (hoje é só relatório; pede decisão do Antônio).
+

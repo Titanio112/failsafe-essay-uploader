@@ -120,6 +120,9 @@ def parse_args(argv=None):
                    help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
     p.add_argument("--sem-janela", action="store_true",
                    help="envia sem mostrar o navegador (padrao: mostra, para acompanhar)")
+    p.add_argument("--conferir-site", action="store_true",
+                   help="so leitura: entra na conta de cada aluno com redacao na pasta e ve se o tema ja esta "
+                        "no site (confirmacao CONFERIR); nao envia nada")
     p.add_argument("--resolver", action="store_true",
                    help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
@@ -198,6 +201,10 @@ def main(argv=None) -> int:
     if args.ensaio is not None and args.ensaio < 1:
         tela.erro("--ensaio precisa de um numero a partir de 1 (ex.: --ensaio 3).")
         return 2
+    if args.conferir_site and (args.envio_real or args.modo_teste or args.revisar or args.analise_remota
+                               or args.ensaio is not None or args.resolver or args.desfazer_renomeacao):
+        tela.erro("--conferir-site roda sozinho (so le o site, nao envia).")
+        return 2
     if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
         tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
         return 2
@@ -238,7 +245,7 @@ def main(argv=None) -> int:
     modo = ("MODO TESTE (conta de teste)" if args.modo_teste
             else "ENSAIO (redacoes reais -> conta de teste)" if args.ensaio is not None
             else "alunos da lista")
-    if not args.revisar:
+    if not args.revisar and not args.conferir_site:
         tela.titulo(f"CONFERÊNCIA  ·  {modo}  ·  " + ("depois envia" if args.envio_real else "nada é enviado"))
     tela.secao("Dados")
 
@@ -307,6 +314,12 @@ def main(argv=None) -> int:
                 tela.aviso(f"Pasta aprovada: {pasta} -> tema {codigo}  (codigo fora do temas_site.csv)")
 
     cfg.pasta_relatorios.mkdir(parents=True, exist_ok=True)
+    if args.conferir_site:
+        # T52: só leitura nas contas dos alunos; não grava caderno nem envia
+        from dotenv import load_dotenv
+        from modulos.site.conferencia_site import executar_conferencia_site
+        load_dotenv()
+        return executar_conferencia_site(cfg, resultado)
     if args.revisar:
         return executar_revisao(
             resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,

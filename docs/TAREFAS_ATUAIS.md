@@ -361,3 +361,45 @@ PROVA (depois da T51, 23/10 00:0x):
 $ python -m pytest -m "not real" -q -p no:warnings
 353 passed, 4 deselected
 ```
+
+## T52 - Links que abrem, ver a foto, Configurações, conferir no site [x]
+
+Pedido do Antônio (23/10, pelo celular): o link aparecia, mas Ctrl+clique
+não abria nada; a escolha do navegador é configuração (menu); conferir nas
+contas dos alunos o que já foi enviado, sem enviar, com progresso. As
+redações que estão hoje na pasta já foram enviadas à mão há tempo (data
+incerta): só servem para testar.
+- Causa do link: `PathCreateFromUrlW` (o que o Windows usa) lê `%C3%A7` como
+  dois caracteres -> `RedaÃ§Ãµes` (provado em 23/10 com ctypes; nomes 8.3
+  desligados no D:, então não há atalho só-ASCII). `tela.uri_de`: fora do
+  VS Code, `file:///` com acento cru (o Windows converte certo); no VS Code
+  (`TERM_PROGRAM=vscode`, o terminal do print) `vscode://file/...` e pasta
+  sem link. NÃO conferido no terminal do Antônio.
+- Plano B que não depende do terminal: `v` em `--revisar` (nomes) e no
+  `--resolver` abre a foto (`tela.abrir` -> `os.startfile`).
+- `modulos/ferramentas/configuracoes.py` + menu 11: "Mostrar o navegador"
+  sim/não gravado em `config.ini` `[plataforma] headless` (só a linha muda;
+  sem config.ini, cria). O menu não pergunta mais a cada envio;
+  `--sem-janela` continua valendo numa execução.
+- `modulos/site/conferencia_site.py` + `--conferir-site` + menu 5: alunos
+  com foto conferida; login, identidade, lê `/minhas-redacoes`, compara por
+  tema em QUALQUER data (no site / em parte / não está / não conferido).
+  `CONFERIR`, trava de um envio por vez, um contexto por aluno, CAPTCHA ou 2
+  contas seguidas sem abrir param, progresso por aluno, CSV em
+  `relatorios/conferencia_site_<data>.csv`. Não importa `enviar_item` nem
+  grava caderno (teste confere). NUNCA rodado no site (só o Antônio roda).
+- Menu renumerado: 5 Conferir no site, 6 Enviar, 7 Resolver, 8 Temas,
+  9 Desfazer, 10 Primeiro uso, 11 Configurações.
+- Testes: tests/test_t52.py (+ t47/t49/t51 ajustados).
+
+PROVA (23/10):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+370 passed, 4 deselected in 9.65s
+$ echo nao | python main.py --conferir-site
+ CONFERÊNCIA NO SITE  ·  só leitura, nada é enviado
+  Vou entrar na conta de 36 aluno(s), ler Minhas redações e comparar com as 126
+  foto(s) da pasta. ...
+  Digite CONFERIR para começar (qualquer outro texto cancela):   ⚠ Cancelado: nenhuma conta foi aberta.
+```
+
