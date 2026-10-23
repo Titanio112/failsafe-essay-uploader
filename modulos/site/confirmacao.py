@@ -6,15 +6,11 @@ from playwright.sync_api import Page
 import logging
 import time
 
-from modulos.base.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
+from modulos.base.excecoes import BotaoEnviarAusente, CaptchaOuBloqueio, ConfirmacaoInconclusiva
 from modulos.site.login import DOMINIO_ESPERADO, verificar_dominio_autorizado
 from modulos.site.lista_redacoes import ler_lista_redacoes, situacoes_tema_hoje
 
 log = logging.getLogger("automacao_redacoes")
-
-# Situações que mostram a linha NOVA (a que acabou de ser enviada)
-_ATIVAS = ("pendente", "processando")
-
 
 def clicar_enviar(page: Page) -> None:
     """Clica uma única vez no botão 'Enviar resposta'.
@@ -25,6 +21,8 @@ def clicar_enviar(page: Page) -> None:
     confirmação na lista decide."""
     from playwright.sync_api import TimeoutError as PWTimeoutError
     btn = page.locator("input[type='submit'][value='Enviar resposta'][name='commit']").first
+    if btn.count() == 0:
+        raise BotaoEnviarAusente("input[value='Enviar resposta']")  # T48: antes do clique
     btn.click()
     try:
         page.wait_for_url(lambda url: "/wordings/new" not in url, timeout=30000)
@@ -76,14 +74,16 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
 
             do_dia = situacoes_tema_hoje(ler_lista_redacoes(page), codigo_tema, data_hoje)
             if len(do_dia) >= linhas_esperadas:
+                # T48: a linha nova é a que fez a contagem subir. Uma linha
+                # antiga que muda de situação (corrigida) durante a espera
+                # não atrapalha; só um "erro" a mais ou "processando" a mais
+                # contam como notícia da linha nova.
                 if _contar(do_dia, "erro") > _contar(antes, "erro"):
                     return False
-                ativas_agora = sum(_contar(do_dia, s) for s in _ATIVAS)
-                if ativas_agora > sum(_contar(antes, s) for s in _ATIVAS):
-                    if _contar(do_dia, "processando") > _contar(antes, "processando"):
-                        viu_processando = True
-                    else:
-                        return True
+                if _contar(do_dia, "processando") > _contar(antes, "processando"):
+                    viu_processando = True
+                else:
+                    return True
         except CaptchaOuBloqueio:
             raise
         except Exception as e:

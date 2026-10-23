@@ -37,6 +37,20 @@ from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERR
 log = logging.getLogger("automacao_redacoes")
 
 PARAR_TUDO = "PARAR_TUDO"
+FALHA_LOGIN = "FALHA_LOGIN"
+# T48: logins seguidos que falham (senha padrão errada, CAPTCHA, conta
+# travada) param a execução em vez de tentar aluno por aluno.
+MAX_FALHAS_LOGIN_SEGUIDAS = 2
+
+
+def _motivo_login(e: Exception) -> str:
+    """Motivo legível (sem e-mail completo nem senha) de uma falha de login."""
+    from modulos.base.excecoes import IdentidadeDivergente, LoginFalhou
+    if isinstance(e, IdentidadeDivergente):
+        return "o site abriu a conta de outra pessoa (identidade nao confere)"
+    if isinstance(e, LoginFalhou):
+        return "o site nao aceitou o login (senha padrao errada? conta bloqueada?)"
+    return f"erro inesperado ({type(e).__name__})"
 
 
 def _pausa(cfg: Config) -> None:
@@ -71,11 +85,12 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
         contagem[ERRO] += len(lote.itens)
         return PARAR_TUDO
     except Exception as e:
+        motivo = _motivo_login(e)
         log.error("Login/identidade falhou para %s (%s): %s. Pulando aluno.",
-                  aluno.nome, mascarar_email(aluno.email), type(e).__name__)
-        _marcar_aluno(progresso, lote, ERRO, f"Login/identidade: {type(e).__name__}")
+                  aluno.nome, mascarar_email(aluno.email), motivo)
+        _marcar_aluno(progresso, lote, ERRO, f"Login/identidade: {motivo}")
         contagem[ERRO] += len(lote.itens)
-        return None
+        return FALHA_LOGIN
 
     for n, item in enumerate(lote.itens, 1):
         if n > 1:
@@ -221,6 +236,11 @@ def executar_envio_producao(
 
 
 def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_teste, rotulo: str) -> int:
+    from modulos.base import relogio
+    if relogio.perto_da_meia_noite():  # T48: uma vez, antes de abrir o navegador
+        tela.erro("Perto da meia-noite (23:55 a 00:05): a contagem do dia ficaria errada. "
+                  "Rode de novo daqui a alguns minutos. Nada foi enviado.")
+        return 2
     if progresso:
         # T47: cópia do caderno ANTES de qualquer clique; sem cópia, não envia
         try:
@@ -233,6 +253,7 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
     senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
+    falhas_login = 0
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=cfg.headless, slow_mo=cfg.slow_mo_ms)
@@ -245,8 +266,13 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
                 context = browser.new_context()
                 page = context.new_page()
                 try:
-                    if _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem,
-                                          conta_teste=bool(conta_teste)) == PARAR_TUDO:
+                    resultado = _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem,
+                                                   conta_teste=bool(conta_teste))
+                    falhas_login = falhas_login + 1 if resultado == FALHA_LOGIN else 0
+                    if resultado == PARAR_TUDO or falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:
+                        if falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:
+                            log.error("%d logins seguidos falharam. Parando a execucao "
+                                      "(confira ESQUEMA_SENHA_PADRAO e o site).", falhas_login)
                         parou = True
                         break
                 finally:

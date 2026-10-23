@@ -175,8 +175,8 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
     header_row = None
     header_cols = None
     for row_idx in range(1, min(11, ws.max_row + 1)):
-        row_vals = [str(c.value).strip().lower() if c.value else "" for c in ws[row_idx]]
-        if "nome" in row_vals and "email" in row_vals:
+        row_vals = [_coluna(str(c.value)) if c.value else "" for c in ws[row_idx]]
+        if _coluna(cfg.coluna_nome) in row_vals and _coluna(cfg.coluna_email) in row_vals:
             header_row = row_idx
             header_cols = row_vals
             break
@@ -195,7 +195,7 @@ def carregar_alunos(cfg: Config) -> list[Aluno]:
     def find_col(col_name: str) -> int:
         """Encontra índice da coluna pelo nome."""
         try:
-            return header_cols.index(col_name.lower())
+            return header_cols.index(_coluna(col_name))
         except ValueError:
             raise PlanilhaError(f"Coluna não encontrada: {col_name}")
 
@@ -404,9 +404,16 @@ def conciliar(
                 key = (aluno_match.id, codigo, pasta) if codigo and codigo != "" else None
                 tem_duplicata = key and contagem_aluno_codigo.get(key, 0) > 1
 
+                numerado = (norm not in por_norm and not (nomes_aprovados and norm in nomes_aprovados)
+                            and sem_numero_final(norm) != norm)
                 if tem_duplicata:
                     estado = REVISAO_MANUAL
                     obs_inicial = obs_inicial or "mais de um arquivo do aluno nesta pasta (pagina 2? copia?): decidir a mao"
+                elif numerado:
+                    # T48: "Ana Souza 2.jpg" sozinho pode ser só a página 2 (a 1ª
+                    # com o nome errado); quem decide é a pessoa.
+                    estado = REVISAO_MANUAL
+                    obs_inicial = obs_inicial or "numero no fim do nome (pagina 2? copia?): decidir a mao"
                 else:
                     estado = EXATO_UNICO
                     if key:

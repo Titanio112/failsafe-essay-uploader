@@ -181,6 +181,15 @@ def main(argv=None) -> int:
         tela.erro("--limite-alunos/--limite-redacoes so valem no envio de producao (--envio-real); "
                   "no ensaio use --ensaio N.")
         return 2
+    if args.desfazer_renomeacao and (args.revisar or args.ensaio is not None or args.analise_remota):
+        tela.erro("--desfazer-renomeacao roda sozinho.")
+        return 2
+    if args.analise_remota and (args.envio_real or args.modo_teste or args.revisar):
+        tela.erro("--analise-remota so le os temas: nao combina com --envio-real, --modo-teste ou --revisar.")
+        return 2
+    if args.ensaio is not None and args.ensaio < 1:
+        tela.erro("--ensaio precisa de um numero a partir de 1 (ex.: --ensaio 3).")
+        return 2
     if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
         tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
         return 2

@@ -49,9 +49,12 @@ def test_pagina_2_ou_copia_manda_as_duas_para_revisao(segunda):
     assert all("mais de um arquivo" in i.observacao for i in resultado.itens if i.arquivo)
 
 
-def test_so_a_copia_numerada_identifica_o_aluno():
+def test_so_a_copia_numerada_identifica_o_aluno_mas_vai_para_revisao():
+    """T48: sozinho pode ser só a página 2 (a 1ª com o nome errado)."""
     resultado = conciliar([ANA], {"100 - Tema": ["Ana Souza (2).jpg"]}, codigos_site=["100"])
-    assert _estados(resultado) == {"Ana Souza (2).jpg": EXATO_UNICO}
+    item = next(i for i in resultado.itens if i.arquivo)
+    assert (item.estado, item.aluno) == (REVISAO_MANUAL, ANA)
+    assert "numero no fim do nome" in item.observacao
 
 
 def test_sublinhado_do_celular_separa_palavras():

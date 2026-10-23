@@ -53,13 +53,30 @@ def ler_saldo_creditos(page: Page) -> int | None:
 
 
 def ler_lista_redacoes(page: Page) -> list[ItemListaRedacao]:
-    """Lê a lista de redações do aluno em /minhas-redacoes."""
-    page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes", wait_until="domcontentloaded")
+    """Lê a lista de redações do aluno em /minhas-redacoes.
+
+    T48: página de erro (HTTP >= 400) ou outra página (login, manutenção)
+    -> RuntimeError (lista ilegível, não envia), nunca "lista vazia"."""
+    from urllib.parse import urlparse
+    resposta = page.goto(f"https://{DOMINIO_ESPERADO}/minhas-redacoes", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
+    status = getattr(resposta, "status", None)
+    if isinstance(status, int) and status >= 400:
+        raise RuntimeError(f"Lista de redacoes respondeu HTTP {status}")
+    if not urlparse(page.url).path.startswith("/minhas-redacoes"):
+        raise RuntimeError(f"Pagina inesperada no lugar da lista: {urlparse(page.url).path}")
+    html = page.content()
+    # T48: a página da lista sempre mostra o saldo. Sem ele é página de erro,
+    # manutenção ou outra coisa: nunca "lista vazia" (que deixaria enviar).
+    import re
+    from bs4 import BeautifulSoup
+    if not re.search(r"Você\s+tem\s+\d+\s+crédito", BeautifulSoup(html, "html.parser").get_text(" "),
+                     re.IGNORECASE):
+        raise RuntimeError("Pagina sem o saldo de creditos: nao e a lista de redacoes")
 
     # Mesmo parser da fixture auditada: Data | Tema | Nota | Situação | (botão)
-    return ler_lista_redacoes_html(page.content())
+    return ler_lista_redacoes_html(html)
 
 
 def contar_linhas_codigo_data(lista: list[ItemListaRedacao], codigo: str, data: str) -> int:
@@ -98,7 +115,7 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
     # só tabelas com outro cabeçalho -> lista ilegível (fail-closed).
     tabelas = soup.find_all('table')
     if not tabelas:
-        return itens  # conta sem redação nenhuma (D1: pode enviar)
+        return itens  # conta sem redação nenhuma (D1: pode enviar; a página é conferida em ler_lista_redacoes)
 
     def _cabecalho(t):
         return [th.get_text(strip=True).lower() for th in t.find_all('th')][:4]

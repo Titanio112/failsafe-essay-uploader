@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import re
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -34,22 +35,33 @@ class LimiteEnvios(RuntimeError):
 
 # ─── Logging sanitizado ──────────────────────────────────────
 
-_SEM_SENHA = ("senha", "password", "token", "cookie", "secret")
+# T48: segredo = o VALOR das senhas do .env, ou "senha=..."/"password: ...".
+# Antes qualquer mensagem com a palavra "senha" sumia, inclusive as que
+# explicam o problema ("senha padrao errada?").
+_PADRAO_SEGREDO = re.compile(r"(senha|password|passwd|token|secret|cookie)\s*[:=]\s*\S", re.IGNORECASE)
+_VARIAVEIS_SECRETAS = ("ESQUEMA_SENHA_PADRAO", "ESQUEMA_SENHA_TESTE")
+
+
+def _tem_segredo(texto: str) -> bool:
+    import os
+    if _PADRAO_SEGREDO.search(texto):
+        return True
+    valores = (os.environ.get(v, "") for v in _VARIAVEIS_SECRETAS)
+    return any(len(valor) >= 3 and valor in texto for valor in valores)
 
 
 class _FiltroSanitizador(logging.Filter):
-    """Suprime mensagens que aparentem conter segredos."""
+    """Suprime mensagens que contenham segredos."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        msg = str(record.getMessage()).lower()
-        if any(p in msg for p in _SEM_SENHA):
+        if _tem_segredo(str(record.getMessage())):
             record.msg = "[suprimido: possível segredo no log]"
             record.args = ()
         if record.exc_info:
             # T44: o traceback também passa pelo filtro
             import traceback
-            texto = "".join(traceback.format_exception(*record.exc_info)).lower()
-            if any(p in texto for p in _SEM_SENHA):
+            texto = "".join(traceback.format_exception(*record.exc_info))
+            if _tem_segredo(texto):
                 record.msg = f"{record.msg} [traceback suprimido: possível segredo]"
                 record.exc_info = None
                 record.exc_text = None

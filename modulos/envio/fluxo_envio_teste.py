@@ -28,8 +28,10 @@ def executar_envio_teste(cfg: Config, progresso: Optional[Progresso] = None) -> 
     if Path(cfg.planilha).is_file():
         try:
             reais = {a.id for a in carregar_alunos(cfg)}
-        except Exception:
-            reais = set()
+        except Exception as e:  # T48: sem conferir, não envia
+            tela.erro(f"Nao consegui ler a lista de alunos para conferir a conta de teste "
+                      f"({type(e).__name__}). Nada foi enviado.")
+            return 2
         if email.casefold() in reais:
             tela.erro("ESQUEMA_EMAIL_TESTE e o e-mail de um aluno da lista. Nada foi enviado.")
             return 2

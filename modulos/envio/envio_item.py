@@ -28,7 +28,7 @@ from modulos.site.formulario_envio import (
 from modulos.site.confirmacao import clicar_enviar, aguardar_confirmacao
 from modulos.envio.fila_teste import ItemFilaTeste
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
-from modulos.base.excecoes import CaptchaOuBloqueio, ConfirmacaoInconclusiva
+from modulos.base.excecoes import BotaoEnviarAusente, CaptchaOuBloqueio, ConfirmacaoInconclusiva
 
 
 log = logging.getLogger("automacao_redacoes")
@@ -84,7 +84,10 @@ def enviar_item(
         no_site = contar_tema_hoje(lista, codigo, data_hoje)
         antes = situacoes_tema_hoje(lista, codigo, data_hoje)
         no_caderno = progresso.enviados_hoje(aluno_id, codigo) if progresso else 0
-        total = max(item.total_mesmo_tema, 1)
+        # T48: o caderno pode ter envios de hoje que não estão neste lote
+        # (ensaio e modo teste na mesma conta, arquivo enviado e depois tirado
+        # da pasta): este item ainda não foi, então o total é ao menos +1.
+        total = max(item.total_mesmo_tema, no_caderno + 1, 1)
         if no_site >= total:
             log.info("Tema %s: site ja tem %d hoje (de %d). Pulando.", codigo, no_site, total)
             return marcar(JA_ENVIADO, f"Ja enviado na lista remota ({no_site} hoje de {total})")
@@ -143,6 +146,9 @@ def enviar_item(
         log.error("Captcha ou dominio bloqueado: %s", e)
         e.estado = marcar(REVISAO_MANUAL if clique_iniciado else ERRO, f"Captcha/bloqueio: {e}")
         raise
+    except BotaoEnviarAusente as e:
+        log.error("Botao Enviar nao encontrado: nada foi clicado (%s).", e)
+        return marcar(ERRO, "Botao Enviar resposta nao encontrado (nada foi clicado)")
     except ConfirmacaoInconclusiva as e:
         log.error("Confirmacao inconclusiva apos clique: %s", e)
         return marcar(REVISAO_MANUAL, f"Confirmacao inconclusiva apos clique: {e}")

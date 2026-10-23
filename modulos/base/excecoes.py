@@ -18,3 +18,7 @@ class UploadNaoConfirmado(RuntimeError):
 
 class ConfirmacaoInconclusiva(RuntimeError):
     """Não foi possível confirmar envio na lista remota em 120 s."""
+
+
+class BotaoEnviarAusente(RuntimeError):
+    """O botão "Enviar resposta" não está na página: nada foi clicado (T48)."""

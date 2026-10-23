@@ -26,11 +26,19 @@ def abrir_csv(caminho: Path) -> io.StringIO:
 
 
 def garantir_quebra_final(caminho: Path) -> None:
-    """Antes de acrescentar linhas: se o arquivo não termina em quebra de
-    linha, põe uma (senão a 1ª linha nova gruda na última)."""
+    """Antes de acrescentar linhas (sempre em UTF-8):
+    - T48: arquivo que o Excel salvou em cp1252 é regravado inteiro em UTF-8
+      (senão o arquivo fica misturado e os acentos viram "Ã§");
+    - se o arquivo não termina em quebra de linha, põe uma (senão a 1ª
+      linha nova gruda na última)."""
     caminho = Path(caminho)
     if not caminho.is_file() or caminho.stat().st_size == 0:
         return
+    dados = caminho.read_bytes()
+    try:
+        dados.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        caminho.write_bytes(dados.decode("cp1252", errors="replace").encode("utf-8-sig"))
     with open(caminho, "rb") as f:
         f.seek(-1, 2)
         ultimo = f.read(1)

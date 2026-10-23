@@ -38,7 +38,7 @@ from modulos.base.progresso_relatorio import ENVIADO, ENVIANDO, JA_ENVIADO
 from modulos.dados.sugestao_temas import SCORE_PROVAVEL, _titulo, aprovar_pasta
 
 ESTADOS_TRAVADOS = {ENVIADO, ENVIANDO, JA_ENVIADO, REVISAO_MANUAL}
-COLUNAS_LOG = ["pasta", "antes", "depois", "aluno_email"]
+COLUNAS_LOG = ["pasta", "antes", "depois", "aluno_email", "raiz"]  # T48: raiz = pasta das redações
 _PROIBIDOS_WINDOWS = re.compile(r'[<>:"/\\|?*]')
 
 Entrada = Callable[[str], str]
@@ -239,7 +239,7 @@ def renomear(pasta_raiz: Path, pasta: str, arquivo: str, aluno: Aluno, banco: Pa
         escritor = csv.writer(f, delimiter=";")
         if novo_log:
             escritor.writerow(COLUNAS_LOG)
-        escritor.writerow([pasta, arquivo, novo, aluno.email])
+        escritor.writerow([pasta, arquivo, novo, aluno.email, str(Path(pasta_raiz).resolve())])
     try:
         origem.rename(origem.with_name(novo))
     except OSError as e:
@@ -347,12 +347,14 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
         return 0
     with open(log_csv, encoding="utf-8-sig", newline="") as f:
         linhas = list(csv.DictReader(f, delimiter=";"))
-    if linhas and not set(COLUNAS_LOG) <= set(linhas[0]):
+    if linhas and not set(COLUNAS_LOG[:4]) <= set(linhas[0]):  # logs antigos não têm "raiz"
         tela.erro(f"Log sem as colunas {COLUNAS_LOG}: {log_csv.name}. Nada foi desfeito.", saida)
         return 0
     voltaram = 0
     for linha in reversed(linhas):
-        atual = Path(pasta_raiz) / linha["pasta"] / linha["depois"]
+        # T48: a raiz gravada no log manda (log do modo teste não mexe na pasta real)
+        raiz = Path(linha.get("raiz") or pasta_raiz)
+        atual = raiz / linha["pasta"] / linha["depois"]
         antigo = atual.with_name(linha["antes"])
         travado = estado_travado(banco, f"{linha['pasta']}/{linha['depois']}") if banco else ""
         if travado:
