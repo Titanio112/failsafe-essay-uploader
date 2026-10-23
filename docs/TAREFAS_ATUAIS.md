@@ -357,6 +357,7 @@ Navegador visível continua o padrão (ainda testando), mas a pessoa escolhe.
 - Testes: tests/test_t51.py.
 
 PROVA (depois da T51, 23/10 00:0x):
-```n$ python -m pytest -m "not real" -q -p no:warnings
+```
+$ python -m pytest -m "not real" -q -p no:warnings
 353 passed, 4 deselected
 ```
