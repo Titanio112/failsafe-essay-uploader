@@ -27,7 +27,8 @@ COLUNAS_LOG = ["aluno", "arquivo", "tema", "antes", "depois", "resposta", "quand
 
 
 def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str] | None = None,
-                      entrada: Entrada | None = None, saida: Callable = print) -> int:
+                      entrada: Entrada | None = None, saida: Callable = print,
+                      pasta_raiz: Path | None = None) -> int:
     """``nomes``: {aluno_id: nome} para mostrar o nome em vez do e-mail.
     Retorna quantos itens foram resolvidos."""
     nomes = nomes or {}
@@ -49,7 +50,10 @@ def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str]
         for n, (aluno_id, arquivo, tema, detalhe, quando) in enumerate(pendentes, 1):
             data = _data_br(quando)
             tela.cabecalho(f"{n} de {len(pendentes)}:  {nomes.get(aluno_id, mascarar_email(aluno_id))}", saida)
-            saida(f"  Arquivo: {arquivo}")
+            caminho = arquivo.removeprefix("ensaio/")
+            if pasta_raiz and "/" in caminho:  # T51: Ctrl+clique abre a foto
+                caminho = tela.link_arquivo(pasta_raiz, *caminho.split("/", 1))
+            saida(f"  Arquivo: {caminho}")
             saida(f"  Tema:    {tema}    Enviado em: {data}")
             saida(tela.c(f"  Motivo:  {detalhe}", "fraco"))
             tela.menu([("s", "chegou no site (marca como enviada)"),

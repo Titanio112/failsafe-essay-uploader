@@ -337,3 +337,26 @@ foram medidos em separado):
 $ python -m pytest -m "not real" -q -p no:warnings
 342 passed, 4 deselected in 11.86s
 ```
+
+## T51 - Links para os arquivos, progresso ao vivo, envio sem janela [x]
+
+Pedido do Antônio (22/10, pelo celular): "decidir à mão" obriga a procurar
+o arquivo no Explorador; quer um link direto. Progresso com noção de tempo.
+Navegador visível continua o padrão (ainda testando), mas a pessoa escolhe.
+- `tela.link` / `tela.link_arquivo` (OSC 8, só num terminal de verdade):
+  Ctrl+clique abre a foto ou a pasta. Na conferência (pasta e arquivo), na
+  revisão, no "O que precisa de você" e no `--resolver`.
+- `tela.linha_progresso` + `fluxo_envio_producao.Andamento`: depois de cada
+  redação (e de cada aluno pulado) mostra "N de T redações, barra, %,
+  passou X, faltam ~Y" (média por redação até agora, pausas incluídas).
+- `--sem-janela` (headless); no menu, envio pergunta "Mostrar o navegador?
+  (Enter = sim)". Padrão: mostra.
+- conftest: os testes não dependem do relógio (a trava da meia-noite deu
+  ERRO em 34 testes rodando às 23:56).
+- Textos "decidir a mao" -> "decidir à mão".
+- Testes: tests/test_t51.py.
+
+PROVA (depois da T51, 23/10 00:0x):
+```n$ python -m pytest -m "not real" -q -p no:warnings
+353 passed, 4 deselected
+```

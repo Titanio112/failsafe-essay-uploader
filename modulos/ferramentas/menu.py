@@ -38,6 +38,13 @@ def _sim(entrada: Entrada | None, texto: str) -> bool:
     return _perguntar(entrada, f"  {texto} (s/n): ").lower() in ("s", "sim")
 
 
+def _janela(entrada: Entrada | None, argumentos: list[str]) -> list[str]:
+    """T51: no envio, pergunta se mostra o navegador (Enter = mostra)."""
+    if _perguntar(entrada, "  Mostrar o navegador enquanto envia? (Enter = sim, n = não): ").lower() in ("n", "nao", "não"):
+        return argumentos + ["--sem-janela"]
+    return argumentos
+
+
 def mostrar_menu(saida: Callable = print) -> None:
     tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  menu", saida)
     grupo_atual = None
@@ -67,17 +74,17 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
             tela.erro("Número inválido.", saida)
             return None
         if _sim(entrada, f"Enviar agora as {n} para a CONTA DE TESTE? (n = so mostrar quais iriam)"):
-            return ["--ensaio", n, "--envio-real"]
+            return _janela(entrada, ["--ensaio", n, "--envio-real"])
         return ["--ensaio", n]
     if opcao == "4":
         if _sim(entrada, "Enviar a pasta de teste agora? (n = so conferir)"):
-            return ["--modo-teste", "--envio-real"]
+            return _janela(entrada, ["--modo-teste", "--envio-real"])
         return ["--modo-teste"]
     if opcao == "5":
         if config_mod.PRODUCAO_BLOQUEADA:
             tela.bloqueado(config_mod.MENSAGEM_PRODUCAO_BLOQUEADA, saida)
             return None
-        return ["--envio-real"]
+        return _janela(entrada, ["--envio-real"])
     if opcao == "6":
         return ["--resolver"]
     if opcao == "7":

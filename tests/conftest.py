@@ -22,6 +22,17 @@ def raiz_temporaria(request, tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def longe_da_meia_noite(monkeypatch):
+    """Os testes não dependem do relógio: rodando entre 23:55 e 00:05 a trava
+    da meia-noite (T44) daria ERRO em tudo. Quem passa um horário explícito
+    continua usando a função de verdade; quem quer testar a trava faz patch."""
+    from modulos.base import relogio
+    original = relogio.perto_da_meia_noite
+    monkeypatch.setattr(relogio, "perto_da_meia_noite",
+                        lambda momento=None: original(momento) if momento else False)
+
+
+@pytest.fixture(autouse=True)
 def log_limpo():
     """T45: o main abre logs/automacao.log; cada teste começa sem handlers
     (o arquivo do teste anterior é fechado)."""

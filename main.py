@@ -118,6 +118,8 @@ def parse_args(argv=None):
                    help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
     p.add_argument("--preparar", action="store_true",
                    help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
+    p.add_argument("--sem-janela", action="store_true",
+                   help="envia sem mostrar o navegador (padrao: mostra, para acompanhar)")
     p.add_argument("--resolver", action="store_true",
                    help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
@@ -153,6 +155,8 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = carregar_config(args.config)
     tela.ativar_cores()
+    if args.sem_janela:
+        cfg.headless = True  # T51: escolha da pessoa; o padrão continua mostrando o navegador
     if args.pasta and args.modo_teste:
         tela.erro("--pasta nao vale no --modo-teste (usa sempre testes/redacoes_teste/).")
         return 2
@@ -210,7 +214,7 @@ def main(argv=None) -> int:
         load_dotenv()
         if os.getenv("ESQUEMA_EMAIL_TESTE"):
             nomes[os.environ["ESQUEMA_EMAIL_TESTE"].strip().casefold()] = NOME_CONTA_TESTE
-        executar_resolver(cfg.banco_progresso, cfg.pasta_relatorios, nomes)
+        executar_resolver(cfg.banco_progresso, cfg.pasta_relatorios, nomes, pasta_raiz=cfg.pasta_raiz)
         return 0
     if args.desfazer_renomeacao:
         tela.titulo("DESFAZER RENOMEAÇÃO")
@@ -340,7 +344,8 @@ def main(argv=None) -> int:
         tela.secao("Detalhes por tema")
         for tema in sorted(set(i.pasta for i in resultado.itens if i.pasta)):
             itens_tema = [i for i in resultado.itens if i.pasta == tema]
-            print(f"  {tela.SIMBOLOS['pasta']} {tela.c(tema, 'pasta')}  {tela.c(f'({len(itens_tema)} arquivo(s))', 'fraco')}")
+            nome_pasta = tela.link(tela.c(tema, "pasta"), Path(cfg.pasta_raiz) / tema)  # T51: abre a pasta
+            print(f"  {tela.SIMBOLOS['pasta']} {nome_pasta}  {tela.c(f'({len(itens_tema)} arquivo(s))', 'fraco')}")
             if not any(i.codigo_tema for i in itens_tema):
                 _resumo_pasta_sem_tema(itens_tema, alunos)
                 continue
@@ -351,7 +356,8 @@ def main(argv=None) -> int:
                                                     "confirmar no --revisar")
                 obs = tela.c(f"  ({texto_obs})", "fraco") if texto_obs else ""
                 papel = tela.PAPEL_DO_ESTADO.get(item.estado, "info")
-                tela.status(papel, f"{tela.rotulo(item.estado)}: {item.arquivo} → {aluno_nome}", recuo=5,
+                arquivo = tela.link(item.arquivo, Path(cfg.pasta_raiz) / item.pasta / item.arquivo)  # T51
+                tela.status(papel, f"{tela.rotulo(item.estado)}: {arquivo} → {aluno_nome}", recuo=5,
                             saida=lambda linha, obs=obs: print(linha + obs))
 
     tela.secao("Arquivos gerados")

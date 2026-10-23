@@ -130,6 +130,11 @@ Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
    que o site abriu a conta da pessoa certa e envia as redações dela uma por
    uma. Entre uma redação e outra (e entre alunos) espera um tempo aleatório
    de 8 a 15 s. No fim de cada aluno, sai da conta.
+   Durante o envio aparece o **progresso ao vivo** (T51):
+   `▶ 23 de 61 redações  ████░░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min`.
+   O navegador aparece na tela (para acompanhar); quem quiser deixar rodando
+   sem a janela usa `--sem-janela` (no menu: responda `n` em "Mostrar o
+   navegador?").
 4. **Pulos automáticos (sem erro):** a redação daquele tema que já está no
    site hoje ("já estava no site") e a mesma foto que já foi enviada, mesmo
    com outro nome.
@@ -149,6 +154,13 @@ Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
 Rodar de novo é seguro: o que está como enviada, já estava no site ou
 conferir no site nunca é reenviado; só as "não enviadas" e as que não foram
 tentadas vão de novo.
+
+## Abrir o arquivo direto do terminal
+
+Na conferência, na revisão, no "O que precisa de você" e no `--resolver`,
+os nomes de arquivo e de pasta são **links**: **Ctrl+clique** abre a foto (ou
+a pasta no Explorador), sem precisar procurar. Funciona no Windows Terminal
+(o terminal com abas); fora de um terminal (relatório, log) sai só o texto.
 
 ## Resolver as revisões manuais
 
@@ -186,6 +198,7 @@ e copie a cópia escolhida para esse nome.
 |---|---|
 | `python main.py --ensaio [N]` | Redações reais conferidas -> conta de teste (veja acima) |
 | `python main.py --resolver` | Responde, uma a uma, as redações em "conferir no site" (veja acima) |
+| `... --envio-real --sem-janela` | Envia sem mostrar o navegador (padrão: mostra) |
 | `python main.py --analise-remota` | Lê a lista de temas do site e atualiza `dados/temas_site.csv` (digite `ANALISAR`) |
 | `python main.py --analise-remota --conta-aluno EMAIL` | Lê os temas na conta desse aluno (só leitura; entra na conta do aluno). `--conta-aluno` sozinho é recusado |
 | `python main.py --envio-real --limite-alunos N` | Produção: só os N primeiros alunos do lote (só vale no `--envio-real` de produção) |

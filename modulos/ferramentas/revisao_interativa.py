@@ -264,7 +264,7 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
             tela.cabecalho(f"NOME {n} de {len(grupos)}:  \"{nome}\"  ({len(itens)} arquivo(s))", saida)
             saida("  Arquivos:")
             for item in itens:
-                saida(tela.c(f"    {item.pasta}/{item.arquivo}", "fraco"))
+                saida("    " + tela.link_arquivo(pasta_raiz, item.pasta, item.arquivo))  # T51: Ctrl+clique abre
             saida("")
             saida("  Alunos da lista:")
             for i, (aluno, info) in enumerate(opcoes, 1):

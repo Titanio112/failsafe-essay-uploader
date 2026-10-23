@@ -58,6 +58,26 @@ def _pausa(cfg: Config) -> None:
     time.sleep(random.uniform(cfg.pausa_envio_min_segundos, cfg.pausa_envio_max_segundos))
 
 
+class Andamento:
+    """T51: progresso ao vivo do envio ("23 de 61 redações · faltam ~19 min").
+    A estimativa é o tempo médio por redação até agora (pausas incluídas)."""
+
+    def __init__(self, total: int, saida=print, relogio=time.monotonic):
+        self.total, self.feitas = total, 0
+        self._saida, self._relogio = saida, relogio
+        self._inicio = relogio()
+
+    def chegar_a(self, feitas: int) -> None:
+        """Mostra a linha de progresso quando o número de feitas muda."""
+        feitas = min(max(feitas, self.feitas), self.total)
+        if feitas != self.feitas:
+            self.feitas = feitas
+            self._saida(tela.linha_progresso(self.feitas, self.total, self._relogio() - self._inicio))
+
+    def avancar(self) -> None:
+        self.chegar_a(self.feitas + 1)
+
+
 def _marcar_aluno(progresso, lote: LoteAluno, estado: str, detalhe: str) -> None:
     if progresso:
         for item in lote.itens:
@@ -66,7 +86,8 @@ def _marcar_aluno(progresso, lote: LoteAluno, estado: str, detalhe: str) -> None
 
 
 def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
-                       progresso, contagem: dict[str, int], conta_teste: bool = False) -> Optional[str]:
+                       progresso, contagem: dict[str, int], conta_teste: bool = False,
+                       andamento: Optional[Andamento] = None) -> Optional[str]:
     """Envia os itens de um aluno. Retorna PARAR_TUDO para encerrar a execução.
     ``conta_teste`` (T44): identidade exata (nome do menu igual ao da conta)."""
     aluno = lote.aluno
@@ -105,6 +126,8 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
             log.error("Captcha/bloqueio durante o envio (%s). Parando a execucao.", item.chave_progresso)
             return PARAR_TUDO
         contagem[estado] = contagem.get(estado, 0) + 1
+        if andamento:
+            andamento.avancar()
         if estado == REVISAO_MANUAL:
             log.error("Resultado inconclusivo apos clique (%s). Parando a execucao.", item.chave_progresso)
             return PARAR_TUDO
@@ -145,7 +168,8 @@ def mostrar_o_que_precisa_de_voce(lotes: list[LoteAluno], progresso: Progresso) 
         tela.status("aviso" if estado == REVISAO_MANUAL else "erro",
                     f"{titulo} ({len(pendentes[estado])}): {acao}")
         for nome, item, detalhe in pendentes[estado]:
-            tela.status("fraco", f"{nome} - tema {item.codigo} - {item.pasta}/{item.arquivo}: {detalhe}", recuo=6)
+            arquivo = tela.link_arquivo(Path(item.caminho).parent.parent, item.pasta, item.arquivo)  # T51
+            tela.status("fraco", f"{nome} - tema {item.codigo} - {arquivo}: {detalhe}", recuo=6)
     if nao_tentados:
         tela.status("info", f"{nao_tentados} redação(ões) não chegaram a ser tentadas: vão na próxima execução.")
     return sum(len(v) for v in pendentes.values()) + nao_tentados
@@ -255,6 +279,8 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
     falhas_login = 0
+    andamento = Andamento(sum(len(lote.itens) for lote in lotes))
+    feitas_antes = 0
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=cfg.headless, slow_mo=cfg.slow_mo_ms)
@@ -262,13 +288,17 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
             for n, lote in enumerate(lotes, 1):
                 if n > 1:
                     _pausa(cfg)
-                log.info("Aluno %d/%d: %s", n, len(lotes), lote.aluno.nome)
+                log.info("Aluno %d de %d: %s", n, len(lotes), lote.aluno.nome)
                 # Um contexto por aluno: nada de sessão de um aluno no outro (P5)
                 context = browser.new_context()
                 page = context.new_page()
                 try:
                     resultado = _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem,
-                                                   conta_teste=bool(conta_teste))
+                                                   conta_teste=bool(conta_teste), andamento=andamento)
+                    # Itens pulados (login falhou, erro parou o aluno) também contam como "passados"
+                    feitas_antes += len(lote.itens)
+                    if resultado != PARAR_TUDO:
+                        andamento.chegar_a(feitas_antes)
                     falhas_login = falhas_login + 1 if resultado == FALHA_LOGIN else 0
                     if resultado == PARAR_TUDO or falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:
                         if falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:

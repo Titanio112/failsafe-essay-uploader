@@ -346,7 +346,7 @@ def conciliar(
             if eh_folha_em_branco(norm):
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
-                    estado=REVISAO_MANUAL, observacao="folha em branco: decidir a mao",
+                    estado=REVISAO_MANUAL, observacao="folha em branco: decidir à mão",
                     codigo_tema=extrair_codigo_tema(nome_arquivo, pasta_cod[pasta]) or "",
                 ))
                 continue
@@ -383,7 +383,7 @@ def conciliar(
                 # T43: "1 Ana.jpg" numa pasta sem tema: número de página, não tema
                 estado_inicial = REVISAO_MANUAL
                 codigo_valido = False
-                obs_inicial = f"numero {codigo_arquivo} no inicio do arquivo numa pasta sem tema: pagina? decidir a mao"
+                obs_inicial = f"numero {codigo_arquivo} no inicio do arquivo numa pasta sem tema: pagina? decidir à mão"
             elif codigo is None:
                 estado_inicial = SEM_CODIGO
                 codigo_valido = False
@@ -408,12 +408,12 @@ def conciliar(
                             and sem_numero_final(norm) != norm)
                 if tem_duplicata:
                     estado = REVISAO_MANUAL
-                    obs_inicial = obs_inicial or "mais de um arquivo do aluno nesta pasta (pagina 2? copia?): decidir a mao"
+                    obs_inicial = obs_inicial or "mais de um arquivo do aluno nesta pasta (pagina 2? copia?): decidir à mão"
                 elif numerado:
                     # T48: "Ana Souza 2.jpg" sozinho pode ser só a página 2 (a 1ª
                     # com o nome errado); quem decide é a pessoa.
                     estado = REVISAO_MANUAL
-                    obs_inicial = obs_inicial or "numero no fim do nome (pagina 2? copia?): decidir a mao"
+                    obs_inicial = obs_inicial or "numero no fim do nome (pagina 2? copia?): decidir à mão"
                 else:
                     estado = EXATO_UNICO
                     if key:

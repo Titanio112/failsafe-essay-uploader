@@ -36,7 +36,7 @@ PAPEIS = {
 # Símbolo no começo das linhas de status
 SIMBOLOS = {
     "ok": "✔", "aviso": "⚠", "erro": "✘", "bloqueado": "⛔", "info": "•",
-    "fraco": "·", "seta": "→", "pasta": "📁",
+    "fraco": "·", "seta": "→", "pasta": "📁", "progresso": "▶",
 }
 
 # Linhas dos títulos
@@ -189,6 +189,57 @@ def caminho(p) -> str:
         return str(Path(p).resolve().relative_to(Path.cwd().resolve()))
     except ValueError:
         return str(p)
+
+
+# ─── Link clicável para arquivo (T51) ────────────────────────
+# Windows Terminal e outros terminais modernos: Ctrl+clique abre o arquivo.
+# Sem terminal de verdade (teste, arquivo) sai só o texto.
+
+def link(texto: str, alvo) -> str:
+    """``texto`` vira um link para o arquivo/pasta ``alvo`` (Ctrl+clique)."""
+    if not _cores["ativas"]:
+        return texto
+    from pathlib import Path
+    try:
+        uri = Path(alvo).resolve().as_uri()
+    except ValueError:
+        return texto
+    return f"\033]8;;{uri}\033\\{texto}\033]8;;\033\\"
+
+
+def link_arquivo(pasta_raiz, pasta: str, arquivo: str) -> str:
+    """"pasta/arquivo" com o arquivo clicável (abre a foto) e a pasta
+    clicável (abre a pasta no Explorador)."""
+    from pathlib import Path
+    raiz = Path(pasta_raiz)
+    return f"{link(pasta, raiz / pasta)}/{link(arquivo, raiz / pasta / arquivo)}"
+
+
+# ─── Progresso do envio (T51) ────────────────────────────────
+
+def tempo(segundos: float) -> str:
+    """90 -> "1 min 30 s"; 3700 -> "1 h 2 min"."""
+    segundos = int(max(segundos, 0))
+    h, resto = divmod(segundos, 3600)
+    m, s = divmod(resto, 60)
+    if h:
+        return f"{h} h {m} min"
+    if m:
+        return f"{m} min {s:02d} s" if m < 10 else f"{m} min"
+    return f"{s} s"
+
+
+def linha_progresso(feitas: int, total: int, passou: float) -> str:
+    """"▶ 23 de 61 redações  █████░░░░░  38%  ·  passou 12 min  ·  faltam ~19 min"."""
+    total = max(total, 1)
+    porcento = feitas / total * 100
+    cheio = round(porcento / 100 * BARRA_TAMANHO)
+    barra_txt = c(BARRA_CHEIA * cheio, "ok") + c(BARRA_VAZIA * (BARRA_TAMANHO - cheio), "fraco")
+    restante = f"faltam ~{tempo(passou / feitas * (total - feitas))}" if feitas else "calculando o tempo..."
+    if feitas >= total:
+        restante = "terminado"
+    return (f"  {c(SIMBOLOS['progresso'], 'info')} {feitas} de {total} redações  {barra_txt}  "
+            f"{porcento:3.0f}%  {c('·', 'fraco')}  passou {tempo(passou)}  {c('·', 'fraco')}  {restante}")
 
 
 # ─── Barras de semelhança ────────────────────────────────────
