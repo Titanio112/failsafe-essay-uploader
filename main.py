@@ -119,6 +119,8 @@ def parse_args(argv=None):
                    help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
     p.add_argument("--preparar", action="store_true",
                    help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
+    p.add_argument("--resolver", action="store_true",
+                   help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
                    help=f"redacoes REAIS ja conferidas (padrao {QUANTIDADE_PADRAO}) vao para a CONTA DE TESTE; "
                         "com --envio-real envia (ENVIAR TESTE)")
@@ -181,6 +183,9 @@ def main(argv=None) -> int:
         tela.erro("--limite-alunos/--limite-redacoes so valem no envio de producao (--envio-real); "
                   "no ensaio use --ensaio N.")
         return 2
+    if args.resolver and (args.envio_real or args.revisar or args.analise_remota or args.desfazer_renomeacao):
+        tela.erro("--resolver roda sozinho.")
+        return 2
     if args.desfazer_renomeacao and (args.revisar or args.ensaio is not None or args.analise_remota):
         tela.erro("--desfazer-renomeacao roda sozinho.")
         return 2
@@ -195,6 +200,19 @@ def main(argv=None) -> int:
         return 2
     if args.modo_teste:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
+    if args.resolver:
+        # T49: só mexe no caderno; os nomes vêm da lista, se ela existir
+        from modulos.ferramentas.resolver import executar_resolver
+        nomes = {}
+        if Path(cfg.planilha).is_file():
+            nomes = {a.id: a.nome for a in (_ler_alunos(cfg) or [])}
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        if os.getenv("ESQUEMA_EMAIL_TESTE"):
+            nomes[os.environ["ESQUEMA_EMAIL_TESTE"].strip().casefold()] = NOME_CONTA_TESTE
+        executar_resolver(cfg.banco_progresso, cfg.pasta_relatorios, nomes)
+        return 0
     if args.desfazer_renomeacao:
         tela.titulo("DESFAZER RENOMEAÇÃO")
         desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz, banco=cfg.banco_progresso)

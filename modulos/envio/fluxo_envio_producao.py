@@ -117,7 +117,7 @@ def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
 # O que fazer com cada estado que pede ação (T47)
 _ACAO = {
     REVISAO_MANUAL: ("revisao", "abra o site NA CONTA DESTE ALUNO e veja se a redacao deste tema chegou hoje; "
-                                "o script nao reenvia sozinho"),
+                                "depois responda em: python main.py --resolver"),
     ERRO: ("erro", "nada foi enviado; resolva o motivo e rode de novo (ele tenta outra vez)"),
 }
 

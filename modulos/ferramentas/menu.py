@@ -23,6 +23,7 @@ OPCOES = [
     ("Testar na conta de teste", "3", "Ensaio com redações reais", "algumas reais → conta de teste"),
     ("Testar na conta de teste", "4", "Modo teste", "pasta testes/redacoes_teste"),
     ("Enviar", "5", "Enviar para os alunos", "envio de verdade"),
+    ("Enviar", "9", "Resolver revisões manuais", "chegou no site? sim/não"),
     ("Ferramentas", "6", "Atualizar os temas do site", "só leitura"),
     ("Ferramentas", "7", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
     ("Ferramentas", "8", "Primeiro uso / o que falta", "cria o que falta e explica"),
@@ -93,6 +94,8 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
         return None
     if opcao == "8":
         return ["--preparar"]
+    if opcao == "9":
+        return ["--resolver"]
     tela.erro("Opcao invalida.", saida)
     return None
 
