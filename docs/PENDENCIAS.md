@@ -43,8 +43,8 @@ Antônio decide.
 
 - Ctrl+clique com o link novo: conferir no terminal do VS Code (e no Windows
   Terminal) se a foto abre. Se não abrir, usar `v` na revisão/resolver.
-- `--conferir-site` nunca rodou no site real: primeira vez com poucos alunos
-  à vista (navegador aparecendo) para ver login, lista e progresso.
+- `--conferir-site` rodou no site real em 23/10 (36 alunos, 0 falhas) ✔.
+  Falta ver o "talvez com outro tema" (T53) numa conferência real.
 - Redações antigas da pasta já foram enviadas à mão (data incerta): antes de
   liberar a produção, tirar da pasta ou conferir com `--conferir-site`.
 - Ideia não feita: marcar no caderno, a partir da conferência, as que já

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 
 from modulos.base import config as config_mod
-from modulos.base import tela
+from modulos.base import sobre, tela
 from modulos.ferramentas.configuracoes import executar_configuracoes, resumo_navegador
 
 Entrada = Callable[[str], str]
@@ -58,6 +58,8 @@ def mostrar_menu(saida: Callable = print) -> None:
         saida(f" {tela.c(rotulo, 'tecla')} {nome:<30} {ajuda}")
     saida("")
     saida(f" {tela.c(' 0)', 'tecla')} Sair")
+    saida("")
+    saida(tela.c(f"  {sobre.creditos()}", "fraco"))  # T53
 
 
 def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,

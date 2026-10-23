@@ -54,22 +54,26 @@ def resumo_navegador(cfg=None) -> str:
 
 def executar_configuracoes(caminho: Path | None = None, entrada: Entrada | None = None,
                            saida: Callable = print) -> int:
-    """Mostra as configurações e troca a escolhida até a pessoa dar Enter."""
+    """Pergunta direto cada configuração (T53: o Antônio digitou "não" na
+    tela antiga, que pedia o número da opção). Enter = deixa como está."""
     caminho = Path(caminho or caminho_config())
+    cfg = config_mod.carregar_config(caminho if caminho.is_file() else None)
+    tela.titulo("CONFIGURAÇÕES", saida)
+    atual = "sim" if not cfg.headless else "não"
+    saida(f"  Mostrar o navegador enquanto envia ou confere? Agora: {tela.c(atual, 'titulo')}")
+    tela.status("fraco", "Aparecendo dá para acompanhar (bom enquanto testamos); escondido atrapalha menos.",
+                saida, recuo=4)
     while True:
-        cfg = config_mod.carregar_config(caminho if caminho.is_file() else None)
-        tela.titulo("CONFIGURAÇÕES", saida)
-        visivel = "sim" if not cfg.headless else "não"
-        saida(f"  {tela.c('1)', 'tecla')} Mostrar o navegador enquanto envia ou confere: {tela.c(visivel, 'titulo')}")
-        tela.status("fraco", "Aparecendo dá para acompanhar (bom enquanto testamos); escondido atrapalha menos.",
-                    saida, recuo=5)
-        saida("")
-        escolha = tela.perguntar("  Número para trocar (Enter = voltar): ", entrada)
-        if escolha != "1":
-            if escolha:
-                tela.erro("Opção inválida.", saida)
-                continue
-            return 0
-        gravar_opcao(caminho, "plataforma", "headless", "false" if cfg.headless else "true")
-        tela.ok("Navegador vai aparecer." if cfg.headless else "Navegador vai ficar escondido.", saida)
-        tela.status("fraco", f"Salvo em {tela.caminho(caminho)}", saida)
+        resposta = tela.perguntar(f"  s = mostrar, n = esconder (Enter = deixar \"{atual}\"): ", entrada).lower()
+        if resposta in ("", "s", "sim", "n", "nao", "não"):
+            break
+        tela.erro("Responda s ou n (ou Enter para deixar como está).", saida)
+    if not resposta:
+        tela.info(f"Nada mudou: navegador {'aparece' if atual == 'sim' else 'escondido'}.", saida)
+        return 0
+    esconder = resposta.startswith("n")
+    gravar_opcao(caminho, "plataforma", "headless", "true" if esconder else "false")
+    tela.ok("Pronto: o navegador vai ficar escondido." if esconder else "Pronto: o navegador vai aparecer.", saida)
+    tela.status("fraco", f"Salvo em {tela.caminho(caminho)} (vale para os próximos envios e conferências).",
+                saida)
+    return 0

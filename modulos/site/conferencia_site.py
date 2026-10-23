@@ -29,6 +29,7 @@ log = logging.getLogger("automacao_redacoes")
 
 PALAVRA = "CONFERIR"
 NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não está no site", "não conferido"
+OUTRO_TEMA = "talvez no site com outro tema"
 COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes"]
 
 
@@ -71,6 +72,33 @@ def comparar(conf: ConferenciaAluno) -> None:
         else:
             estado = EM_PARTE
         conf.linhas.append((item, estado, do_tema))
+    # T53: tema que "não está no site" enquanto o site tem redações A MAIS de
+    # outro tema (do que fotos na pasta) provavelmente foi mandado com esse
+    # outro tema (23/10: 28 do tema 100 estavam no site como 000). Nunca
+    # contar como "falta enviar".
+    locais: dict[str, int] = {}
+    for item in conf.itens:
+        locais[item.codigo_tema] = locais.get(item.codigo_tema, 0) + 1
+    sobra: dict[str, int] = {}
+    for r in conf.lista:
+        sobra[r.codigo] = sobra.get(r.codigo, 0) + 1
+    for codigo, n in locais.items():
+        if codigo in sobra:
+            sobra[codigo] -= n
+    for i, (item, estado, do_tema) in enumerate(conf.linhas):
+        if estado != FORA_DO_SITE:
+            continue
+        outro = next((c for c, n in sorted(sobra.items()) if n > 0), None)
+        if outro is None:
+            break
+        sobra[outro] -= 1
+        conf.linhas[i] = (item, OUTRO_TEMA, [r for r in conf.lista if r.codigo == outro])
+
+
+def faltam_enviar(conferencias: list[ConferenciaAluno]) -> list[ItemConciliacao]:
+    """Só as fotos que certamente não estão no site (conta lida sem erro)."""
+    return [item for conf in conferencias if not conf.erro
+            for item, estado, _ in conf.linhas if estado == FORA_DO_SITE]
 
 
 def _ler_conta(page, cfg: Config, senha: str, aluno: Aluno) -> list[ItemListaRedacao]:
@@ -138,10 +166,12 @@ def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = p
     if conf.erro:
         tela.status("erro", f"não conferido: {conf.erro}", saida, recuo=4)
         return
-    papel = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info"}
+    papel = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso"}
     for item, estado, do_tema in conf.linhas:
         quando = ", ".join(sorted({r.data for r in do_tema if r.data}))
         extra = f" ({quando})" if quando else ""
+        if estado == OUTRO_TEMA and do_tema:
+            extra = f" (o site tem uma {do_tema[0].codigo} a mais: {quando})"
         arquivo = tela.link_arquivo(pasta_raiz, item.pasta, item.arquivo)
         tela.status(papel.get(estado, "fraco"), f"tema {item.codigo_tema}: {estado}{extra}  {arquivo}",
                     saida, recuo=4)
@@ -165,9 +195,12 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
 
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                               entrada: Callable[[str], str] | None = None, saida: Callable = print,
-                              ler: Callable | None = None) -> int:
+                              ler: Callable | None = None,
+                              depois: Callable[[list[ItemConciliacao]], object] | None = None) -> int:
     """0 = conferido até o fim; 1 = parou antes; 2 = cancelado/nada a conferir.
-    ``ler`` (testes): substitui o navegador (recebe cfg, conferências, senha, saida)."""
+    ``ler`` (testes): substitui o navegador (recebe cfg, conferências, senha, saida).
+    ``depois`` (T53): recebe as fotos que certamente faltam no site, para
+    oferecer o envio só delas (o main decide; aqui nada é enviado)."""
     from modulos.base.trava import TravaOcupada, trava_de_envio
     conferencias = alunos_para_conferir(resultado)
     tela.titulo("CONFERÊNCIA NO SITE  ·  só leitura, nada é enviado", saida)
@@ -193,7 +226,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
         tela.erro("Um envio está rodando agora (outra janela?). Espere ele acabar.", saida)
         return 2
 
-    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, NAO_CONFERIDO: 0}
+    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, OUTRO_TEMA: 0, NAO_CONFERIDO: 0}
     for conf in conferencias:
         if not conf.linhas:
             comparar(conf)
@@ -202,10 +235,17 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     tela.secao("Resumo da conferência no site", saida)
     tela.contagens([("Já estão no site", contagem[NO_SITE], "ok"),
                     ("Tema no site, mas menos vezes que as fotos", contagem[EM_PARTE], "aviso"),
+                    ("Talvez no site com outro tema (não envia)", contagem[OUTRO_TEMA], "aviso"),
                     ("Ainda não estão no site", contagem[FORA_DO_SITE], "info"),
                     ("Não conferidas (conta não abriu)", contagem[NAO_CONFERIDO], "erro")], saida)
     if parou:
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
     tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
+    if contagem[OUTRO_TEMA]:
+        tela.status("fraco", "\"Talvez com outro tema\": o site tem redações a mais de outro tema (ex.: mandada "
+                             "como 000). Confira no site; essas nunca entram no envio daqui.", saida)
+    faltam = faltam_enviar(conferencias)
+    if faltam and not parou and depois:
+        depois(faltam)
     return 1 if parou else 0

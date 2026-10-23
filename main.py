@@ -154,6 +154,27 @@ def _executar_ensaio(cfg, resultado, alunos, quantidade: int, envio_real: bool) 
         return executar_envio_producao(cfg, resultado, progresso, conta_teste=conta.email, lotes=lotes)
 
 
+def _enviar_faltantes(cfg, faltam, entrada=None) -> int:
+    """T53: depois da conferência no site, oferece enviar SÓ as fotos que
+    certamente não estão lá. Mesmo caminho do envio de produção: trava
+    PRODUCAO_BLOQUEADA, lote mostrado, ENVIAR digitado, checagens de sempre."""
+    from modulos.dados.planilha_arquivos import ResultadoConciliacao
+    from modulos.envio.fila_producao import montar_lote_producao
+    tela.secao(f"Enviar as {len(faltam)} que não estão no site?")
+    if config_mod.PRODUCAO_BLOQUEADA:
+        tela.bloqueado("Envio para os alunos bloqueado hoje: nada foi enviado. A lista está no relatório acima.")
+        return 2
+    if tela.perguntar("  Montar o envio só destas? (s/n): ", entrada).lower() not in ("s", "sim"):
+        tela.info("Ok, nada foi enviado.")
+        return 0
+    so_estas = ResultadoConciliacao(itens=list(faltam))
+    with Progresso(cfg.banco_progresso) as progresso:
+        lotes, ignorados = montar_lote_producao(so_estas, cfg.pasta_raiz, progresso)
+        for chave, motivo in ignorados:
+            tela.status("fraco", f"fora do envio: {chave} ({motivo})")
+        return executar_envio_producao(cfg, so_estas, progresso, lotes=lotes)
+
+
 def main(argv=None) -> int:
     args = parse_args(argv)
     cfg = carregar_config(args.config)
@@ -319,7 +340,7 @@ def main(argv=None) -> int:
         from dotenv import load_dotenv
         from modulos.site.conferencia_site import executar_conferencia_site
         load_dotenv()
-        return executar_conferencia_site(cfg, resultado)
+        return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam))
     if args.revisar:
         return executar_revisao(
             resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,

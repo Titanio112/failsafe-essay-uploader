@@ -403,3 +403,35 @@ $ echo nao | python main.py --conferir-site
   Digite CONFERIR para começar (qualquer outro texto cancela):   ⚠ Cancelado: nenhuma conta foi aberta.
 ```
 
+## T53 - Depois da 1ª conferência no site [x]
+
+O Antônio rodou `--conferir-site` (23/10 ~01:04, 36 alunos, 7 min 10 s):
+98 "no site", 28 "não está no site" (todas do tema 100), 0 sem abrir. Ctrl+clique
+funcionou (abre a pasta). Pediu: relatório clicável, opção de já enviar as
+que faltam, Configurações confusas (digitou "não" e deu "Opção inválida"),
+créditos de quem fez.
+- Análise do CSV: em 23 alunos a pasta tem 3x000 + 1x100 e o site 4x000
+  (outros 5: mesma conta, sobra de 000). Ou seja, a filiação foi mandada à
+  mão como 000. Sem tratar isso, "enviar as que faltam" duplicaria 28.
+  `comparar` agora marca OUTRO_TEMA quando há sobra de outro tema no site;
+  `faltam_enviar` só pega FORA_DO_SITE de conta lida sem erro. Reaplicado ao
+  CSV real: 98 no site, 28 talvez com outro tema, 0 a enviar.
+- `executar_conferencia_site(..., depois=)` -> `main._enviar_faltantes`:
+  produção bloqueada -> só avisa; senão "Montar o envio só destas? (s/n)" e
+  `executar_envio_producao` com o lote só delas (ENVIAR e travas de sempre).
+- Configurações: pergunta direta "s = mostrar, n = esconder (Enter = deixar)".
+- `tela.caminho` vira link (relatórios clicáveis). Pasta com o arquivo
+  selecionado no Explorador: não dá por link (o Antônio achou demais).
+- `modulos/base/sobre.py`: "Feito por Antônio (Titanio112) · com ajuda do
+  Claude (Anthropic) · versão 2026.10.23" no rodapé do menu.
+- Testes: tests/test_t53.py; test_t52 ajustado.
+
+PROVA (23/10):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+379 passed, 4 deselected in 10.02s
+$ (regra nova aplicada ao relatorios/conferencia_site_20261023_010426.csv)
+{'no site': 98, 'talvez no site com outro tema': 28}
+faltam enviar: 0
+```
+

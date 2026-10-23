@@ -44,7 +44,7 @@ Enviar                      6) Enviar para os alunos        (hoje: bloqueado)
 Ferramentas                 8) Atualizar os temas do site
                             9) Desfazer uma renomeação
                            10) Primeiro uso / o que falta
-                           11) Configurações                navegador aparece ou não
+                           11) Configurações                navegador aparece ou não (s/n)
                             0) Sair
 ```
 Cada opção chama o mesmo comando com flags (abaixo), com as mesmas travas e
@@ -159,7 +159,8 @@ tentadas vão de novo.
 
 ## Abrir o arquivo direto do terminal
 
-Na conferência, na revisão, no "O que precisa de você" e no `--resolver`,
+Na conferência, na revisão, no "O que precisa de você" e no `--resolver`
+(e, desde a T53, em todo caminho de relatório mostrado na tela),
 os nomes de arquivo são **links**: **Ctrl+clique** abre a foto. No terminal
 do VS Code a foto abre numa aba do próprio VS Code (o nome da pasta ali não
 é link); nos outros terminais a pasta também abre no Explorador. Fora de um
@@ -183,6 +184,14 @@ você), usa a senha padrão, mostra o progresso por aluno, para em CAPTCHA ou
 em 2 contas seguidas sem abrir, e grava `relatorios/conferencia_site_<data>.csv`.
 Serve para saber o que já foi mandado à mão antes do script (o envio só
 pula o que está no site **hoje**).
+
+T53: se um tema "não está no site", mas o site tem redações **a mais** de
+outro tema (ex.: a filiação mandada como 000), a foto aparece como
+**"talvez no site com outro tema"** e nunca vai no envio. Na 1ª conferência
+real (23/10) foram 28 assim (tema 100 mandado como 000). No fim, as que
+certamente faltam podem ser enviadas na hora: o script pergunta "Montar o
+envio só destas?" e segue o envio normal (lote na tela, `ENVIAR`, todas as
+travas). Hoje a produção está bloqueada, então ele só avisa.
 
 ## Resolver as revisões manuais
 

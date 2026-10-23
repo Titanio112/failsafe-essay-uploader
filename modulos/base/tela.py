@@ -183,12 +183,14 @@ def perguntar(prompt: str, entrada: Callable[[str], str] | None = None) -> str:
 
 
 def caminho(p) -> str:
-    """Caminho curto: relativo à pasta atual quando estiver dentro dela."""
+    """Caminho curto: relativo à pasta atual quando estiver dentro dela.
+    T53: num terminal de verdade é link (Ctrl+clique abre o relatório/pasta)."""
     from pathlib import Path
     try:
-        return str(Path(p).resolve().relative_to(Path.cwd().resolve()))
+        texto = str(Path(p).resolve().relative_to(Path.cwd().resolve()))
     except ValueError:
-        return str(p)
+        texto = str(p)
+    return link(texto, p, pasta=Path(p).is_dir())
 
 
 # ─── Link clicável para arquivo (T51) ────────────────────────
