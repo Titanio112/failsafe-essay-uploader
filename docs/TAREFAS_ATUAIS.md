@@ -7,7 +7,7 @@ Regra de cada tarefa: só vira [x] com PROVA colada.
 ## Estado em 22/10/2026
 
 - Branch `f4-producao` (não juntada à `limpeza`; sem remoto, sem push).
-- Branch `revisao-autonoma` (saiu da `f4-producao` em 22/10): T42–T46,
+- Branch `revisao-autonoma` (saiu da `f4-producao` em 22/10): T42–T50,
   para o Antônio revisar e juntar ou descartar. A `f4-producao` não mudou.
 - Envio para alunos reais BLOQUEADO (`PRODUCAO_BLOQUEADA = True`, T30).
   Só o modo teste envia. Liberar só com ordem do Antônio.
@@ -21,7 +21,7 @@ Regra de cada tarefa: só vira [x] com PROVA colada.
       (temas 0, 000, 000, 100), todas "Pendente". Contagem do 000 confirmada.
 - [ ] Rodar `--revisar`: Enter na filiação, `g` na discriminação e na
       tecnologia, depois os nomes.
-- [ ] Revisar a branch `revisao-autonoma` (T42–T46): juntar ou descartar.
+- [ ] Revisar a branch `revisao-autonoma` (T42–T50): juntar ou descartar.
 - [ ] Rodar o ensaio: `python main.py --ensaio 3`, depois com
       `--envio-real` (ENVIAR TESTE). Confere também o critério ENEM (T44) no site.
 - [ ] Decidir quando liberar o envio para alunos reais (T25 suspensa).
@@ -247,4 +247,93 @@ foram medidos em separado):
 ```
 $ python -m pytest -m "not real" -q -p no:warnings
 300 passed, 4 deselected
+```
+
+## T47 - Cópia do caderno, "O que precisa de você", menu [x]
+
+- Antes de cada envio (modo teste, ensaio, produção) o caderno
+  `relatorios/progresso.db` é copiado para
+  `relatorios/copias/progresso_<AAAAMMDD_HHMMSS_micro>.db` (API de backup do
+  SQLite; ficam as 30 mais recentes). Cópia falhou → nada é enviado.
+  Como voltar uma cópia: docstring de modulos/base/copia_seguranca.py.
+  ATENÇÃO: voltar uma cópia antiga faz o script esquecer os envios feitos
+  depois dela (os de dias anteriores podem ir de novo); só com o arquivo
+  atual perdido/estragado e conferindo o site antes.
+- Fim de todo envio: seção "O que precisa de você" (conferir no site =
+  REVISAO_MANUAL, não enviadas = ERRO com motivo, não tentadas).
+- `python main.py` sem opções, num terminal de verdade, abre o menu
+  (modulos/ferramentas/menu.py); as opções chamam o mesmo `main` com flags.
+  Os comandos com flags continuam iguais.
+- Arquivos: main.py, modulos/base/copia_seguranca.py (novo),
+  modulos/envio/fluxo_envio_producao.py, modulos/ferramentas/menu.py (novo),
+  tests/test_t47.py.
+- Commit: 1c4c52e.
+
+## T48 - Achados da 2ª varredura [x]
+
+- Lista só vale na página certa: HTTP < 400, caminho `/minhas-redacoes` e
+  texto "Você tem N crédito(s)"; senão ilegível → ERRO antes do clique
+  (nunca "lista vazia").
+- Contagem: total = max(arquivos do aluno/tema, caderno de hoje + 1);
+  ensaio + modo teste na mesma conta não dão mais JA_ENVIADO falso.
+- Botão "Enviar resposta" ausente → ERRO (nada clicado).
+- Confirmação julga a contagem subir; linha antiga mudando de situação não
+  atrapalha.
+- Perto da meia-noite: checado uma vez antes de abrir o navegador.
+- 2 logins seguidos falhando param tudo (mensagem: senha padrão errada?
+  conta bloqueada?).
+- `--desfazer-renomeacao` usa a raiz gravada no log (coluna `raiz`): desfazer
+  uma revisão do modo teste nunca mexe nos arquivos reais.
+- Acrescentar em CSV salvo pelo Excel (cp1252): o arquivo inteiro é
+  convertido para UTF-8 antes.
+- "Ana Souza 2.jpg" sozinho (só identificado tirando o número final) →
+  REVISAO_MANUAL.
+- Log esconde o VALOR dos segredos (senhas do .env, `senha=...`), não mais
+  qualquer mensagem com a palavra "senha".
+- XLSX aceita cabeçalho "E-mail".
+- Mais combinações recusadas: `--desfazer-renomeacao` com outras fases,
+  `--analise-remota` com `--envio-real`/`--modo-teste`/`--revisar`,
+  `--ensaio 0`.
+- Arquivos: main.py, modulos/base/{excecoes, progresso_relatorio}.py,
+  modulos/dados/{arquivos_csv, planilha_arquivos}.py,
+  modulos/envio/{envio_item, fluxo_envio_producao, fluxo_envio_teste}.py,
+  modulos/ferramentas/revisao_interativa.py,
+  modulos/site/{confirmacao, lista_redacoes}.py, tests/test_t43.py,
+  tests/test_t48.py.
+- Commit: 95f6f1e.
+
+## T49 - `--resolver` (revisões manuais) [x]
+
+- `python main.py --resolver` (menu opção 6): para cada REVISAO_MANUAL
+  pergunta se chegou no site: `s` → ENVIADO, `n` → ERRO (vai de novo na
+  próxima execução), Enter pula, `q` sai.
+- A data do registro não muda (contagem de hoje continua certa); cada
+  resposta fica em `relatorios/resolucoes_<data>.csv`. `--resolver` roda
+  sozinho (com outras fases é recusado).
+- Arquivos: main.py, modulos/envio/fluxo_envio_producao.py,
+  modulos/ferramentas/{menu, resolver (novo)}.py, tests/test_t49.py.
+- Commit: 6b9ef3c.
+
+## T50 - Textos do terminal [x]
+
+- Estados com nomes do dia a dia (`tela.ROTULO_DO_ESTADO`): pronto, nome
+  parecido, mais de um aluno, sem aluno, pasta sem tema, tema fora do site,
+  decidir à mão, enviada, já estava no site, não enviada (erro).
+- Resumo da conferência: "Prontas para enviar", "Nome parecido (confirmar
+  no --revisar)"...; acentos nas mensagens.
+- A conferência termina com "• Só conferência: nada foi enviado." (sem a
+  linha vermelha `[BLOQUEADO]`).
+- Tela do envio com a seção "Como funciona"; resumo do envio e "O que
+  precisa de você" sem códigos internos; motivos de erro dizem o que fazer.
+- Menu renumerado (6 = resolver).
+- Arquivos: main.py, modulos/base/tela.py, modulos/envio/{envio_item,
+  fluxo_envio_producao}.py, modulos/ferramentas/menu.py + ajustes de texto
+  em 11 testes.
+- Commit: b8c8ba3.
+
+PROVA (suíte completa depois da T50, 22/10; totais de cada tarefa não
+foram medidos em separado):
+```
+$ python -m pytest -m "not real" -q -p no:warnings
+342 passed, 4 deselected in 11.86s
 ```

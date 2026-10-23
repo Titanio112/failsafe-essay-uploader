@@ -29,14 +29,33 @@ A lista pode ser salva pelo Excel (aceita "E-mail" no cabeçalho). Arquivos
 como "Ana 2.jpg" ou "Ana (2).jpg" (página 2? cópia?) e a mesma foto com dois
 nomes não vão sozinhos: aparecem para você decidir.
 
+## Menu (jeito mais fácil)
+
+`python main.py` sem nada, num terminal, abre um menu (T47):
+
+```
+Preparar                    1) Conferir as redações         não envia nada
+                            2) Revisar temas e nomes
+Testar na conta de teste    3) Ensaio com redações reais
+                            4) Modo teste
+Enviar                      5) Enviar para os alunos        (hoje: bloqueado)
+                            6) Resolver revisões manuais    chegou no site? sim/não
+Ferramentas                 7) Atualizar os temas do site
+                            8) Desfazer uma renomeação
+                            9) Primeiro uso / o que falta
+                            0) Sair
+```
+Cada opção chama o mesmo comando com flags (abaixo), com as mesmas travas e
+confirmações digitadas. Todos os comandos com flags continuam valendo.
+Onde o terminal disser "rode `python main.py`", é este menu.
+
 ## Uso de cada semana
 
 1. Coloque as redações em `Redações plataforma/<tema>/`.
-2. Confira sem enviar nada (dry-run):
-   ```
-   python main.py
-   ```
-3. Revise no terminal o tema de cada pasta e os nomes que não batem:
+2. Confira sem enviar nada: menu opção **1** (a conferência termina com
+   "Só conferência: nada foi enviado.").
+3. Revise no terminal o tema de cada pasta e os nomes que não batem
+   (menu opção **2**, ou):
    ```
    python main.py --revisar
    ```
@@ -45,10 +64,12 @@ nomes não vão sozinhos: aparecem para você decidir.
    - Nomes: Enter confirma, número escolhe, texto procura outro aluno. O
      arquivo é renomeado para o nome exato do aluno (dá para desfazer com o
      comando que aparece no fim).
-4. Rode o dry-run de novo e confira a fila.
+4. Confira de novo (opção 1) e veja a fila ("Prontas para enviar").
 5. Teste com as redações reais na conta de teste: `python main.py --ensaio 3`
    (veja abaixo).
-6. Envio para os alunos: hoje BLOQUEADO.
+6. Envio para os alunos: hoje BLOQUEADO (veja como vai funcionar abaixo).
+7. Se sobrar alguma redação em "Conferir no site", responda com
+   `python main.py --resolver` (menu opção **6**).
 
 ## Testar com redações reais (ensaio)
 
@@ -93,11 +114,78 @@ Cada redação enviada gasta 1 crédito da conta de teste. Pode criar mais
 subpastas para testar outros casos: os arquivos devem ter o nome da conta
 de teste (`Usuario Testes Ignorar`) ou algo parecido, para a revisão perguntar.
 
+## Como funciona o envio para muitos alunos (produção)
+
+Hoje bloqueado; quando o Antônio liberar, é `python main.py --envio-real`
+(menu opção **5**).
+
+1. **Uma confirmação só.** O terminal mostra o lote inteiro (aluno por
+   aluno, tema e arquivo) e uma parte "Como funciona". Você digita `ENVIAR`
+   uma vez para o lote todo. Qualquer outro texto cancela sem enviar nada.
+2. **Antes de abrir o navegador:** confere se não está perto da meia-noite
+   (23:55 a 00:05 não envia) e guarda uma cópia de segurança do caderno
+   (`relatorios/progresso.db`). Sem a cópia, nada é enviado.
+3. **Depois vai sozinho, aluno por aluno:** para cada aluno abre um
+   navegador limpo (nada de um aluno passa para o outro), faz login, confere
+   que o site abriu a conta da pessoa certa e envia as redações dela uma por
+   uma. Entre uma redação e outra (e entre alunos) espera um tempo aleatório
+   de 8 a 15 s. No fim de cada aluno, sai da conta.
+4. **Pulos automáticos (sem erro):** a redação daquele tema que já está no
+   site hoje ("já estava no site") e a mesma foto que já foi enviada, mesmo
+   com outro nome.
+5. **Para só aquele aluno:** erro antes do clique em "Enviar resposta"
+   (tema não conferido, upload não aceito, lista ilegível, login recusado...).
+   Nada foi enviado; ele tenta de novo na próxima execução.
+6. **Para tudo:** dúvida depois do clique (não apareceu a linha nova na
+   lista), CAPTCHA ou site estranho, 2 logins seguidos falhando (senha
+   padrão errada? conta bloqueada?) ou chegou perto da meia-noite.
+7. **No fim:** o resumo (Enviadas / Já estavam no site / Não enviadas /
+   Conferir no site), a lista **"O que precisa de você"** (conferir no site,
+   não enviadas com o motivo e o que fazer, e as que nem foram tentadas), o
+   relatório `relatorios/envio_<data>.csv` e o log `logs/automacao.log`.
+8. **As duvidosas** ("Conferir no site"): olhe o site na conta do aluno e
+   responda em `python main.py --resolver` (abaixo).
+
+Rodar de novo é seguro: o que está como enviada, já estava no site ou
+conferir no site nunca é reenviado; só as "não enviadas" e as que não foram
+tentadas vão de novo.
+
+## Resolver as revisões manuais
+
+"Conferir no site" (revisão manual) = o script clicou em Enviar mas não
+conseguiu ver a redação na lista. Ele nunca reenvia sozinho (poderia
+duplicar). Abra o site **na conta do aluno**, em Minhas redações, e rode:
+
+```
+python main.py --resolver        (ou menu opção 6)
+```
+Para cada uma: `s` = chegou (vira enviada e nunca mais vai), `n` = não
+chegou (vai de novo na próxima execução), Enter = deixa para depois, `q` =
+sai. A data do registro não muda (a contagem do dia continua certa) e cada
+resposta fica em `relatorios/resolucoes_<data>.csv`.
+
+## Cópia de segurança do caderno
+
+Antes de cada envio (modo teste, ensaio ou produção) o caderno
+`relatorios/progresso.db` é copiado para
+`relatorios/copias/progresso_<data_hora>.db` (ficam as 30 mais recentes).
+Se a cópia falhar, nada é enviado.
+
+Para voltar uma cópia: feche o script, renomeie o `relatorios/progresso.db`
+e copie a cópia escolhida para esse nome.
+
+> **CUIDADO:** voltar uma cópia antiga faz o script **esquecer os envios
+> feitos depois dela**. Os do mesmo dia o site ainda segura (contagem do
+> dia), mas os de dias anteriores podem ir **de novo**. Só volte uma cópia
+> se o `progresso.db` atual sumiu ou estragou, e confira no site antes de
+> enviar.
+
 ## Outros comandos
 
 | Comando | Para quê |
 |---|---|
 | `python main.py --ensaio [N]` | Redações reais conferidas -> conta de teste (veja acima) |
+| `python main.py --resolver` | Responde, uma a uma, as redações em "conferir no site" (veja acima) |
 | `python main.py --analise-remota` | Lê a lista de temas do site e atualiza `dados/temas_site.csv` (digite `ANALISAR`) |
 | `python main.py --analise-remota --conta-aluno EMAIL` | Lê os temas na conta desse aluno (só leitura; entra na conta do aluno). `--conta-aluno` sozinho é recusado |
 | `python main.py --envio-real --limite-alunos N` | Produção: só os N primeiros alunos do lote (só vale no `--envio-real` de produção) |
@@ -122,6 +210,10 @@ a saída inteira muda junto. Sem cores: defina a variável `NO_COLOR=1`.
   "revisão manual", nunca um segundo clique.
 - Senhas só no `.env` (nunca no git, nunca no log).
 - Um envio por vez: uma segunda janela com `--envio-real` sai sem enviar.
+- Cópia do caderno antes de cada envio; sem cópia, não envia.
+- 2 logins seguidos falhando param o envio (senha padrão errada?).
+- A lista do site só vale se for a página certa (com o saldo de créditos);
+  senão, nada é enviado para aquele aluno.
 - CAPTCHA ou site estranho para tudo. Entre 23:55 e 00:05 (Brasília) não envia.
 - A mesma foto nunca é enviada duas vezes, mesmo com outro nome.
 
@@ -133,7 +225,7 @@ modulos/base/           configuração, estados, erros, banco de progresso
 modulos/dados/          lista de alunos, arquivos, conciliação, aprovações
 modulos/site/           login, lista de redações, formulário, confirmação
 modulos/envio/          filas e fluxos de envio (teste, ensaio e produção)
-modulos/ferramentas/    revisão no terminal e primeiro uso
+modulos/ferramentas/    menu, revisão no terminal, resolver e primeiro uso
 tests/                  testes offline (pytest)
 dados/                  lista de alunos, temas do site, aprovações
 relatorios/             banco de progresso e relatórios (fora do git)
