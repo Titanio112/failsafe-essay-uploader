@@ -17,15 +17,8 @@ Antônio decide.
 3. **Paginação da lista `/minhas-redacoes`.** Nunca observada. Desde a T44,
    página com paginação → fail-closed (não envia). Se aparecer, observar o
    HTML e decidir como ler as outras páginas.
-4. **Critério ENEM conferido (T44)** nunca rodou no site real (só fixture
-   `wordings_new.html`). O primeiro ensaio/envio de teste confirma; se der
-   "Criterio ENEM nao conferido", observar o HTML antes de mexer.
-5. **Conferência da página da lista (T48)** nunca rodou no site real: HTTP
-   < 400, caminho `/minhas-redacoes` e texto "Você tem N crédito(s)". Só
-   testada com a fixture `tests/fixtures/minhas_redacoes.html`, que tem o
-   texto do saldo ("Você tem 18 crédito(s)"). Se o primeiro ensaio der
-   "Pagina sem o saldo de creditos" ou "Pagina inesperada", observar o
-   HTML antes de mexer.
+4. ~~Critério ENEM conferido (T44)~~ e 5. ~~página da lista (T48)~~:
+   conferidos no site real no ensaio de 23/10 02:17 (3 enviadas, Pendente) ✔.
 
 ## Decisões do Antônio
 
