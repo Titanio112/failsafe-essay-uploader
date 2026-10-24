@@ -58,3 +58,14 @@ Thumbs.db
 
 # Arquivo morto (T57): redações já enviadas, fora do git
 Arquivo morto/
+
+# Memória e configuração local de assistentes de IA (nunca vão para o GitHub)
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+**/memory/
+.clinerules
+.cline/
+.cursor/
+.windsurf/
+.aider*
