@@ -34,8 +34,9 @@ SENHA_TESTE = os.getenv("ESQUEMA_SENHA_TESTE")
 # Arquivo de teste JPG (primeiro da pasta 0)
 JPGS_DIR = Path(__file__).parent.parent / "testes" / "redacoes_teste" / "0 - Narração"  # T40
 JPGS = sorted(JPGS_DIR.glob("*.jpg"))
-assert JPGS, "Nenhum JPG encontrado em testes/redacoes_teste/0 - Narração/"
-ARQUIVO_TESTE = JPGS[0]
+# JPGs ficam fora do git: num clone novo os testes são coletados e pulados.
+pytestmark = pytest.mark.skipif(not JPGS, reason="Nenhum JPG em testes/redacoes_teste/0 - Narração/")
+ARQUIVO_TESTE = JPGS[0] if JPGS else None
 print(f"[DEBUG] Arquivo de teste: {ARQUIVO_TESTE}")
 
 # Seletores CONFIRMADOS (AGENTS.md)
