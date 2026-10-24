@@ -1,6 +1,6 @@
 """Monta o lote de envio de produção a partir da conciliação (sem navegador).
 
-Regras (T24, ver docs/historico/TAREFAS_T1_a_T36.md):
+Regras (T24):
 - só itens EXATO_UNICO da conciliação;
 - nunca reenviar o que o banco registra como ENVIADO, JA_ENVIADO ou
   REVISAO_MANUAL (ERRO pode tentar de novo: não houve clique);

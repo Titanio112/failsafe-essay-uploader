@@ -306,6 +306,5 @@ tests/                  testes offline (pytest)
 dados/                  lista de alunos, temas do site, aprovações
 relatorios/             banco de progresso e relatórios (fora do git)
 logs/                   automacao.log (fora do git)
-docs/                   tarefas, pendências, bugs (qa-issues) e histórico
+docs/                   tarefas, pendências e bugs (qa-issues)
 ```
-Regras e fatos do site: `AGENTS.md`. Estado: `PROJECT_MEMORY.md`.

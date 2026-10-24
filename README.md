@@ -107,7 +107,7 @@ tests/                 415 offline tests + a few real-browser tests (marked "rea
 ```
 
 About 5.3k lines of application code and 7k lines of tests. Selectors were confirmed
-against the real site and recorded with their source (see [`AGENTS.md`](AGENTS.md)).
+against the real site and recorded with their source.
 Refuted guesses are kept on a "never reintroduce" list.
 
 ### Running the tests
@@ -127,8 +127,7 @@ without local credentials and test photos.
 It was developed over three weeks in small, numbered tasks (T1–T57, visible in the commit
 history), with **AI pair-programming** (Cline and Claude Code) working under strict written
 rules: real proof (test output pasted) before anything is called done, no guessed selectors,
-and no AI ever sending to a real student account. [`AGENTS.md`](AGENTS.md) and
-[`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) are those rules and the project's memory.
+and no AI ever sending to a real student account.
 [`docs/`](docs) holds the task log, open questions and every bug found, in
 [`docs/qa-issues/`](docs/qa-issues), each also tracked as a GitHub issue.
 
@@ -224,7 +223,7 @@ tests/                 415 testes offline + alguns testes com navegador (marcado
 ```
 
 São cerca de 5,3 mil linhas de código e 7 mil linhas de testes. Os seletores do site foram
-conferidos no site real e anotados com a fonte (veja o [`AGENTS.md`](AGENTS.md)). Os palpites
+conferidos no site real e anotados com a fonte. Os palpites
 que se mostraram errados ficam numa lista de "nunca reintroduzir".
 
 ### Rodando os testes
@@ -244,9 +243,7 @@ senhas e as fotos de teste locais.
 Foi desenvolvido em três semanas, em tarefas pequenas e numeradas (T1–T57, que aparecem no
 histórico de commits), com **programação em par com IA** (Cline e Claude Code) seguindo regras
 escritas e rígidas: só se dá algo por feito com prova real (saída dos testes colada), nenhum
-seletor é chutado e nenhuma IA envia nada na conta de um aluno de verdade.
-[`AGENTS.md`](AGENTS.md) e [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) são essas regras e a
-memória do projeto. Em [`docs/`](docs) ficam o registro das tarefas, as pendências e todos os
+seletor é chutado e nenhuma IA envia nada na conta de um aluno de verdade. Em [`docs/`](docs) ficam o registro das tarefas, as pendências e todos os
 bugs encontrados, em [`docs/qa-issues/`](docs/qa-issues), cada um também como issue no GitHub.
 O manual de uso completo está em [`docs/GUIA_DE_USO.md`](docs/GUIA_DE_USO.md).
 

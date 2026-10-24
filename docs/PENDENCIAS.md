@@ -1,7 +1,6 @@
 # PENDENCIAS.md — pontos em aberto (só o que ainda vale)
 
-Atualizado em 22/10/2026 (depois da T50). O arquivo antigo de decisões
-(01–06/10) está em `docs/historico/DECISOES_PENDENTES.md`, só como histórico.
+Atualizado em 22/10/2026 (depois da T50).
 Regra: ponto aberto aqui não se resolve no chute; observar no site ou o
 Antônio decide.
 

@@ -39,7 +39,7 @@ pytestmark = pytest.mark.skipif(not JPGS, reason="Nenhum JPG em testes/redacoes_
 ARQUIVO_TESTE = JPGS[0] if JPGS else None
 print(f"[DEBUG] Arquivo de teste: {ARQUIVO_TESTE}")
 
-# Seletores CONFIRMADOS (AGENTS.md)
+# Seletores CONFIRMADOS no site real
 SELETORES = {
     "login_email": 'input[name="user[email]"]',
     "login_senha": 'input[name="user[password]"]',

@@ -1,6 +1,6 @@
 # TAREFAS_ATUAIS.md — o que está aberto agora
 
-Histórico completo (T1–T36, com as provas): `docs/historico/TAREFAS_T1_a_T36.md`.
+Histórico T1–T36: nas mensagens de commit.
 Bugs: `docs/qa-issues/`. Pontos em aberto: `docs/PENDENCIAS.md`.
 Regra de cada tarefa: só vira [x] com PROVA colada.
 

@@ -42,7 +42,7 @@ JPGS = sorted(JPGS_DIR.glob("*.jpg"))
 pytestmark = pytest.mark.skipif(not JPGS, reason="Nenhum JPG em testes/redacoes_teste/0 - Narração/")
 ARQUIVO_TESTE = JPGS[0] if JPGS else None
 
-# Seletores CONFIRMADOS (AGENTS.md)
+# Seletores CONFIRMADOS no site real
 SELETORES = {
     "login_email": 'input[name="user[email]"]',
     "login_senha": 'input[name="user[password]"]',
