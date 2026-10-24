@@ -66,6 +66,9 @@ MUDANCA_DE_PASTA.md
 **/REGRAS_CLINE*.md
 **/PROMPT_CLINE*.md
 **/HANDOFF*.md
+# Anotações de trabalho das IAs (tarefas e pendências): só locais
+docs/TAREFAS_ATUAIS.md
+docs/PENDENCIAS.md
 .claude/
 CLAUDE.md
 CLAUDE.local.md
