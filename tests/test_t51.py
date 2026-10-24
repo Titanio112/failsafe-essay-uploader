@@ -28,7 +28,7 @@ def test_link_so_no_terminal_de_verdade(tmp_path, monkeypatch):
     monkeypatch.setitem(tela._cores, "ativas", True)
     texto = tela.link("Cecília em branco.JPG", arquivo)
     uri = tela.uri_de(arquivo)
-    assert texto == f"\033]8;;{uri}\033\Cecília em branco.JPG\033]8;;\033\\"
+    assert texto == f"\033]8;;{uri}\033\\Cecília em branco.JPG\033]8;;\033\\"
     # T52: espaço codificado, acentos NÃO (o Windows lê %C3%A7 como dois caracteres)
     assert uri.startswith("file:///") and "%20" in uri and "Redações" in uri and "%C3" not in uri
     duplo = tela.link_arquivo(tmp_path, "3B - Filiação", "Cecília em branco.JPG")
@@ -52,7 +52,7 @@ def test_conferencia_poe_link_nos_arquivos(tmp_path, monkeypatch, capsys):
     assert main_mod.main([]) == 0
     saida = capsys.readouterr().out
     alvo = tela.uri_de(raiz / "100 - Tema" / "Ana em branco.JPG")
-    assert f"\033]8;;{alvo}\033\Ana em branco.JPG" in saida
+    assert f"\033]8;;{alvo}\033\\Ana em branco.JPG" in saida
 
 
 # ─── Progresso ───────────────────────────────────────────────

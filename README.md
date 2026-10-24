@@ -1,11 +1,27 @@
+<a id="top"></a>
+
 # failsafe-essay-uploader
 
-**Bulk-uploads photos of handwritten essays to each student's account. When in doubt, it doesn't send.**
+<p align="center">
+  <a href="#en"><img alt="English" src="https://img.shields.io/badge/%F0%9F%87%BA%F0%9F%87%B8-English-1f6feb?style=for-the-badge"></a>
+  &nbsp;
+  <a href="#pt-br"><img alt="Português" src="https://img.shields.io/badge/%F0%9F%87%A7%F0%9F%87%B7-Portugu%C3%AAs-009c3b?style=for-the-badge"></a>
+</p>
 
-![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Playwright](https://img.shields.io/badge/browser-Playwright-2EAD33?logo=playwright&logoColor=white)
-![Tests](https://img.shields.io/badge/offline%20tests-415%20passing-brightgreen)
-![Status](https://img.shields.io/badge/status-portfolio-lightgrey)
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white">
+  <img alt="Playwright" src="https://img.shields.io/badge/browser-Playwright-2EAD33?logo=playwright&logoColor=white">
+  <img alt="Tests" src="https://img.shields.io/badge/offline%20tests-415%20passing-brightgreen">
+  <img alt="Status" src="https://img.shields.io/badge/status-portfolio-lightgrey">
+</p>
+
+---
+
+<a id="en"></a>
+
+## 🇺🇸 English
+
+**Bulk-uploads photos of handwritten essays to each student's account. When in doubt, it doesn't send.**
 
 > **Unofficial personal project.** Built for my own work with the
 > [Esquema Redação](https://www.esquemaredacao.com.br) essay-correction platform, with the
@@ -13,9 +29,7 @@
 > reuse: it is tied to that one site, and there is no license (all rights reserved).
 > No student data, credentials or real essays are in this repository.
 
----
-
-## The problem
+### The problem
 
 Students write their essays by hand. Someone photographs every page and has to upload
 each photo **into that student's own account** on the platform, picking the right essay
@@ -23,7 +37,7 @@ theme every time. With dozens of students a week, that is hours of repetitive cl
 and a single mistake (wrong student, wrong theme, duplicate upload) costs a student a
 paid correction credit.
 
-## What it does
+### What it does
 
 ```mermaid
 flowchart LR
@@ -50,7 +64,7 @@ flowchart LR
    the right person, checks what is already on the site, uploads, and confirms that the
    platform registered the essay as "Pending".
 
-## Safety-first design
+### Safety-first design
 
 Every step assumes that the site, the files or the network can lie. The rule is
 **fail closed**: if the script cannot prove that a step is right, it stops before clicking.
@@ -68,7 +82,7 @@ Every step assumes that the site, the files or the network can lie. The rule is
 | Losing progress | The SQLite ledger is backed up before every run. If the backup fails, nothing is sent. |
 | Secrets in logs | Passwords live only in `.env`. The log filter masks their **values**. |
 
-## Features
+### Features
 
 - Interactive terminal menu (`python main.py`) on top of explicit CLI flags.
 - Terminal review of themes and names, with renames logged and undoable.
@@ -78,7 +92,7 @@ Every step assumes that the site, the files or the network can lie. The rule is
   "what needs you" summary.
 - A manual-review queue resolved with yes/no questions, never automatically.
 
-## Tech
+### Tech
 
 Python · Playwright (Chromium) · SQLite · pytest · RapidFuzz · BeautifulSoup · openpyxl
 
@@ -96,7 +110,7 @@ About 5.3k lines of application code and 7k lines of tests. Selectors were confi
 against the real site and recorded with their source (see [`AGENTS.md`](AGENTS.md)).
 Refuted guesses are kept on a "never reintroduce" list.
 
-## Running the tests
+### Running the tests
 
 ```bash
 pip install -r requirements.txt
@@ -108,24 +122,132 @@ the whole codebase, and tests run against a temporary project root, so they neve
 real data. The tests marked `real` drive a browser against a test account and are skipped
 without local credentials and test photos.
 
-## How it was built
+### How it was built
 
 It was developed over three weeks in small, numbered tasks (T1–T57, visible in the commit
 history), with **AI pair-programming** (Cline and Claude Code) working under strict written
 rules: real proof (test output pasted) before anything is called done, no guessed selectors,
 and no AI ever sending to a real student account. [`AGENTS.md`](AGENTS.md) and
 [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) are those rules and the project's memory.
-`docs/` holds the task log, open questions and QA issues.
+[`docs/`](docs) holds the task log, open questions and every bug found, in
+[`docs/qa-issues/`](docs/qa-issues), each also tracked as a GitHub issue.
+
+<p align="right"><a href="#top">⬆ back to top</a> · <a href="#pt-br">🇧🇷 Português</a></p>
 
 ---
 
-## Em português
+<a id="pt-br"></a>
 
-Automação **não oficial** que envia as fotos das redações escritas à mão para a conta de
-cada aluno na plataforma Esquema Redação, com o tema certo, e confere se a plataforma
-recebeu. Foi feita para o meu uso, com permissão da instituição, e está aqui como
-**portfólio**. Ela não serve para outros sites e não tem licença de uso.
+## 🇧🇷 Português
 
-O foco é a segurança: simulação por padrão, confirmação digitada, nunca reenvia sozinha,
-detecta redação duplicada e para na dúvida. O manual de uso completo (em português) está em
-[`docs/GUIA_DE_USO.md`](docs/GUIA_DE_USO.md).
+**Envia as fotos das redações escritas à mão para a conta de cada aluno. Na dúvida, não envia.**
+
+> **Projeto pessoal, não oficial.** Feito para o meu trabalho com a plataforma de correção
+> [Esquema Redação](https://www.esquemaredacao.com.br), com permissão da instituição. Está
+> publicado como **portfólio**, e não como ferramenta para outros usarem: ele só funciona
+> naquele site e não tem licença de uso (todos os direitos reservados). Este repositório não
+> tem nenhum dado de aluno, senha nem redação real.
+
+### O problema
+
+Os alunos escrevem as redações à mão. Alguém fotografa cada folha e precisa enviar cada foto
+**para a conta daquele aluno** na plataforma, escolhendo o tema certo toda vez. Com dezenas
+de alunos por semana, são horas de cliques repetidos. Qualquer erro (aluno errado, tema
+errado, envio duplicado) gasta um crédito de correção pago do aluno.
+
+### O que ele faz
+
+```mermaid
+flowchart LR
+    A["Fotos (JPG)<br/>uma pasta por tema"] --> B["Liga arquivo → aluno<br/>+ código do tema"]
+    B --> C{"Alguma<br/>dúvida?"}
+    C -- sim --> R["Revisão manual<br/>(no terminal)"]
+    C -- não --> D["Simulação<br/>(padrão)"]
+    D --> E["Confirmação digitada"]
+    E --> F["Por aluno: navegador limpo,<br/>login, confere a identidade"]
+    F --> G["Já está no site hoje?<br/>pula"]
+    G --> H["Escolhe o tema, anexa,<br/>espera 'Arquivo carregado'"]
+    H --> I["Grava 'ENVIANDO' → clica uma vez"]
+    I --> J{"Linha nova com<br/>'Pendente'?"}
+    J -- sim --> K["Enviada ✔"]
+    J -- não --> R
+```
+
+1. Lê as pastas (`<tema>/<nome do aluno>.jpg`) e a lista de alunos.
+2. Liga cada foto a um aluno (aceita diferença de acento, maiúscula e erro de digitação, mas
+   pede aprovação de uma pessoa para o que não for exato) e cada pasta a um código de tema do site.
+3. Mostra uma simulação completa do que seria enviado. Nada sai do computador sem
+   `--envio-real` **e** uma confirmação digitada.
+4. Para cada aluno: abre um navegador limpo, faz login, confere se a conta é da pessoa certa,
+   olha o que já está no site, envia e confirma que a plataforma registrou a redação como "Pendente".
+
+### Segurança em primeiro lugar
+
+Cada passo parte do princípio de que o site, os arquivos ou a rede podem enganar. A regra é
+**falhar fechado**: se o script não consegue provar que um passo está certo, ele para antes de clicar.
+
+| Risco | Como é tratado |
+|---|---|
+| Enviar sem querer | A simulação é o padrão. Para enviar de verdade é preciso uma opção **e** uma palavra digitada (`ENVIAR`). O envio para alunos tem uma trava no próprio código. |
+| Envio duplicado (gasta crédito) | O estado `ENVIANDO` é gravado no SQLite **antes** do clique. Qualquer dúvida depois do clique vira *revisão manual* e nunca é reenviada sozinha. |
+| Mesma redação duas vezes | Mesmo dia + mesmo tema já no site → pula. A mesma foto (sha256) nunca vai duas vezes, nem com outro nome de arquivo. |
+| Aluno errado | Um navegador limpo por aluno, conferência da identidade depois do login e logout no `finally`. Se o e-mail da conta de teste for igual ao de um aluno, o script recusa. |
+| Tema errado | O tema é escolhido pelo texto exato do código, e a opção marcada é lida de novo. Código repetido na lista do site é erro. |
+| Site mudou ou deu erro | A lista de redações só vale com o cabeçalho e a página esperados. Erro HTTP, paginação ou lista ilegível param aquele aluno. CAPTCHA para a execução inteira. |
+| Duas execuções ao mesmo tempo | Uma trava deixa só um envio por vez. |
+| Virada do dia | Horário de Brasília. Nada é enviado entre 23:55 e 00:05, para o "hoje" não mudar no meio. |
+| Perder o progresso | O caderno (SQLite) é copiado antes de cada envio. Se a cópia falhar, nada é enviado. |
+| Senha no log | As senhas ficam só no `.env`. O filtro do log esconde o **valor** delas. |
+
+### Recursos
+
+- Menu no terminal (`python main.py`), além das opções de linha de comando.
+- Revisão dos temas e dos nomes no terminal, com cada renomeação registrada e reversível.
+- **Ensaio**: redações reais, já conferidas, enviadas só para uma *conta de teste*.
+- **Conferir no site** (só leitura): quais fotos já estão no site, em qualquer data.
+- Progresso ao vivo, nomes de arquivo clicáveis no terminal e, no fim, um resumo do
+  "que precisa de você".
+- Fila de revisão manual resolvida com perguntas de sim/não, nunca sozinha.
+
+### Tecnologias
+
+Python · Playwright (Chromium) · SQLite · pytest · RapidFuzz · BeautifulSoup · openpyxl
+
+```
+main.py                linha de comando (só orquestra)
+modulos/base/          configuração, estados, erros, caderno SQLite, relógio, trava, visual do terminal
+modulos/dados/         lista de alunos, arquivos, conciliação, aprovações
+modulos/site/          login, lista de redações, formulário, confirmação, conferência
+modulos/envio/         filas e fluxos de envio (teste, ensaio e produção)
+modulos/ferramentas/   menu, revisão, resolver, primeiro uso, arquivo morto
+tests/                 415 testes offline + alguns testes com navegador (marcados "real")
+```
+
+São cerca de 5,3 mil linhas de código e 7 mil linhas de testes. Os seletores do site foram
+conferidos no site real e anotados com a fonte (veja o [`AGENTS.md`](AGENTS.md)). Os palpites
+que se mostraram errados ficam numa lista de "nunca reintroduzir".
+
+### Rodando os testes
+
+```bash
+pip install -r requirements.txt
+python -m pytest -m "not real" -q
+```
+
+Os testes offline não precisam de internet nem de conta. Eles incluem uma checagem
+estática (pyflakes) do código todo e rodam numa pasta temporária, então nunca mexem em dados
+reais. Os testes marcados `real` usam o navegador numa conta de teste e são pulados sem as
+senhas e as fotos de teste locais.
+
+### Como foi feito
+
+Foi desenvolvido em três semanas, em tarefas pequenas e numeradas (T1–T57, que aparecem no
+histórico de commits), com **programação em par com IA** (Cline e Claude Code) seguindo regras
+escritas e rígidas: só se dá algo por feito com prova real (saída dos testes colada), nenhum
+seletor é chutado e nenhuma IA envia nada na conta de um aluno de verdade.
+[`AGENTS.md`](AGENTS.md) e [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) são essas regras e a
+memória do projeto. Em [`docs/`](docs) ficam o registro das tarefas, as pendências e todos os
+bugs encontrados, em [`docs/qa-issues/`](docs/qa-issues), cada um também como issue no GitHub.
+O manual de uso completo está em [`docs/GUIA_DE_USO.md`](docs/GUIA_DE_USO.md).
+
+<p align="right"><a href="#top">⬆ voltar ao topo</a> · <a href="#en">🇺🇸 English</a></p>
