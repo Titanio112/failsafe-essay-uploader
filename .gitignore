@@ -62,6 +62,7 @@ Arquivo morto/
 # Memória e configuração local de assistentes de IA (nunca vão para o GitHub)
 AGENTS.md
 PROJECT_MEMORY.md
+MUDANCA_DE_PASTA.md
 **/REGRAS_CLINE*.md
 **/PROMPT_CLINE*.md
 **/HANDOFF*.md
