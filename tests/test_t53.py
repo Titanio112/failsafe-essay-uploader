@@ -80,7 +80,9 @@ def test_depois_recebe_so_as_que_faltam(tmp_path, monkeypatch):
         return False
 
     itens = [_item("A", "000"), _item("F", "100")]
-    assert cs.executar_conferencia_site(_cfg(tmp_path), ResultadoConciliacao(itens=itens), _respostas("CONFERIR"),
+    # "n": não marcar a pasta A (T60, toda no site) como ENVIADA
+    assert cs.executar_conferencia_site(_cfg(tmp_path), ResultadoConciliacao(itens=itens),
+                                        _respostas("CONFERIR", "n"),
                                         lambda *_: None, ler=ler, depois=recebidos.append) == 0
     assert [[i.pasta for i in lote] for lote in recebidos] == [["F"]]
 

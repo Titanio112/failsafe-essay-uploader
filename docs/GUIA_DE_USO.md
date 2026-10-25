@@ -213,6 +213,15 @@ Na tela, cada foto é uma linha curta: `✔ no site  tema 000  30/09/2026
 pasta`, `⚠ outro tema?  tema 100  como 000?  pasta`, `• falta ...`. O nome
 da pasta abre a foto (Ctrl+clique).
 
+**Pastas com tudo no site (T60).** No fim, se uma pasta tem **todas** as
+fotos conferidas e "no site", o script lista e pergunta (s/n) se marca:
+a pasta vira `ENVIADA - <nome>` (log em `relatorios/pastas_enviadas_<data>.csv`).
+Pasta com alguma foto faltando, "em parte", "outro tema?", cancelada, sem
+conferir ou que não é de aluno nunca é marcada; conferência que parou não
+marca nada. Pastas `ENVIADA - ...` ficam fora de tudo (envio, revisão,
+conferência): não há como serem reenviadas. Para desmarcar, tire o
+`ENVIADA - ` do nome.
+
 ## Arquivo morto (T57)
 
 Menu **11** (`python main.py --arquivar`): mostra as pastas de tema e move
@@ -220,6 +229,8 @@ as escolhidas (`t` = todas, ou números: `1,3`) para
 `Arquivo morto/<data_hora>/`, na raiz do projeto. Nada é apagado; para
 trazer de volta, mova a pasta de novo. Cada movimento fica em
 `relatorios/arquivamento_<data>.csv`. Não roda durante um envio.
+As pastas `ENVIADA - ...` (conferidas no site, T60) aparecem primeiro, com
+"✔ conferida no site", e `e` arquiva só elas.
 Use para tirar as redações já enviadas (as antigas, mandadas à mão) antes de
 colocar as novas. **Dica:** dê nomes de pasta novos às redações novas: o
 caderno lembra "pasta/arquivo"; uma foto nova com o nome de uma já enviada é

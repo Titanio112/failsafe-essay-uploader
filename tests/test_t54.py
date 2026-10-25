@@ -80,7 +80,7 @@ def test_sem_faltar_nada_diz_por_que_nao_pergunta(tmp_path, monkeypatch):
         return False
 
     cs.executar_conferencia_site(_cfg(tmp_path), ResultadoConciliacao(itens=[_item("A", "000")]),
-                                 _respostas("CONFERIR"), saidas.append, ler=ler, depois=chamado.append)
+                                 _respostas("CONFERIR", "n"), saidas.append, ler=ler, depois=chamado.append)
     assert not chamado and any("Não falta enviar nenhuma" in s for s in saidas)
 
 

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from modulos.base import relogio, tela
+from modulos.ferramentas.pastas_enviadas import eh_pasta_enviada
 
 PASTA_ARQUIVO = "Arquivo morto"
 Entrada = Callable[[str], str]
@@ -26,18 +27,25 @@ def pastas_de_tema(pasta_raiz: Path) -> list[tuple[Path, int]]:
     raiz = Path(pasta_raiz)
     if not raiz.is_dir():
         return []
+    # T60: as marcadas "ENVIADA - " (conferidas no site) vêm primeiro
+    pastas = [p for p in raiz.iterdir() if p.is_dir() and not p.name.startswith(".")]
     return [(p, sum(1 for f in p.rglob("*") if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg")))
-            for p in sorted(raiz.iterdir()) if p.is_dir() and not p.name.startswith(".")]
+            for p in sorted(pastas, key=lambda p: (not eh_pasta_enviada(p.name), p.name))]
 
 
 def _escolher(pastas: list[tuple[Path, int]], entrada: Entrada | None, saida: Callable) -> list[Path] | None:
+    enviadas = [p for p, _ in pastas if eh_pasta_enviada(p.name)]
     for i, (pasta, fotos) in enumerate(pastas, 1):
+        marca = tela.c("  ✔ conferida no site", "ok") if eh_pasta_enviada(pasta.name) else ""
         saida(f"    {tela.c(f'{i})', 'tecla')} {tela.link(pasta.name, pasta, pasta=True)}  "
-              f"{tela.c(f'({fotos} foto(s))', 'fraco')}")
-    resposta = tela.perguntar("  Quais arquivar? (t = todas, números com vírgula, Enter = nenhuma): ",
+              f"{tela.c(f'({fotos} foto(s))', 'fraco')}{marca}")
+    atalho = f"e = só a(s) {len(enviadas)} enviada(s), " if enviadas else ""
+    resposta = tela.perguntar(f"  Quais arquivar? ({atalho}t = todas, números com vírgula, Enter = nenhuma): ",
                               entrada).lower()
     if not resposta:
         return []
+    if resposta == "e" and enviadas:
+        return enviadas
     if resposta in ("t", "todas"):
         return [p for p, _ in pastas]
     try:

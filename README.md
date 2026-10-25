@@ -87,6 +87,8 @@ Every step assumes that the site, the files or the network can lie. The rule is
 - Interactive terminal menu (`python main.py`) on top of explicit CLI flags.
 - Terminal review of themes and names: approved folders take the platform's theme name, files
   take the student's exact name; every rename is logged and undoable.
+- After a read-only check on the site, folders whose every essay is already there can be marked
+  `ENVIADA - ...`: the script ignores them from then on and offers them first for archiving.
 - **Rehearsal mode**: real, already-checked essays sent to a *test account* only.
 - **Site check** (read only): which photos are already on the site, on any date.
 - Live progress bar, clickable file links in the terminal, and an end-of-run
@@ -207,6 +209,8 @@ Cada passo parte do princípio de que o site, os arquivos ou a rede podem engana
 - Menu no terminal (`python main.py`), além das opções de linha de comando.
 - Revisão dos temas e dos nomes no terminal: a pasta aprovada ganha o nome do tema da plataforma e
   o arquivo, o nome exato do aluno; cada renomeação é registrada e reversível.
+- Depois da conferência no site (só leitura), a pasta com todas as redações já lá pode ser marcada
+  `ENVIADA - ...`: o script passa a ignorá-la e oferece guardá-la primeiro no arquivo morto.
 - **Ensaio**: redações reais, já conferidas, enviadas só para uma *conta de teste*.
 - **Conferir no site** (só leitura): quais fotos já estão no site, em qualquer data.
 - Progresso ao vivo, nomes de arquivo clicáveis no terminal e, no fim, um resumo do

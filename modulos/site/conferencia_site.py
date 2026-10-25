@@ -331,6 +331,10 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     faltam = faltam_enviar(conferencias)
     if parou:
         return 1
+    # T60: pasta com TODAS as fotos no site pode ser marcada "ENVIADA - "
+    from modulos.ferramentas.pastas_enviadas import marcar_pastas_enviadas, pastas_prontas
+    marcar_pastas_enviadas(cfg.pasta_raiz, pastas_prontas(resultado, conferencias), cfg.pasta_relatorios,
+                           entrada, saida)
     if not faltam:  # T54: dizer por que não pergunta "Montar o envio?"
         tela.ok("Não falta enviar nenhuma: nada para montar.", saida)
     elif depois:

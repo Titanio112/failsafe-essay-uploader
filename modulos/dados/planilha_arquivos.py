@@ -222,7 +222,10 @@ def descobrir_pastas(cfg: Config) -> list[Path]:
     raiz = cfg.pasta_raiz
     if not raiz.exists():
         return []
-    return sorted([p for p in raiz.iterdir() if p.is_dir() and not p.name.startswith(".")])
+    # T60: "ENVIADA - ..." já foi conferida no site: fica fora de tudo (sem reenvio)
+    from modulos.ferramentas.pastas_enviadas import eh_pasta_enviada
+    return sorted([p for p in raiz.iterdir()
+                   if p.is_dir() and not p.name.startswith(".") and not eh_pasta_enviada(p.name)])
 
 
 ARQUIVOS_DO_SISTEMA = {"thumbs.db", "desktop.ini"}
