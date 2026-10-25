@@ -3,8 +3,10 @@
 Em vez de editar CSV à mão, o Antônio responde uma pergunta por vez:
 
 1. Pastas sem código de tema: escolhe o código (Enter aceita a sugestão
-   provável, um número escolhe o código, texto busca outro tema). Grava
-   ``aprovado=sim`` em ``dados/pastas_aprovadas.csv``. A pasta não é renomeada.
+   provável, um número escolhe o código, texto busca outro tema). T59: a
+   pasta é RENOMEADA para "<código> - <tema do site>" (com log, desfazível);
+   se não der (redação dela já no caderno, pasta aberta), grava
+   ``aprovado=sim`` em ``dados/pastas_aprovadas.csv`` como antes.
 2. Nomes de arquivo que não são o nome exato de um aluno: confirma o aluno
    sugerido ou busca outro; o arquivo é RENOMEADO para o nome exato do aluno
    (em todas as pastas onde o mesmo nome aparece). Cada renomeação vai para
@@ -101,11 +103,74 @@ def _linha_tema(codigo: str, tema: str, score: float | None) -> list[str]:
     return [prefixo + linhas[0]] + [" " * recuo + linha for linha in linhas[1:]]
 
 
+def nome_pasta_para(codigo: str, tema_site: str) -> str:
+    """T59: "53- Impactos da evasão..." -> "53 - Impactos da evasão..." (sem
+    caracteres que o Windows recusa; título longo é cortado numa palavra)."""
+    titulo = _PROIBIDOS_WINDOWS.sub("", _sem_codigo(tema_site)).strip()
+    if len(titulo) > 80:
+        titulo = titulo[:80].rsplit(" ", 1)[0]
+    return f"{codigo} - {titulo}".rstrip(" .")
+
+
+def pasta_travada(banco: Path | None, pasta: str) -> str:
+    """Estado de envio de alguma redação desta pasta no caderno (vazio se
+    nenhuma): a chave do caderno é pasta/arquivo, renomear abriria reenvio."""
+    if not banco or not Path(banco).is_file():
+        return ""
+    con = sqlite3.connect(f"file:{Path(banco).as_posix()}?mode=ro", uri=True)
+    try:
+        linhas = con.execute("SELECT estado FROM progresso WHERE substr(arquivo, 1, length(?) + 1) = ? || '/'",
+                             (pasta, pasta)).fetchall()
+    except sqlite3.Error as e:
+        return f"banco ilegivel ({type(e).__name__})"
+    finally:
+        con.close()
+    return next((estado for (estado,) in linhas if estado in ESTADOS_TRAVADOS), "")
+
+
+def _registrar_log(log_csv: Path, linha: list[str]) -> None:
+    log_csv = Path(log_csv)
+    log_csv.parent.mkdir(parents=True, exist_ok=True)
+    novo_log = not log_csv.is_file()
+    with open(log_csv, "a", encoding="utf-8-sig" if novo_log else "utf-8", newline="") as f:
+        escritor = csv.writer(f, delimiter=";")
+        if novo_log:
+            escritor.writerow(COLUNAS_LOG)
+        escritor.writerow(linha)
+
+
+def renomear_pasta(pasta_raiz: Path, pasta: str, codigo: str, tema_site: str, banco: Path | None,
+                   log_csv: Path) -> tuple[str, str]:
+    """T59: renomeia a pasta para o tema do site. Retorna (novo_nome, "") ou
+    ("", motivo). O log (coluna ``pasta`` vazia = linha de pasta) vem antes."""
+    origem = Path(pasta_raiz) / pasta
+    novo = nome_pasta_para(codigo, tema_site)
+    travado = pasta_travada(banco, pasta)
+    if travado:
+        return "", f"redacao desta pasta ja tem estado {travado} no caderno"
+    if not origem.is_dir():
+        return "", "pasta nao encontrada"
+    if (Path(pasta_raiz) / novo).exists():
+        return "", f"ja existe a pasta '{novo}'"
+    _registrar_log(log_csv, ["", pasta, novo, "", str(Path(pasta_raiz).resolve())])
+    try:
+        origem.rename(origem.with_name(novo))
+    except OSError as e:
+        return "", f"Windows nao deixou renomear ({type(e).__name__}): foto aberta?"
+    return novo, ""
+
+
 def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_aprovadas: Path,
                    entrada: Entrada | None = None, saida: Callable = print,
-                   pasta_raiz: Path | None = None) -> tuple[int, bool]:
+                   pasta_raiz: Path | None = None, banco: Path | None = None,
+                   log_csv: Path | None = None,
+                   renomeadas: dict[str, str] | None = None) -> tuple[int, bool]:
     """Pergunta o código de cada pasta sem código. Retorna (aprovadas, saiu).
-    Temas do mais parecido para o menos, com barra e %; ``g`` = tema genérico."""
+    Temas do mais parecido para o menos, com barra e %; ``g`` = tema genérico.
+
+    T59: com ``log_csv``, a pasta aprovada é RENOMEADA para "<código> - <tema
+    do site>" (``renomeadas`` recebe antigo -> novo). Se não der (redação já
+    no caderno, pasta aberta, nome já existe), a aprovação vai para o CSV."""
     contagem = {}
     for codigo, _ in temas:
         contagem[codigo] = contagem.get(codigo, 0) + 1
@@ -175,6 +240,15 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
                 if contagem[codigo] > 1:
                     saida(tela.c(f"  ✘ Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.", "erro"))
                     continue
+                if pasta_raiz and log_csv:
+                    novo, motivo = renomear_pasta(pasta_raiz, pasta, codigo, texto_de[codigo], banco, log_csv)
+                    if novo:
+                        if renomeadas is not None:
+                            renomeadas[pasta] = novo
+                        saida(tela.c(f"  ✔ Pasta renomeada: {pasta} -> {novo}", "ok"))
+                        aprovadas += 1
+                        break
+                    saida(tela.c(f"  ⚠ Pasta nao renomeada ({motivo}); aprovacao guardada no CSV.", "aviso"))
                 try:
                     aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
                 except CsvIlegivel as e:
@@ -245,14 +319,7 @@ def renomear(pasta_raiz: Path, pasta: str, arquivo: str, aluno: Aluno, banco: Pa
     if novo.casefold() in existentes:
         return "", f"ja existe '{novo}' nesta pasta (duas redacoes do mesmo aluno?): decida a mao"
     # T43: log ANTES de renomear: renomeação sem log não teria como ser desfeita
-    log_csv = Path(log_csv)
-    log_csv.parent.mkdir(parents=True, exist_ok=True)
-    novo_log = not log_csv.is_file()
-    with open(log_csv, "a", encoding="utf-8-sig" if novo_log else "utf-8", newline="") as f:
-        escritor = csv.writer(f, delimiter=";")
-        if novo_log:
-            escritor.writerow(COLUNAS_LOG)
-        escritor.writerow([pasta, arquivo, novo, aluno.email, str(Path(pasta_raiz).resolve())])
+    _registrar_log(log_csv, [pasta, arquivo, novo, aluno.email, str(Path(pasta_raiz).resolve())])
     try:
         origem.rename(origem.with_name(novo))
     except OSError as e:
@@ -333,11 +400,16 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
     tela.titulo("REVISÃO NO TERMINAL  ·  nada é enviado", saida)
     pastas = sorted(p for p in arquivos if p not in codigos_pasta and not extrair_codigo_tema("", p))
     aprovadas, saiu = (0, False)
+    renomeadas: dict[str, str] = {}
     if pastas and temas:
         tela.secao(f"Parte 1: {len(pastas)} pasta(s) sem codigo de tema", saida)
-        aprovadas, saiu = revisar_pastas(pastas, temas, caminho_pastas, entrada, saida, pasta_raiz=pasta_raiz)
+        aprovadas, saiu = revisar_pastas(pastas, temas, caminho_pastas, entrada, saida, pasta_raiz=pasta_raiz,
+                                         banco=banco, log_csv=log_csv, renomeadas=renomeadas)
     elif pastas:
         tela.aviso("Parte 1 pulada: dados/temas_site.csv vazio (rode --analise-remota).", saida)
+    for item in resultado.itens:  # T59: a parte 2 renomeia os arquivos já na pasta nova
+        if item.pasta in renomeadas:
+            item.pasta = renomeadas[item.pasta]
     renomeados = 0
     grupos = grupos_para_revisar(resultado, alunos)
     if not saiu and grupos:
@@ -346,8 +418,9 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
                                          nomes_aprovados, entrada, saida)
     tela.secao("Fim da revisao" + (" (interrompida)" if saiu else ""), saida)
     tela.status("aviso" if saiu else "ok",
-                f"{aprovadas} pasta(s) aprovada(s), {renomeados} arquivo(s) renomeado(s).", saida)
-    if renomeados:
+                f"{aprovadas} pasta(s) aprovada(s) ({len(renomeadas)} renomeada(s)), "
+                f"{renomeados} arquivo(s) renomeado(s).", saida)
+    if renomeados or renomeadas:
         tela.info(f"Log das renomeacoes: {tela.caminho(log_csv)}", saida)
         tela.comando(f'python main.py --desfazer-renomeacao "{log_csv}" --pasta "{pasta_raiz}"',
                      "para desfazer", saida)
@@ -373,6 +446,9 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
     for linha in reversed(linhas):
         # T48: a raiz gravada no log manda (log do modo teste não mexe na pasta real)
         raiz = Path(linha.get("raiz") or pasta_raiz)
+        if not linha["pasta"]:  # T59: linha de pasta renomeada (os arquivos dela já voltaram antes)
+            voltaram += _desfazer_pasta(raiz, linha["antes"], linha["depois"], banco, saida)
+            continue
         atual = raiz / linha["pasta"] / linha["depois"]
         antigo = atual.with_name(linha["antes"])
         travado = estado_travado(banco, f"{linha['pasta']}/{linha['depois']}") if banco else ""
@@ -389,5 +465,24 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
         else:
             tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']}", saida)
     tela.status("ok" if voltaram == len(linhas) else "aviso",
-                f"{voltaram} de {len(linhas)} arquivo(s) voltaram ao nome antigo.", saida)
+                f"{voltaram} de {len(linhas)} arquivo(s)/pasta(s) voltaram ao nome antigo.", saida)
     return voltaram
+
+
+def _desfazer_pasta(raiz: Path, antes: str, depois: str, banco: Path | None, saida: Callable) -> int:
+    """1 se a pasta voltou ao nome antigo. Pasta com redação já no caderno
+    pelo nome novo não volta (mesma regra dos arquivos, T43)."""
+    atual, antigo = raiz / depois, raiz / antes
+    travado = pasta_travada(banco, depois)
+    if travado:
+        tela.erro(f"Nao desfeito: pasta {depois} tem redacao com estado {travado} no caderno", saida)
+        return 0
+    if not atual.is_dir() or antigo.exists():
+        tela.erro(f"Nao desfeito: pasta {depois}", saida)
+        return 0
+    try:
+        atual.rename(antigo)
+    except OSError as e:
+        tela.erro(f"Nao desfeito: pasta {depois} (foto aberta? {type(e).__name__}); feche e rode de novo", saida)
+        return 0
+    return 1

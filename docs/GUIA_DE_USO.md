@@ -65,7 +65,11 @@ Onde o terminal disser "rode `python main.py`", é este menu.
    ```
    - Tema: Enter confirma o provável, um número escolhe, `g` = tema genérico
      (000, quando o tema não existe no site), uma palavra procura, `v` abre
-     a pasta para ver as fotos (T57).
+     a pasta para ver as fotos (T57). Turma no começo do nome ("3B", "3-B",
+     "3 B") é ignorada. Ao confirmar, a pasta ganha o nome do tema do site,
+     ex.: `3-B - evasao` -> `53 - Impactos da evasão escolar para o Brasil`
+     (T59; dá para desfazer). Pasta com redação já enviada não é renomeada:
+     a aprovação fica em `dados/pastas_aprovadas.csv`.
    - Nomes: Enter confirma, número escolhe, texto procura outro aluno. O
      arquivo é renomeado para o nome exato do aluno (dá para desfazer com o
      comando que aparece no fim).
@@ -268,7 +272,7 @@ e copie a cópia escolhida para esse nome.
 | `python main.py --analise-remota --conta-aluno EMAIL` | Lê os temas na conta desse aluno (só leitura; entra na conta do aluno). `--conta-aluno` sozinho é recusado |
 | `python main.py --envio-real --limite-alunos N` | Produção: só os N primeiros alunos do lote (só vale no `--envio-real` de produção) |
 | `python main.py --envio-real --limite-redacoes N` | Produção: só as N primeiras redações do lote (idem; no ensaio use `--ensaio N`) |
-| `python main.py --desfazer-renomeacao relatorios/renomeacoes_<data>.csv` | Volta os nomes de uma revisão |
+| `python main.py --desfazer-renomeacao relatorios/renomeacoes_<data>.csv` | Volta os nomes (arquivos e pastas) de uma revisão |
 | `python main.py --pasta "outra pasta"` | Usa outra pasta de redações (recusado com `--modo-teste`, que usa sempre `testes/redacoes_teste/`) |
 | `python -m pytest -m "not real" -q` | Testes offline (sem site) |
 

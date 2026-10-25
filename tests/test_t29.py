@@ -248,7 +248,10 @@ def test_main_revisar_e_depois_o_dry_run_tem_fila(tmp_path, monkeypatch, capsys)
     monkeypatch.setattr("builtins.input", respostas("", ""))  # Enter no tema 100, Enter na Ana
 
     assert main_mod.main(["--pasta", str(raiz), "--revisar"]) == 0
-    assert "1 pasta(s) aprovada(s), 1 arquivo(s) renomeado(s)" in capsys.readouterr().out
+    assert "1 pasta(s) aprovada(s) (1 renomeada(s)), 1 arquivo(s) renomeado(s)" in capsys.readouterr().out
+    # T59: a pasta passou a ter o nome do tema do site
+    assert [p.name for p in raiz.iterdir() if p.is_dir()] == [
+        "100 - Impactos da invisibilidade de filiação para os cidadãos brasileiros"]
 
     assert main_mod.main(["--pasta", str(raiz)]) == 0
     assert "Prontas para enviar:" in capsys.readouterr().out
