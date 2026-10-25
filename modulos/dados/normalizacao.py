@@ -15,7 +15,15 @@ _ESPACOS_RE = re.compile(r"\s+")
 # separador (espaço, _, ., -) ou fim
 # Ex.: "000 Simulado", "001_Carta", "002.Red", "003-Narração", "004" -> código "000", "001", "002", "003", "004"
 # "3B ..." NÃO é código (não tem separador após o número)
-PADRAO_CODIGO_ARQUIVO = re.compile(r"^\s*(\d+)(?=[\s_.-]|$)")
+# Bug 029 (decisão do Antônio, 25/10): turma nunca é código. "3-B",
+# "3 B", "3_B" (número + 1 separador + letra sozinha) e datas ("23.10",
+# "23-10-2026": número + separador + número) não são código; "2º ano" já
+# não era. A pasta cai em "sem código" e a revisão sugere o tema pelo nome.
+PADRAO_CODIGO_ARQUIVO = re.compile(
+    r"^\s*(\d+)(?=[\s_.-]|$)"
+    r"(?![-_ ][A-Za-z](?![A-Za-zÀ-ÿ]))"  # turma: 3-B, 3 B, 3_B
+    r"(?![./-]\d)"                       # data: 23.10, 23-10-2026
+)
 
 # Regex para código do tema no COMBO DO SITE: número seguido de " - " ou espaço ou fim
 # Ex.: "0- Narração", "00- Carta", "000- DISSERTATIVO" -> "0", "00", "000"

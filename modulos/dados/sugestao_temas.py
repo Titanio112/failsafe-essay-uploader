@@ -19,7 +19,10 @@ from modulos.dados.normalizacao import extrair_codigo_do_tema_site, extrair_codi
 
 SCORE_MINIMO = 60.0   # abaixo disso: nenhum tema parecido
 SCORE_PROVAVEL = 85.0  # a partir disso: provável; entre os dois: fraco, conferir
-_PREFIXO_TURMA = re.compile(r"^\s*\w{1,3}\s*-\s*")
+# Bug 029: turma em qualquer forma ("3B - ", "3-B - ", "3 B - ", "3_B ",
+# "2º ano - ") ou código ("100- ") antes do título
+_PREFIXO_TURMA = re.compile(r"^\s*(?:\d{1,2}\s*[-_ ]?\s*[A-Za-z](?![A-Za-zÀ-ÿ])|\d{1,2}\s*[ºª°]\s*ano|\w{1,3})"
+                            r"\s*[-_ ]\s*", re.IGNORECASE)
 
 
 def ler_temas_site(caminho: Path) -> list[tuple[str, str]]:

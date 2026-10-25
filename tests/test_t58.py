@@ -377,3 +377,30 @@ def test_valor_de_exemplo_do_env_nao_e_senha(monkeypatch):
     with patch.object(config, "getpass", return_value="digitada") as pergunta:
         assert config.obter_senha() == "digitada"
     assert pergunta.called
+
+
+# ─── Bug 029: turma no começo da pasta nunca é código ────────
+
+from modulos.dados.normalizacao import PADRAO_CODIGO_ARQUIVO  # noqa: E402
+from modulos.dados.sugestao_temas import _titulo, sugerir_codigos  # noqa: E402
+
+
+@pytest.mark.parametrize("pasta", ["3B - Aporofobia", "3-B - Aporofobia", "3 B - Aporofobia", "3_B Aporofobia",
+                                   "23.10 Aporofobia", "23-10-2026 Aporofobia", "2º ano - Aporofobia"])
+def test_turma_ou_data_no_comeco_nao_e_codigo(pasta):
+    assert PADRAO_CODIGO_ARQUIVO.match(pasta) is None
+
+
+@pytest.mark.parametrize("pasta, codigo", [("0 - Narração", "0"), ("000 Simulado", "000"), ("001_Carta", "001"),
+                                           ("003-Narração", "003"), ("100 - A importância", "100"),
+                                           ("000 - 3B - Aporofobia", "000")])
+def test_codigo_de_verdade_continua_valendo(pasta, codigo):
+    assert PADRAO_CODIGO_ARQUIVO.match(pasta).group(1) == codigo
+
+
+@pytest.mark.parametrize("pasta", ["3-B - Efeitos da aporofobia", "3 B - Efeitos da aporofobia",
+                                   "3_B Efeitos da aporofobia", "2º ano - Efeitos da aporofobia"])
+def test_pasta_com_turma_recebe_sugestao_pelo_nome(pasta):
+    assert _titulo(pasta) == "efeitos da aporofobia"
+    temas = [("3", "3- Outro tema qualquer"), ("77", "77- Efeitos da aporofobia")]
+    assert sugerir_codigos([pasta], temas)[0][1] == "77"
