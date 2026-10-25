@@ -25,6 +25,20 @@ def _tem_jpg(pasta: Path) -> bool:
     return pasta.is_dir() and any(f.suffix.lower() in (".jpg", ".jpeg") for f in pasta.glob("*/*") if f.is_file())
 
 
+VARIAVEIS_ENV = ("ESQUEMA_EMAIL_TESTE", "ESQUEMA_SENHA_TESTE", "ESQUEMA_SENHA_PADRAO")
+
+
+def _env_preenchido(env: Path) -> bool:
+    """Bug 026: o .env existe E as 3 variáveis têm valor que não é o de
+    exemplo ("<definir-no-.env>"). Não lê nem mostra os valores além disso."""
+    if not env.is_file():
+        return False
+    from dotenv import dotenv_values
+    from modulos.base.config import eh_valor_de_exemplo
+    valores = dotenv_values(env)
+    return all((valores.get(v) or "").strip() and not eh_valor_de_exemplo(valores[v]) for v in VARIAVEIS_ENV)
+
+
 def verificar(cfg: Config, env: Path) -> list[tuple[bool, str, str]]:
     """[(ok, item, o que fazer)] na ordem em que o Antônio resolve."""
     planilha, pasta = Path(cfg.planilha), Path(cfg.pasta_raiz)
@@ -34,7 +48,7 @@ def verificar(cfg: Config, env: Path) -> list[tuple[bool, str, str]]:
          "abra o arquivo e coloque um aluno por linha: Nome;Email (o e-mail da plataforma)"),
         (_tem_jpg(pasta), f"Redações: {pasta}",
          "crie uma subpasta por tema e coloque nela um JPG por aluno, com o nome do aluno"),
-        (env.is_file(), f"Senhas: {env}",
+        (_env_preenchido(env), f"Senhas: {env}",
          "abra o .env e preencha ESQUEMA_EMAIL_TESTE, ESQUEMA_SENHA_TESTE e ESQUEMA_SENHA_PADRAO"),
     ]
 

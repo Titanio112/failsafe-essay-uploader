@@ -34,6 +34,14 @@ def _contar(situacoes: list[str], palavra: str) -> int:
     return sum(1 for s in situacoes if palavra in s)
 
 
+# Situações já vistas no site (as linhas antigas podem andar de uma para outra)
+_SITUACOES_CONHECIDAS = ("pendente", "processando", "corrigid", "erro")
+
+
+def _desconhecidas(situacoes: list[str]) -> int:
+    return sum(1 for s in situacoes if not any(p in s for p in _SITUACOES_CONHECIDAS))
+
+
 def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 120,
                          linhas_esperadas: int = 1, antes: list[str] | None = None,
                          data_hoje: str | None = None) -> bool:
@@ -43,7 +51,9 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
     - Nova linha com o código e data de hoje aparecer como "Pendente"
     - Timeout
     
-    Retorna True se confirmado, False se erro/cancelada.
+    Retorna True se confirmado, False se erro/cancelada. Bug 008: linha nova
+    numa situação nunca observada (ex.: "Recusada") não é sucesso: espera e,
+    no fim do prazo, ConfirmacaoInconclusiva (REVISAO_MANUAL).
 
     T27: se no fim do prazo a linha nova (código + hoje) ainda estiver em
     "Processando arquivo", conta como RECEBIDA (True): antes do envio a
@@ -65,6 +75,7 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
     antes = antes or []
     inicio = time.time()
     viu_processando = False
+    viu_desconhecida = False
 
     while time.time() - inicio < timeout_segundos:
         try:
@@ -82,6 +93,10 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
                     return False
                 if _contar(do_dia, "processando") > _contar(antes, "processando"):
                     viu_processando = True
+                elif _desconhecidas(do_dia) > _desconhecidas(antes):
+                    # Bug 008: situação nunca observada (ex.: "Recusada")
+                    # não é sucesso: espera e, no fim do prazo, inconclusiva.
+                    viu_desconhecida = True
                 else:
                     return True
         except CaptchaOuBloqueio:
@@ -90,6 +105,9 @@ def aguardar_confirmacao(page: Page, codigo_tema: str, timeout_segundos: int = 1
             log.warning("Lista ainda nao conferida (%s); tentando de novo.", type(e).__name__)
         time.sleep(5)
 
+    if viu_desconhecida:
+        raise ConfirmacaoInconclusiva(f"Linha nova do tema {codigo_tema} com situacao desconhecida "
+                                      f"apos {timeout_segundos}s; conferir no site")
     if viu_processando:
         log.info("Tema %s ainda em 'Processando arquivo' apos %ss: contado como recebido.",
                  codigo_tema, timeout_segundos)

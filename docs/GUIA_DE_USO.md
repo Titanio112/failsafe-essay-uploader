@@ -115,6 +115,8 @@ python main.py --modo-teste --revisar       g, g, Enter e os nomes
 python main.py --modo-teste                 a fila deve ter 4 redações
 python main.py --modo-teste --envio-real    digite ENVIAR TESTE
 ```
+As fotos de teste não vêm no repositório (estão no `.gitignore`): num
+clone novo, coloque nessas pastas JPGs seus com o nome da conta de teste.
 Cada redação enviada gasta 1 crédito da conta de teste. Pode criar mais
 subpastas para testar outros casos: os arquivos devem ter o nome da conta
 de teste (`Usuario Testes Ignorar`) ou algo parecido, para a revisão perguntar.
@@ -260,7 +262,7 @@ e copie a cópia escolhida para esse nome.
 |---|---|
 | `python main.py --ensaio [N]` | Redações reais conferidas -> conta de teste (veja acima) |
 | `python main.py --resolver` | Responde, uma a uma, as redações em "conferir no site" (veja acima) |
-| `... --envio-real --sem-janela` | Envia sem mostrar o navegador (padrão: mostra; fixo: menu 11) |
+| `... --envio-real --sem-janela` | Envia sem mostrar o navegador (padrão: mostra; fixo: menu 13, Configurações) |
 | `python main.py --conferir-site` | Só lê: o tema de cada foto já está no site? (`CONFERIR`) |
 | `python main.py --analise-remota` | Lê a lista de temas do site e atualiza `dados/temas_site.csv` (digite `ANALISAR`) |
 | `python main.py --analise-remota --conta-aluno EMAIL` | Lê os temas na conta desse aluno (só leitura; entra na conta do aluno). `--conta-aluno` sozinho é recusado |
@@ -306,5 +308,5 @@ tests/                  testes offline (pytest)
 dados/                  lista de alunos, temas do site, aprovações
 relatorios/             banco de progresso e relatórios (fora do git)
 logs/                   automacao.log (fora do git)
-docs/                   tarefas, pendências e bugs (qa-issues)
+docs/                   este guia e os bugs (qa-issues)
 ```

@@ -10,6 +10,7 @@ relatorios/arquivamento_<data>.csv. Não roda durante um envio (mesma trava).
 from __future__ import annotations
 
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Callable
@@ -48,6 +49,36 @@ def _escolher(pastas: list[tuple[Path, int]], entrada: Entrada | None, saida: Ca
     return [pastas[n - 1][0] for n in numeros]
 
 
+def _mover(pasta: Path, alvo: Path) -> str:
+    """Bug 016: "ok" (movida), "nada" (nada mudou) ou "original incompleta".
+
+    No mesmo disco só renomeia: com uma foto aberta o Windows recusa e nada
+    muda (o shutil.move copiava tudo e apagava a origem pela metade). Em
+    outro disco copia, confere e só então tira a origem."""
+    try:
+        os.rename(pasta, alvo)
+        return "ok"
+    except OSError:
+        if os.path.splitdrive(os.path.abspath(pasta))[0].lower() == \
+                os.path.splitdrive(os.path.abspath(alvo))[0].lower():
+            return "nada"
+    try:
+        shutil.copytree(pasta, alvo)
+    except OSError:
+        shutil.rmtree(alvo, ignore_errors=True)  # só a cópia incompleta; a origem fica
+        return "nada"
+    origem = sorted(p.relative_to(pasta) for p in pasta.rglob("*") if p.is_file())
+    copia = sorted(p.relative_to(alvo) for p in alvo.rglob("*") if p.is_file())
+    if origem != copia:
+        shutil.rmtree(alvo, ignore_errors=True)
+        return "nada"
+    try:
+        shutil.rmtree(pasta)
+        return "ok"
+    except OSError:
+        return "original incompleta"
+
+
 def executar_arquivar(pasta_raiz: Path, raiz_projeto: Path, pasta_relatorios: Path,
                       entrada: Entrada | None = None, saida: Callable = print) -> int:
     """0 = arquivou (ou nada a fazer); 2 = cancelado/erro."""
@@ -82,20 +113,24 @@ def executar_arquivar(pasta_raiz: Path, raiz_projeto: Path, pasta_relatorios: Pa
                 escritor.writerow(["origem", "destino"])
                 for pasta in escolhidas:
                     alvo = destino / pasta.name
-                    try:
-                        shutil.move(str(pasta), str(alvo))
-                    except OSError as e:
-                        tela.erro(f"Não movi {pasta.name} ({type(e).__name__}): arquivo aberto?", saida)
+                    situacao = _mover(pasta, alvo)
+                    if situacao == "nada":
+                        tela.erro(f"Não movi {pasta.name}: alguma foto está aberta? Feche e tente de novo. "
+                                  "A pasta ficou como estava.", saida)
                         continue
-                    escritor.writerow([str(pasta), str(alvo)])
+                    escritor.writerow([str(pasta), str(alvo)] + ([situacao] if situacao != "ok" else []))
                     f.flush()
                     movidas += 1
-                    tela.ok(f"Arquivada: {pasta.name}", saida)
+                    if situacao == "ok":
+                        tela.ok(f"Arquivada: {pasta.name}", saida)
+                    else:
+                        tela.aviso(f"{pasta.name}: copiada inteira para o arquivo morto, mas a original não "
+                                   "saiu toda (foto aberta?). Feche e apague o que sobrou dela à mão.", saida)
     except TravaOcupada:
         tela.erro("Um envio está rodando agora (outra janela?). Espere ele acabar. Nada foi movido.", saida)
         return 2
     tela.secao("Fim", saida)
-    tela.status("ok", f"{movidas} de {len(escolhidas)} pasta(s) no arquivo morto: {tela.caminho(destino)}", saida)
+    tela.status("ok" if movidas == len(escolhidas) else "aviso", f"{movidas} de {len(escolhidas)} pasta(s) no arquivo morto: {tela.caminho(destino)}", saida)
     tela.status("fraco", "Para trazer de volta, mova a pasta de novo para a pasta das redações.", saida)
     tela.status("fraco", "Dica: nas redações novas use nomes de pasta novos (o caderno lembra pasta/arquivo).",
                 saida)

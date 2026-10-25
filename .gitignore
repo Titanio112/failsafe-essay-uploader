@@ -26,11 +26,17 @@ dados/*.bak.csv
 testes/*.csv
 *.xlsx
 *.xls
-*.jpg
-*.jpeg
-*.png
-*.pdf
-redações plataforma/
+# (bug 023: sem depender de o git ignorar maiúsculas; no Linux/Mac/WSL ele não ignora)
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[pP][nN][gG]
+*.[hH][eE][iI][cC]
+*.[wW][eE][bB][pP]
+*.[pP][dD][fF]
+[Rr]edações plataforma/
+[Rr]edacoes plataforma/
+testes/redacoes_teste/*
+!testes/redacoes_teste/.gitkeep
 
 # Progresso e saídas
 *.db
@@ -69,6 +75,7 @@ MUDANCA_DE_PASTA.md
 # Anotações de trabalho das IAs (tarefas e pendências): só locais
 docs/TAREFAS_ATUAIS.md
 docs/PENDENCIAS.md
+docs/historico/
 .claude/
 CLAUDE.md
 CLAUDE.local.md

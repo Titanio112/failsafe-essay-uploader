@@ -128,8 +128,11 @@ It was developed over three weeks in small, numbered tasks (T1–T57, visible in
 history), with **AI pair-programming** (Cline and Claude Code) working under strict written
 rules: real proof (test output pasted) before anything is called done, no guessed selectors,
 and no AI ever sending to a real student account.
-[`docs/`](docs) holds the task log, open questions and every bug found, in
-[`docs/qa-issues/`](docs/qa-issues), each also tracked as a GitHub issue.
+[`docs/`](docs) holds the user guide ([`GUIA_DE_USO.md`](docs/GUIA_DE_USO.md), in Portuguese)
+and every bug found, in [`docs/qa-issues/`](docs/qa-issues), each also tracked as a GitHub issue;
+the task log is the commit history. Before every push,
+`python -m modulos.ferramentas.auditoria_publica` checks that no student data, secret or AI
+note is about to be published.
 
 <p align="right"><a href="#top">⬆ back to top</a> · <a href="#pt-br">🇧🇷 Português</a></p>
 
@@ -243,8 +246,11 @@ senhas e as fotos de teste locais.
 Foi desenvolvido em três semanas, em tarefas pequenas e numeradas (T1–T57, que aparecem no
 histórico de commits), com **programação em par com IA** (Cline e Claude Code) seguindo regras
 escritas e rígidas: só se dá algo por feito com prova real (saída dos testes colada), nenhum
-seletor é chutado e nenhuma IA envia nada na conta de um aluno de verdade. Em [`docs/`](docs) ficam o registro das tarefas, as pendências e todos os
-bugs encontrados, em [`docs/qa-issues/`](docs/qa-issues), cada um também como issue no GitHub.
+seletor é chutado e nenhuma IA envia nada na conta de um aluno de verdade. Em [`docs/`](docs) ficam o guia de uso ([`GUIA_DE_USO.md`](docs/GUIA_DE_USO.md)) e
+todos os bugs encontrados, em [`docs/qa-issues/`](docs/qa-issues), cada um também como issue no GitHub;
+o registro das tarefas é o histórico de commits. Antes de todo push,
+`python -m modulos.ferramentas.auditoria_publica` confere que não vai dado de aluno, senha nem
+anotação de IA.
 O manual de uso completo está em [`docs/GUIA_DE_USO.md`](docs/GUIA_DE_USO.md).
 
 <p align="right"><a href="#top">⬆ voltar ao topo</a> · <a href="#en">🇺🇸 English</a></p>

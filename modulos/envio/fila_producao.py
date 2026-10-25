@@ -74,6 +74,9 @@ def montar_lote_producao(
             ignorados.append((chave, f"mesma foto que {conteudos[h]} (copia? revisao manual)"))
         elif progresso and (antigo := progresso.registro_do_conteudo(aluno.id, h, chave)):
             ignorados.append((chave, f"mesma foto ja registrada como {antigo['estado']} em {antigo['arquivo']}"))
+        elif progresso and (outro := progresso.conteudo_de_outro_aluno(aluno.id, h)):
+            ignorados.append((chave, f"mesma foto ja registrada para OUTRO aluno como {outro['estado']} "
+                                     f"em {outro['arquivo']} (nome trocado? revisao manual)"))
         else:
             vistos.add((aluno.id, codigo, item.pasta))
             conteudos[h] = chave

@@ -22,7 +22,7 @@ from modulos.base import tela
 from modulos.base.config import Config, obter_email_teste, obter_senha
 from modulos.site.formulario_envio import abrir_formulario_envio, ler_combo_temas
 from modulos.site.login import DOMINIO_ESPERADO, confirmar_identidade, login, verificar_dominio_autorizado
-from modulos.dados.planilha_arquivos import Aluno, mascarar_email
+from modulos.dados.planilha_arquivos import Aluno
 
 log = logging.getLogger("automacao_redacoes")
 
@@ -65,7 +65,9 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
         email = obter_email_teste()
         senha = obter_senha("ESQUEMA_SENHA_TESTE")
         esperado, modo_teste = Aluno(nome="Usuario Testes Ignorar", email=email), True
-    conta = mascarar_email(email)
+    # Bug 024: o CSV é versionado (repositório público): nem o e-mail
+    # mascarado entra nele, só de que tipo de conta veio a leitura.
+    conta = "aluno" if aluno else "teste"
     antes = {c for c, _ in ler_temas_csv(caminho_csv)}
 
     with sync_playwright() as pw:

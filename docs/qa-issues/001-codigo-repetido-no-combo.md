@@ -19,7 +19,7 @@ O combo de temas do site tem o código `0000` duas vezes (Simulado SOMOS 01 e
 ## Local
 
 - `main.py`, `ler_codigos_site_csv`
-- `modulos/envio_item.py`, passo 3 (código no combo)
+- `modulos/envio/envio_item.py`, passo 3 (código no combo)
 
 ## Reprodução
 
@@ -38,4 +38,5 @@ com aluno exato -> antes: `EXATO_UNICO` (entrava na fila); agora: `SIMULADO`
 
 ## GitHub
 
-Repositório sem remoto: `gh issue create` não é possível. Registro só local.
+Issue #1 (fechada). `f4-producao` era a branch da pasta de trabalho antiga,
+antes da publicação.

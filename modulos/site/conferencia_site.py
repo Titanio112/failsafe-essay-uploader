@@ -32,6 +32,7 @@ PALAVRA = "CONFERIR"
 NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não está no site", "não conferido"
 OUTRO_TEMA = "talvez no site com outro tema"
 NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
+CANCELADA = "cancelada no site (conferir)"  # bug 018
 COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes"]
 
 
@@ -64,12 +65,16 @@ def comparar(conf: ConferenciaAluno) -> None:
         estado = NAO_CONFERIDO if conf.erro else NAO_TENTADO
         conf.linhas = [(item, estado, []) for item in conf.itens]
         return
+    # Bug 018: "Cancelada" não conta como no site (o envio também não conta);
+    # só cancelada no tema = conferir à mão, nunca entra sozinha no envio.
+    ativas = [r for r in conf.lista if r.situacao.strip().lower() != "cancelada"]
     vistos: dict[str, int] = {}
     for item in conf.itens:
-        do_tema = [r for r in conf.lista if r.codigo == item.codigo_tema]
+        do_tema = [r for r in ativas if r.codigo == item.codigo_tema]
         vistos[item.codigo_tema] = vistos.get(item.codigo_tema, 0) + 1
         if not do_tema:
-            estado = FORA_DO_SITE
+            canceladas = [r for r in conf.lista if r.codigo == item.codigo_tema]
+            estado, do_tema = (CANCELADA, canceladas) if canceladas else (FORA_DO_SITE, [])
         elif vistos[item.codigo_tema] <= len(do_tema):
             estado = NO_SITE
         else:
@@ -83,7 +88,7 @@ def comparar(conf: ConferenciaAluno) -> None:
     for item in conf.itens:
         locais[item.codigo_tema] = locais.get(item.codigo_tema, 0) + 1
     sobra: dict[str, int] = {}
-    for r in conf.lista:
+    for r in ativas:
         sobra[r.codigo] = sobra.get(r.codigo, 0) + 1
     for codigo, n in locais.items():
         if codigo in sobra:
@@ -97,7 +102,7 @@ def comparar(conf: ConferenciaAluno) -> None:
         return
     for i, (item, estado, do_tema) in enumerate(conf.linhas):
         if estado == FORA_DO_SITE:
-            conf.linhas[i] = (item, OUTRO_TEMA, [r for r in conf.lista if r.codigo in sobras])
+            conf.linhas[i] = (item, OUTRO_TEMA, [r for r in ativas if r.codigo in sobras])
 
 
 def faltam_enviar(conferencias: list[ConferenciaAluno]) -> list[ItemConciliacao]:
@@ -178,8 +183,9 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
 #   ✔ no site      tema 000  30/09/2026    3B - Efeitos da aporofobia
 #   ⚠ outro tema?  tema 100  como 000?     3B - Impactos da Invisibilidade…
 ROTULO_CURTO = {NO_SITE: "no site", EM_PARTE: "em parte", FORA_DO_SITE: "falta",
-                OUTRO_TEMA: "outro tema?", NAO_CONFERIDO: "não conferido", NAO_TENTADO: "não tentado"}
-PAPEL = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso"}
+                OUTRO_TEMA: "outro tema?", NAO_CONFERIDO: "não conferido", NAO_TENTADO: "não tentado",
+                CANCELADA: "cancelada?"}
+PAPEL = {NO_SITE: "ok", EM_PARTE: "aviso", FORA_DO_SITE: "info", OUTRO_TEMA: "aviso", CANCELADA: "aviso"}
 
 
 def _curto(texto: str, largura: int) -> str:
@@ -297,7 +303,8 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
         tela.erro("Um envio está rodando agora (outra janela?). Espere ele acabar.", saida)
         return 2
 
-    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, OUTRO_TEMA: 0, NAO_CONFERIDO: 0, NAO_TENTADO: 0}
+    contagem = {NO_SITE: 0, EM_PARTE: 0, FORA_DO_SITE: 0, OUTRO_TEMA: 0, CANCELADA: 0, NAO_CONFERIDO: 0,
+                NAO_TENTADO: 0}
     for conf in conferencias:
         if not conf.linhas:
             comparar(conf)
@@ -310,6 +317,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                     ("Tema no site, mas menos vezes que as fotos", contagem[EM_PARTE], "aviso"),
                     ("Talvez no site com outro tema (não envia)", contagem[OUTRO_TEMA], "aviso"),
                     ("Ainda não estão no site", contagem[FORA_DO_SITE], "info"),
+                    ("Canceladas no site (conferir; não envia)", contagem[CANCELADA], "aviso"),
                     ("Não conferidas (conta não abriu)", contagem[NAO_CONFERIDO], "erro"),
                     ("Não tentadas (parou antes)", contagem[NAO_TENTADO], "aviso")], saida)
     if parou:

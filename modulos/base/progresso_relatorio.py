@@ -222,6 +222,20 @@ class Progresso:
         ).fetchone()
         return {"arquivo": row[0], "estado": row[1]} if row else None
 
+    def conteudo_de_outro_aluno(self, aluno_id: str, hash_arquivo: str) -> dict | None:
+        """Bug 013: a MESMA foto já registrada (enviada, pulada, em revisão)
+        para OUTRO aluno. Uma foto é de uma pessoa só: não vai para a segunda.
+        O ensaio (chave "ensaio/...") manda fotos reais para a conta de teste
+        de propósito e não conta."""
+        if not hash_arquivo:
+            return None
+        row = self.con.execute(
+            "SELECT aluno_id, arquivo, estado FROM progresso WHERE aluno_id != ? AND hash_arquivo = ? "
+            "AND arquivo NOT LIKE 'ensaio/%' AND estado IN (?, ?, ?, ?) LIMIT 1",
+            (aluno_id, hash_arquivo, ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ENVIANDO),
+        ).fetchone()
+        return {"aluno_id": row[0], "arquivo": row[1], "estado": row[2]} if row else None
+
     # ─── Envios por aluno (limite de 4) ──────────────────────
 
     def envios_de(self, aluno_id: str) -> int:

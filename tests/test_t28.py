@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Testes offline da T28: --pasta e código de tema aprovado por pasta.
 Sem navegador, sem dados reais."""
 
@@ -55,13 +55,20 @@ def test_sugestoes_de_pasta_gravadas_e_aprovacao_lida(tmp_path):
     assert carregar_codigos_pasta(caminho) == {}  # nada aprovado sozinho
 
     # O Antônio aprova a de filiação e digita à mão o código da outra
+    # (bug 010: código digitado à mão só vale com o nome do tema escrito)
     linhas[0]["codigo"], linhas[0]["aprovado"] = "77", "sim"
     linhas[1]["aprovado"] = "SIM"
     with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
         escritor = csv.DictWriter(f, fieldnames=list(linhas[0]), delimiter=";")
         escritor.writeheader()
         escritor.writerows(linhas)
+    assert carregar_codigos_pasta(caminho) == {PASTA: "100"}
 
+    linhas[0]["tema"] = "77- Tema digitado"
+    with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+        escritor = csv.DictWriter(f, fieldnames=list(linhas[0]), delimiter=";")
+        escritor.writeheader()
+        escritor.writerows(linhas)
     assert carregar_codigos_pasta(caminho) == {"3B - Efeitos da aporofobia": "77", PASTA: "100"}
 
 
@@ -85,7 +92,7 @@ def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
     cfg.banco_progresso = tmp_path / "relatorios" / "p.db"
     cfg.arquivo_nomes_aprovados = tmp_path / "nomes.csv"
     cfg.arquivo_pastas_aprovadas = tmp_path / "pastas.csv"
-    cfg.arquivo_pastas_aprovadas.write_text(f"pasta;codigo;tema;aprovado;semelhanca\n{PASTA};100;;sim;\n",
+    cfg.arquivo_pastas_aprovadas.write_text(f"pasta;codigo;tema;aprovado;semelhanca\n{PASTA};100;100- Impactos da filiacao;sim;\n",
                                             encoding="utf-8")
     (tmp_path / "dados").mkdir()
     (tmp_path / "dados" / "temas_site.csv").write_text("codigo,texto\n100,100- Filiação\n", encoding="utf-8")

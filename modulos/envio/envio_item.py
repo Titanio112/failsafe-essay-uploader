@@ -27,11 +27,29 @@ from modulos.site.formulario_envio import (
 )
 from modulos.site.confirmacao import clicar_enviar, aguardar_confirmacao
 from modulos.envio.fila_teste import ItemFilaTeste
-from modulos.base.progresso_relatorio import Progresso, ENVIADO, JA_ENVIADO, ERRO, REVISAO_MANUAL
+from modulos.base.progresso_relatorio import (
+    Progresso, ENVIADO, ENVIANDO, JA_ENVIADO, ERRO, REVISAO_MANUAL,
+)
 from modulos.base.excecoes import BotaoEnviarAusente, CaptchaOuBloqueio, ConfirmacaoInconclusiva
 
 
 log = logging.getLogger("automacao_redacoes")
+
+# Estados em que o item (ou a mesma foto) já não pode ir de novo
+_JA_REGISTRADO = {ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ENVIANDO}
+
+
+def _ja_registrado(progresso: Optional[Progresso], aluno_id: str, item: ItemFilaTeste) -> Optional[str]:
+    """Estado do caderno que impede o envio deste item AGORA (já dentro da
+    trava), ou None. Confere a chave do item e a mesma foto (sha256)."""
+    if not progresso:
+        return None
+    chave = item.chave_progresso or item.arquivo
+    registro = progresso.obter(aluno_id, chave)
+    if registro and registro["estado"] in _JA_REGISTRADO:
+        return registro["estado"]
+    mesma_foto = progresso.registro_do_conteudo(aluno_id, item.hash_arquivo, exceto=chave)
+    return mesma_foto["estado"] if mesma_foto else None
 
 
 def _codigo_tema_selecionado(page) -> Optional[str]:
@@ -64,6 +82,15 @@ def enviar_item(
     codigo = item.codigo
     clique_iniciado = False
     try:
+        # 0a. Bug 007: o lote é montado antes da trava de envio. Se outra
+        #     janela já mandou este item (ou a mesma foto com outro nome)
+        #     depois disso, o caderno diz agora: não envia de novo.
+        ja = _ja_registrado(progresso, aluno_id, item)
+        if ja:
+            log.warning("%s: o caderno ja tem %s para este item. Nao envia de novo.",
+                        item.chave_progresso or item.arquivo, ja)
+            return REVISAO_MANUAL if ja in (REVISAO_MANUAL, ENVIANDO) else JA_ENVIADO
+
         # 0. T44: um "hoje" só (Brasília) para a contagem e a confirmação;
         #    perto da meia-noite os dois poderiam ser dias diferentes.
         if relogio.perto_da_meia_noite():

@@ -120,7 +120,8 @@ def test_excel_que_tira_os_zeros_do_codigo_nao_troca_o_tema(tmp_path, capsys):
                        "3B - A;0;000- DISSERTATIVO ARGUMENTATIVO;sim;\n"
                        "3B - B;000;000- DISSERTATIVO ARGUMENTATIVO;sim;\n"
                        "3B - C;100;;sim;\n", encoding="utf-8")
-    assert carregar_codigos_pasta(caminho) == {"3B - B": "000", "3B - C": "100"}
+    # Bug 010: "3B - C" sem o nome do tema também é ignorada (não dá para conferir)
+    assert carregar_codigos_pasta(caminho) == {"3B - B": "000"}
     assert "'3B - A' tem codigo 0 mas o tema e 000" in capsys.readouterr().out
 
 

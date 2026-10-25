@@ -51,7 +51,11 @@ def test_guia_aponta_o_que_falta(tmp_path):
     cfg.planilha.write_text("Nome;Email\nAna;ana@x.com\n", encoding="utf-8")
     (cfg.pasta_raiz / "100 - Tema").mkdir(parents=True)
     (cfg.pasta_raiz / "100 - Tema" / "Ana.JPG").write_bytes(b"x")
-    (tmp_path / ".env").write_text("x", encoding="utf-8")
+    # bug 026: o .env copiado do exemplo ("<definir-no-.env>") não conta como preenchido
+    (tmp_path / ".env").write_text("ESQUEMA_EMAIL_TESTE=<definir-no-.env>\n", encoding="utf-8")
+    assert not verificar(cfg, tmp_path / ".env")[2][0]
+    (tmp_path / ".env").write_text("ESQUEMA_EMAIL_TESTE=t@t.com\nESQUEMA_SENHA_TESTE=a\n"
+                                   "ESQUEMA_SENHA_PADRAO=b\n", encoding="utf-8")
     assert all(ok for ok, _, _ in verificar(cfg, tmp_path / ".env"))
 
 

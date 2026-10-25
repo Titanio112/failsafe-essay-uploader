@@ -188,8 +188,12 @@ def _enviar_faltantes(cfg, faltam, entrada=None, resultado=None) -> int:
 
 def main(argv=None) -> int:
     args = parse_args(argv)
-    cfg = carregar_config(args.config)
     tela.ativar_cores()
+    try:
+        cfg = carregar_config(args.config)
+    except config_mod.ConfigInvalida as e:
+        tela.erro(str(e))
+        return 2
     if args.sem_janela:
         cfg.headless = True  # T51: escolha da pessoa; o padrão continua mostrando o navegador
     if args.pasta and args.modo_teste:
@@ -200,6 +204,16 @@ def main(argv=None) -> int:
         if not cfg.pasta_raiz.is_dir():
             tela.erro(f"Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
             return 2
+    # Bug 020: ações que rodam sozinhas, conferidas antes de qualquer uma rodar
+    sozinhas = [nome for nome, ligada in (
+        ("--preparar", args.preparar), ("--arquivar", args.arquivar), ("--resolver", args.resolver),
+        ("--desfazer-renomeacao", bool(args.desfazer_renomeacao)), ("--conferir-site", args.conferir_site),
+        ("--enviar-faltantes", args.enviar_faltantes), ("--analise-remota", args.analise_remota)) if ligada]
+    envio = args.envio_real or args.modo_teste or args.ensaio is not None or args.revisar
+    if len(sozinhas) > 1 or (sozinhas and sozinhas[0] not in ("--desfazer-renomeacao", "--analise-remota")
+                             and envio):
+        tela.erro(f"{sozinhas[0]} roda sozinho (nao combina com outras acoes nem com envio/ensaio/revisao).")
+        return 2
     if args.preparar:
         return preparar(cfg, config_mod.RAIZ)
     if args.arquivar:
@@ -417,7 +431,8 @@ def main(argv=None) -> int:
         tela.secao("Detalhes por tema")
         for tema in sorted(set(i.pasta for i in resultado.itens if i.pasta)):
             itens_tema = [i for i in resultado.itens if i.pasta == tema]
-            nome_pasta = tela.link(tela.c(tema, "pasta"), Path(cfg.pasta_raiz) / tema)  # T51: abre a pasta
+            # T51: abre a pasta; bug 022: no VS Code pasta não vira link (T52)
+            nome_pasta = tela.link(tela.c(tema, "pasta"), Path(cfg.pasta_raiz) / tema, pasta=True)
             print(f"  {tela.SIMBOLOS['pasta']} {nome_pasta}  {tela.c(f'({len(itens_tema)} arquivo(s))', 'fraco')}")
             if not any(i.codigo_tema for i in itens_tema):
                 _resumo_pasta_sem_tema(itens_tema, alunos)

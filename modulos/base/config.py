@@ -174,6 +174,9 @@ def carregar_config(caminho: str | Path | None = None) -> Config:
     """
     candidatos = []
     if caminho:
+        if not Path(caminho).is_file():
+            # Bug 021: arquivo pedido de propósito e que não existe não cai calado no padrão
+            raise ConfigInvalida(f"--config: arquivo nao encontrado: {caminho}")
         candidatos.append(Path(caminho))
     candidatos.append(RAIZ / "config.ini")
     candidatos.append(RAIZ / "config.example.ini")
@@ -187,10 +190,16 @@ def carregar_config(caminho: str | Path | None = None) -> Config:
     return Config()
 
 
+def eh_valor_de_exemplo(valor: str) -> bool:
+    """Bug 026: o .env copiado do .env.example tem "<definir-no-.env>": isso
+    não é senha nem e-mail de verdade (nunca tentar login com ele)."""
+    return valor.strip().startswith("<")
+
+
 def obter_senha(senha_env: str = "ESQUEMA_SENHA_PADRAO") -> str:
     """Senha somente por variável de ambiente ou getpass. Nunca em arquivo/log."""
     senha = os.environ.get(senha_env)
-    if senha:
+    if senha and not eh_valor_de_exemplo(senha):
         return senha
     prompt = "Senha padrão da plataforma (entrada oculta): " if senha_env == "ESQUEMA_SENHA_PADRAO" else "Senha de teste (entrada oculta): "
     return getpass(prompt)
@@ -199,6 +208,6 @@ def obter_senha(senha_env: str = "ESQUEMA_SENHA_PADRAO") -> str:
 def obter_email_teste() -> str:
     """E-mail da conta de teste via variável de ambiente."""
     email = os.environ.get("ESQUEMA_EMAIL_TESTE")
-    if email:
+    if email and not eh_valor_de_exemplo(email):
         return email
     return input("E-mail da conta de teste: ")

@@ -2,10 +2,10 @@
 
 - **Tipo:** lógico (conciliação + duplicidade)
 - **Status:** resolvido na T35 (22/10) — checagem por contagem, tudo no mesmo dia
-- **Local:** `modulos/planilha_arquivos.py` (`conciliar`, contagem aluno+código),
-  `modulos/fila_producao.py` (um arquivo por aluno+código),
-  `modulos/envio_item.py` (duplicidade "mesmo dia + mesmo tema"),
-  `modulos/confirmacao.py` (confirmação procura código + data de hoje)
+- **Local:** `modulos/dados/planilha_arquivos.py` (`conciliar`, contagem aluno+código),
+  `modulos/envio/fila_producao.py` (um arquivo por aluno+código),
+  `modulos/envio/envio_item.py` (duplicidade "mesmo dia + mesmo tema"),
+  `modulos/site/confirmacao.py` (confirmação procura código + data de hoje)
 
 ## Descrição
 

@@ -121,6 +121,11 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
         return [th.get_text(strip=True).lower() for th in t.find_all('th')][:4]
 
     tabela = next((t for t in tabelas if _cabecalho(t) == CABECALHO_ESPERADO), None)
+    com_outro_cabecalho = [t for t in tabelas if _cabecalho(t) and _cabecalho(t) != CABECALHO_ESPERADO]
+    if tabela is None and com_outro_cabecalho:
+        # Bug 009: a lista existe mas o cabeçalho mudou. Uma tabela sem <th>
+        # na mesma página (layout, créditos) não pode ser lida no lugar dela.
+        raise RuntimeError(f"Cabecalho inesperado na lista de redacoes: {_cabecalho(com_outro_cabecalho[0])}")
     if tabela is None:
         tabela = next((t for t in tabelas if not _cabecalho(t)), None)
     if tabela is None:
@@ -226,11 +231,21 @@ def contar_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,
                      data_hoje: str | None = None) -> int:
     """Quantas linhas do tema ``codigo`` com a data de HOJE há na lista (T35).
     "Cancelada" não conta. Lista vazia -> 0 (decisão D1 (a)). Lista com
-    linhas ilegíveis -> RuntimeError (fail-closed, não envia)."""
+    linhas ilegíveis -> RuntimeError (fail-closed, não envia).
+
+    Bug 009: toda linha tem de ter a data como dd/mm/aaaa e o tema começando
+    pelo código ("000- ..."), como observado em 21/10. Formato diferente
+    contaria 0 e liberaria um envio duplicado: é lista ilegível."""
+    import re
     if not lista_redacoes:
         return 0
     if not any(item.tema.strip() and item.data.strip() for item in lista_redacoes):
         raise RuntimeError("Lista de redacoes ilegivel; envio bloqueado")
+    for item in lista_redacoes:
+        if not re.fullmatch(r"\d{2}/\d{2}/\d{4}", item.data.strip()):
+            raise RuntimeError(f"Data em formato inesperado na lista ({item.data.strip()!r}); envio bloqueado")
+        if not re.match(r"^\s*\d+(?=\s*-|\s|$)", item.tema):
+            raise RuntimeError(f"Tema sem codigo no inicio na lista ({item.tema.strip()[:40]!r}); envio bloqueado")
     return len(situacoes_tema_hoje(lista_redacoes, codigo, data_hoje))
 
 

@@ -35,6 +35,7 @@ from modulos.dados.nomes_aprovados import _sugestoes_para
 from modulos.dados.normalizacao import PADRAO_CODIGO_ARQUIVO, extrair_codigo_tema, normalizar_nome
 from modulos.dados.planilha_arquivos import Aluno, ResultadoConciliacao, eh_folha_em_branco
 from modulos.base.progresso_relatorio import ENVIADO, ENVIANDO, JA_ENVIADO
+from modulos.dados.arquivos_csv import CsvIlegivel
 from modulos.dados.sugestao_temas import SCORE_PROVAVEL, _titulo, aprovar_pasta
 
 ESTADOS_TRAVADOS = {ENVIADO, ENVIANDO, JA_ENVIADO, REVISAO_MANUAL}
@@ -167,14 +168,18 @@ def revisar_pastas(pastas: list[str], temas: list[tuple[str, str]], caminho_apro
             if low == "g" and tem_generico:
                 resp = TEMA_GENERICO
             codigo = melhor[0] if not resp else resp
-            if codigo.isdigit():
+            if codigo.isdecimal():
                 if codigo not in contagem:
                     saida(tela.c(f"  ✘ Tema {codigo} nao existe na lista do site (dados/temas_site.csv).", "erro"))
                     continue
                 if contagem[codigo] > 1:
                     saida(tela.c(f"  ✘ Tema {codigo} aparece {contagem[codigo]}x no site: nao da para enviar automaticamente.", "erro"))
                     continue
-                aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
+                try:
+                    aprovar_pasta(caminho_aprovadas, pasta, codigo, texto_de[codigo])
+                except CsvIlegivel as e:
+                    saida(tela.c(f"  ✘ Não gravei a aprovação: {e}", "erro"))
+                    return aprovadas, False
                 saida(tela.c(f"  ✔ OK: {pasta} -> tema {codigo} ({_sem_codigo(texto_de[codigo])})", "ok"))
                 aprovadas += 1
                 break
@@ -299,9 +304,9 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
                 break
             if not resp:
                 escolhido = opcoes[0][0]
-            elif resp.isdigit() and 1 <= int(resp) <= len(opcoes):
+            elif resp.isdecimal() and 1 <= int(resp) <= len(opcoes):
                 escolhido = opcoes[int(resp) - 1][0]
-            elif resp.isdigit():
+            elif resp.isdecimal():
                 saida(tela.c("  ✘ Numero fora da lista.", "erro"))
             else:
                 opcoes = buscar_alunos(resp, alunos)
@@ -374,7 +379,12 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
         if travado:
             tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']} ja tem estado {travado} no banco", saida)
         elif atual.is_file() and not antigo.exists():
-            atual.rename(antigo)
+            try:
+                atual.rename(antigo)
+            except OSError as e:  # bug 019: um arquivo aberto não para os outros
+                tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']} (arquivo aberto? "
+                          f"{type(e).__name__}); feche e rode de novo", saida)
+                continue
             voltaram += 1
         else:
             tela.erro(f"Nao desfeito: {linha['pasta']}/{linha['depois']}", saida)

@@ -73,7 +73,7 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
         return ["--revisar"]
     if opcao == "3":
         n = _perguntar(entrada, "  Quantas redações no ensaio? [Enter = 3]: ") or "3"
-        if not n.isdigit() or int(n) < 1:
+        if not n.isdecimal() or int(n) < 1:
             tela.erro("Número inválido.", saida)
             return None
         if _sim(entrada, f"Enviar agora as {n} para a CONTA DE TESTE? (n = so mostrar quais iriam)"):
@@ -106,7 +106,7 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
             n = _perguntar(entrada, f"  {pergunta}")
             if not n:
                 continue
-            if not n.isdigit() or int(n) < 1:
+            if not n.isdecimal() or int(n) < 1:
                 tela.erro("Número inválido: nada foi enviado.", saida)
                 return None
             argumentos += [flag, n]
@@ -129,7 +129,7 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
         for i, log in enumerate(logs, 1):
             saida(f"    {tela.c(f'{i})', 'tecla')} {log.name}")
         escolha = _perguntar(entrada, "  Qual desfazer? (Enter = nenhuma): ")
-        if escolha.isdigit() and 1 <= int(escolha) <= len(logs):
+        if escolha.isdecimal() and 1 <= int(escolha) <= len(logs):
             return ["--desfazer-renomeacao", str(logs[int(escolha) - 1])]
         return None
     if opcao == "11":
@@ -151,16 +151,17 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
         opcao = _perguntar(entrada, "\n  Escolha uma opção: ")
         if opcao in ("0", ""):
             return 0
-        argumentos = argumentos_da_opcao(opcao, entrada, saida=saida)
-        if argumentos is not None:
-            try:
+        try:
+            # Bug 017: as perguntas da opção também ficam dentro do try
+            argumentos = argumentos_da_opcao(opcao, entrada, saida=saida)
+            if argumentos is not None:
                 main(argumentos)
-            except KeyboardInterrupt:
-                tela.aviso("Interrompido (Ctrl+C).", saida)
-            except Exception as e:  # o menu não fecha por causa de um erro
-                import logging
-                logging.getLogger("automacao_redacoes").exception("Erro no menu (opcao %s)", opcao)
-                tela.erro(f"Erro inesperado: {type(e).__name__}: {e}", saida)
-                tela.status("fraco", "Detalhes em logs/automacao.log.", saida)
+        except KeyboardInterrupt:
+            tela.aviso("Interrompido (Ctrl+C).", saida)
+        except Exception as e:  # o menu não fecha por causa de um erro
+            import logging
+            logging.getLogger("automacao_redacoes").exception("Erro no menu (opcao %s)", opcao)
+            tela.erro(f"Erro inesperado: {type(e).__name__}: {e}", saida)
+            tela.status("fraco", "Detalhes em logs/automacao.log.", saida)
         if _perguntar(entrada, "\n  Enter para voltar ao menu (0 = sair): ") == "0":
             return 0

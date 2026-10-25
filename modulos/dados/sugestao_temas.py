@@ -14,7 +14,7 @@ from pathlib import Path
 
 from rapidfuzz import fuzz
 
-from modulos.dados.arquivos_csv import abrir_csv, garantir_quebra_final
+from modulos.dados.arquivos_csv import CsvIlegivel, abrir_csv, garantir_quebra_final, ler_linhas_ponto_e_virgula
 from modulos.dados.normalizacao import extrair_codigo_do_tema_site, extrair_codigo_tema, normalizar_nome
 
 SCORE_MINIMO = 60.0   # abaixo disso: nenhum tema parecido
@@ -61,25 +61,34 @@ _RESPOSTAS_SIM = {"sim", "s", "x", "ok", "yes"}
 
 
 def _ler_pastas(caminho: Path) -> list[dict]:
-    if not Path(caminho).is_file():
-        return []
-    return [{k.strip().lower(): (v or "").strip() for k, v in linha.items() if k}
-            for linha in csv.DictReader(abrir_csv(caminho), delimiter=";")]
+    return ler_linhas_ponto_e_virgula(caminho, ["pasta", "codigo", "aprovado"])
 
 
 def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
     """{pasta: codigo} das linhas com aprovado=sim e código preenchido.
 
     T43: se a coluna ``tema`` começa por outro código, a linha é ignorada
-    (o Excel transforma "000" em "0", e "0" também é um tema do site)."""
+    (o Excel transforma "000" em "0", e "0" também é um tema do site).
+    Bug 010: com a coluna ``tema`` vazia não há como conferir; a linha
+    também é ignorada (com aviso)."""
+    from modulos.base import tela
+    try:
+        linhas = _ler_pastas(caminho)
+    except CsvIlegivel as e:
+        tela.aviso(f"pastas_aprovadas: {e}; nenhuma pasta aprovada foi lida.")
+        return {}
     codigos = {}
-    for linha in _ler_pastas(caminho):
+    for linha in linhas:
         pasta, codigo = linha.get("pasta"), linha.get("codigo")
         if linha.get("aprovado", "").lower() not in _RESPOSTAS_SIM or not pasta or not codigo:
             continue
         do_tema = extrair_codigo_do_tema_site(linha.get("tema", ""))
-        if do_tema and do_tema != codigo:
-            from modulos.base import tela
+        if not do_tema:
+            tela.aviso(f"pastas_aprovadas: '{pasta}' tem codigo {codigo} sem o tema escrito; ignorada. "
+                       "Preencha a coluna tema como no site (ex.: 000- DISSERTATIVO ARGUMENTATIVO) "
+                       "ou aprove pela revisao (menu 2).")
+            continue
+        if do_tema != codigo:
             tela.aviso(f"pastas_aprovadas: '{pasta}' tem codigo {codigo} mas o tema e {do_tema} "
                        "(o Excel tira os zeros?); ignorada. Corrija o codigo ou o tema.")
             continue
@@ -89,7 +98,9 @@ def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
 
 def aprovar_pasta(caminho: Path, pasta: str, codigo: str, tema: str) -> None:
     """Grava pasta -> código com aprovado=sim (T29, revisão interativa).
-    Atualiza a linha da pasta se já existir; as outras ficam como estão."""
+    Atualiza a linha da pasta se já existir; as outras ficam como estão.
+    Bug 014: arquivo com cabeçalho estranho -> CsvIlegivel, sem regravar
+    (regravar trocaria as aprovações antigas por linhas vazias)."""
     caminho = Path(caminho)
     linhas = _ler_pastas(caminho)
     nova = {"pasta": pasta, "codigo": codigo, "tema": tema, "aprovado": "sim", "semelhanca": "revisao interativa"}
@@ -110,7 +121,12 @@ def registrar_sugestoes_pasta(sugestoes: list[tuple[str, str, str, float]], cami
     """Acrescenta as pastas ainda não listadas (mesmo sem tema parecido: o
     código pode ser digitado à mão). Nunca altera linhas existentes."""
     caminho = Path(caminho)
-    ja_tem = {linha.get("pasta", "") for linha in _ler_pastas(caminho)}
+    try:
+        ja_tem = {linha.get("pasta", "") for linha in _ler_pastas(caminho)}
+    except CsvIlegivel as e:
+        from modulos.base import tela
+        tela.aviso(f"pastas_aprovadas: {e}; sugestoes novas nao gravadas (o arquivo ficou como esta).")
+        return 0
     novas = [
         {"pasta": pasta, "codigo": codigo, "tema": texto, "aprovado": "",
          "semelhanca": f"{score:.0f}%" if codigo else "nenhum tema parecido"}

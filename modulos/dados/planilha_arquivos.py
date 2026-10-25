@@ -231,6 +231,12 @@ ARQUIVOS_DO_SISTEMA = {"thumbs.db", "desktop.ini"}
 def descobrir_arquivos(cfg: Config) -> dict[str, list[str]]:
     extensoes_permitidas = {ext.lower() for ext in cfg.extensoes}
     resultado = {}
+    if cfg.pasta_raiz.exists():
+        # Bug 015: foto solta na raiz não tem tema; avisa em vez de sumir
+        for f in sorted(cfg.pasta_raiz.iterdir(), key=lambda x: x.name):
+            if f.is_file() and f.suffix.lower() in extensoes_permitidas and not f.name.startswith((".", "~$")):
+                _emitir_aviso(f"Arquivo fora de pasta de tema ignorado: {f.name} "
+                              "(coloque dentro da pasta do tema)")
     for pasta in descobrir_pastas(cfg):
         arquivos = []
         for f in sorted(pasta.iterdir(), key=lambda x: x.name):

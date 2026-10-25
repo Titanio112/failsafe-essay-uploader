@@ -53,7 +53,14 @@ def extrair_pessoa(nome_arquivo: str) -> str:
     else:
         # SEM separador (espaço, _, ., -) ou fim → NÃO é código, o stem inteiro é a pessoa
         resto = stem
-    pessoa, sep, _ = resto.partition(MARCADOR_PESSOA)
+    pessoa, sep, depois = resto.partition(MARCADOR_PESSOA)
+    # Bug 011: "Ana Souza - Red 2" / "- Redação (2)" / "- Red - Copia" é
+    # página 2 ou cópia, como "Ana Souza 2": o número volta para o fim do
+    # nome e a conciliação manda para REVISAO_MANUAL (T43/T48).
+    if sep:
+        numero = re.search(r"\d+", depois)
+        if numero or re.search(r"c[oó]pia", depois, re.IGNORECASE):
+            pessoa = f"{pessoa} {numero.group(0) if numero else 2}"
     # T43: "Ana_Souza" (celular/WhatsApp) -> "Ana Souza"; normalizar_nome mantém o "_"
     return pessoa.replace("_", " ").strip()
 
