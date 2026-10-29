@@ -82,7 +82,7 @@ def test_arquivo_morto_mostra_primeiro_as_enviadas_e_e_escolhe_so_elas(tmp_path)
     for nome in ("10 - A", f"{PREFIXO}53 - T", "99 - Z"):
         (tmp_path / nome).mkdir()
     pastas = arquivo_morto.pastas_de_tema(tmp_path)
-    assert pastas[0][0].name == f"{PREFIXO}53 - T"
+    assert [p.name for p, _ in pastas] == [f"{PREFIXO}53 - T"]  # M3: só as marcadas aparecem
     assert [p.name for p in arquivo_morto._escolher(pastas, lambda _: "e", NADA)] == [f"{PREFIXO}53 - T"]
 
 

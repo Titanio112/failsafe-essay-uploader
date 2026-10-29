@@ -87,46 +87,49 @@ def _pasta_com_fotos(raiz: Path, nome: str, n: int) -> Path:
 
 
 def test_arquiva_as_escolhidas_sem_apagar(tmp_path):
+    # M3: só pasta "ENVIADA - " é oferecida; destino Arquivo morto/<Escola>/<Turma>/<data>/
     raiz = tmp_path / "Redações plataforma"
-    _pasta_com_fotos(raiz, "3B - Velha", 2)
+    _pasta_com_fotos(raiz, "ENVIADA - 3B - Velha", 2)
+    _pasta_com_fotos(raiz, "ENVIADA - 3B - Outra", 1)
     _pasta_com_fotos(raiz, "3B - Nova", 1)
     (raiz / "LEIA-ME.md").write_text("x", encoding="utf-8")
-    r = arquivo_morto.executar_arquivar(raiz, tmp_path, tmp_path / "relatorios",
+    r = arquivo_morto.executar_arquivar(raiz, tmp_path / "Arquivo morto" / "E" / "T", tmp_path / "relatorios",
                                         _respostas("2", "s"), lambda *_: None)
     assert r == 0
-    assert sorted(p.name for p in raiz.iterdir()) == ["3B - Nova", "LEIA-ME.md"]
-    destino = next((tmp_path / "Arquivo morto").iterdir())
-    assert sorted(p.name for p in (destino / "3B - Velha").iterdir()) == ["Aluno 0.JPG", "Aluno 1.JPG"]
+    assert sorted(p.name for p in raiz.iterdir()) == ["3B - Nova", "ENVIADA - 3B - Outra", "LEIA-ME.md"]
+    destino = next((tmp_path / "Arquivo morto" / "E" / "T").iterdir())
+    assert sorted(p.name for p in (destino / "ENVIADA - 3B - Velha").iterdir()) == ["Aluno 0.JPG", "Aluno 1.JPG"]
     log = next((tmp_path / "relatorios").glob("arquivamento_*.csv"))
     with open(log, encoding="utf-8-sig") as f:
         linhas = list(csv.DictReader(f, delimiter=";"))
-    assert len(linhas) == 1 and linhas[0]["origem"].endswith("3B - Velha")
+    assert len(linhas) == 1 and linhas[0]["origem"].endswith("ENVIADA - 3B - Velha")
 
 
 def test_arquivar_nao_move_sem_confirmar(tmp_path):
     raiz = tmp_path / "R"
-    _pasta_com_fotos(raiz, "A", 1)
-    assert arquivo_morto.executar_arquivar(raiz, tmp_path, tmp_path / "rel", _respostas("t", "n"),
+    _pasta_com_fotos(raiz, "ENVIADA - A", 1)  # M3: só as marcadas
+    assert arquivo_morto.executar_arquivar(raiz, tmp_path / "Arquivo morto", tmp_path / "rel", _respostas("t", "n"),
                                            lambda *_: None) == 0
-    assert (raiz / "A").is_dir() and not (tmp_path / "Arquivo morto").exists()
+    assert (raiz / "ENVIADA - A").is_dir() and not (tmp_path / "Arquivo morto").exists()
 
 
 def test_arquivar_resposta_invalida(tmp_path):
     raiz = tmp_path / "R"
-    _pasta_com_fotos(raiz, "A", 1)
-    assert arquivo_morto.executar_arquivar(raiz, tmp_path, tmp_path / "rel", _respostas("9"),
+    _pasta_com_fotos(raiz, "ENVIADA - A", 1)  # M3: só as marcadas
+    assert arquivo_morto.executar_arquivar(raiz, tmp_path / "Arquivo morto", tmp_path / "rel", _respostas("9"),
                                            lambda *_: None) == 2
-    assert (raiz / "A").is_dir()
+    assert (raiz / "ENVIADA - A").is_dir()
 
 
 def test_arquivar_espera_o_envio(tmp_path):
     from modulos.base.trava import trava_de_envio
     raiz = tmp_path / "R"
-    _pasta_com_fotos(raiz, "A", 1)
-    with trava_de_envio(tmp_path / "rel" / "envio.trava"):
-        assert arquivo_morto.executar_arquivar(raiz, tmp_path, tmp_path / "rel", _respostas("t", "s"),
-                                               lambda *_: None) == 2
-    assert (raiz / "A").is_dir()
+    _pasta_com_fotos(raiz, "ENVIADA - A", 1)  # M3: só as marcadas; a trava é a global (parâmetro)
+    with trava_de_envio(tmp_path / "global" / "envio.trava"):
+        assert arquivo_morto.executar_arquivar(raiz, tmp_path / "Arquivo morto", tmp_path / "rel",
+                                               _respostas("t", "s"), lambda *_: None,
+                                               trava=tmp_path / "global" / "envio.trava") == 2
+    assert (raiz / "ENVIADA - A").is_dir()
 
 
 def test_menu_11_arquivo_morto():

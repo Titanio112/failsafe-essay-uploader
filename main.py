@@ -253,8 +253,10 @@ def main(argv=None) -> int:
             return 2
         if not _tem_turma(cfg):
             return 2
-        from modulos.ferramentas.arquivo_morto import executar_arquivar
-        return executar_arquivar(cfg.pasta_raiz, config_mod.RAIZ, cfg.pasta_relatorios)
+        from modulos.ferramentas.arquivo_morto import PASTA_ARQUIVO, executar_arquivar
+        # M3: Arquivo morto/<Escola>/<Turma>/<data_hora>/; trava global (a mesma do envio)
+        return executar_arquivar(cfg.pasta_raiz, config_mod.RAIZ / PASTA_ARQUIVO / cfg.escola / cfg.turma,
+                                 cfg.pasta_relatorios, trava=Path(cfg.banco_progresso).parent / "envio.trava")
     # Os avisos já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")

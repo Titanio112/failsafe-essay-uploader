@@ -12,16 +12,21 @@ www.esquemaredacao.com.br, entrando na conta de cada aluno.
 ```
 pip install -r requirements.txt
 python -m playwright install chromium
-python main.py --preparar
+python main.py --preparar --escola "Minha Escola" --turma "3A"
 ```
+
+> **Escolas e turmas (M3, 29/10):** cada turma é `Redações plataforma/<Escola>/<Turma>/`, e todo
+> comando (menos o `--modo-teste`) precisa de `--escola` e `--turma`; `python main.py` pergunta.
+> Neste guia, `dados/...` e `relatorios/...` de uma turma ficam dentro da pasta dela. Detalhes e como
+> passar os dados de hoje para uma turma: README, "Escolas e turmas".
 
 O `--preparar` cria o que falta e mostra o que ainda precisa ser feito:
 
 | O quê | Onde | Como |
 |---|---|---|
-| Lista de alunos | `dados/dados_alunos.csv` | Uma linha por aluno: `Nome;Email` (o e-mail da plataforma) |
-| Redações | `Redações plataforma/` | Uma subpasta por tema; dentro, um `.jpg`/`.jpeg` por aluno, com o nome do aluno (sem subpastas) |
-| Senhas | `.env` | `ESQUEMA_EMAIL_TESTE`, `ESQUEMA_SENHA_TESTE`, `ESQUEMA_SENHA_PADRAO` |
+| Lista de alunos | `<Escola>/<Turma>/alunos.csv` | Uma linha por aluno: `Nome;Email;Senha` (e-mail e senha da plataforma; nome igual ao que o site mostra no menu) |
+| Redações | `<Escola>/<Turma>/temas/` | Uma subpasta por tema; dentro, um `.jpg`/`.jpeg` por aluno, com o nome do aluno (sem subpastas) |
+| Conta de teste | `.env` | `ESQUEMA_EMAIL_TESTE`, `ESQUEMA_SENHA_TESTE` (aluno usa a senha do `alunos.csv`; não há senha padrão) |
 
 Folha sem redação: ponha "em branco" no nome do arquivo; ela nunca é enviada.
 
@@ -284,7 +289,8 @@ e copie a cópia escolhida para esse nome.
 | `python main.py --envio-real --limite-alunos N` | Produção: só os N primeiros alunos do lote (só vale no `--envio-real` de produção) |
 | `python main.py --envio-real --limite-redacoes N` | Produção: só as N primeiras redações do lote (idem; no ensaio use `--ensaio N`) |
 | `python main.py --desfazer-renomeacao relatorios/renomeacoes_<data>.csv` | Volta os nomes (arquivos e pastas) de uma revisão |
-| `python main.py --pasta "outra pasta"` | Usa outra pasta de redações (recusado com `--modo-teste`, que usa sempre `testes/redacoes_teste/`) |
+| `python main.py --escola "E" --turma "T"` | Escolhe a turma (obrigatório, menos no `--modo-teste`); `--pasta` saiu |
+| `python main.py --vincular-antigos --escola "E" --turma "T"` | Registros do caderno de antes das turmas, dos alunos desta turma, passam a ser dela (cópia antes) |
 | `python -m pytest -m "not real" -q` | Testes offline (sem site) |
 
 Cada execução fica registrada em `logs/automacao.log`. O script pode ser

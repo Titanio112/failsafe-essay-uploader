@@ -9,6 +9,27 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ### Adicionado
 - `CHANGELOG.md`, modelos de issue e de pull request, etiquetas e milestones no GitHub.
+- **M3 — várias escolas e turmas:** cada turma é `Redações plataforma/<Escola>/<Turma>/`
+  (`alunos.csv`, `temas/`, `dados/`, `relatorios/`, `logs/`). `python main.py` escolhe
+  escola e turma antes do menu (opção 14 troca); comandos diretos com `--escola` e `--turma`.
+  `--preparar --escola X --turma Y` cria a turma. Exemplo inventado em `exemplos/`.
+- **M3:** `--vincular-antigos` liga os registros do caderno de antes das turmas aos alunos
+  da turma (pergunta s/n, cópia do caderno antes).
+
+### Mudado
+- **M3:** sem turma só o `--modo-teste` roda; `--pasta` saiu; com turma, `pasta_raiz`/`planilha`
+  em `[dados]` do `config.ini` são recusados.
+- **M3, senhas:** cada aluno entra com a senha da coluna `Senha` do `alunos.csv` (texto exato).
+  Sem senha, o aluno não faz login. `ESQUEMA_SENHA_PADRAO` não existe mais.
+- **M3, identidade:** o nome do menu do usuário tem de ser igual ao do `alunos.csv` (sem os
+  seletores reserva e sem aceitar nome abreviado). Homônimos na turma vão para revisão manual.
+- **M3, caderno:** continua um só (`relatorios/progresso.db`), com a coluna `turma`; as travas
+  (mesma foto, contagem do dia, já enviado) valem entre turmas e para os registros antigos.
+  `--resolver`, desfazer e "enviar as que faltam" só usam o que é da turma.
+- **M3, arquivo morto:** só pastas `ENVIADA - ...`, para `Arquivo morto/<Escola>/<Turma>/<data_hora>/`,
+  sem nunca sobrescrever.
+- **M3, repositório:** `.gitignore` cobre `alunos.csv` em qualquer lugar (menos `exemplos/`),
+  cópias e backups; a auditoria pública aceita só a lista inventada de `exemplos/`.
 
 ## [2026.10.25] — 25/10/2026
 
