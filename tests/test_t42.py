@@ -83,6 +83,7 @@ def _main_ensaio(tmp_path, monkeypatch):
         (pasta / nome_pasta).mkdir(parents=True)
         (pasta / nome_pasta / f"{ANA.nome}.JPG").write_bytes(str(pasta / nome_pasta / f"{ANA.nome}.JPG").encode())
     cfg = Config()
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     cfg.pasta_raiz = pasta
     cfg.planilha = tmp_path / "alunos.csv"
     cfg.planilha.write_text(f"Nome;Email\n{ANA.nome};{ANA.email}\n", encoding="utf-8")

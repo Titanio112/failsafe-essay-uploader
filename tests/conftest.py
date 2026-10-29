@@ -21,6 +21,18 @@ def raiz_temporaria(request, tmp_path_factory, monkeypatch):
     monkeypatch.setattr(config, "RAIZ", tmp_path_factory.mktemp("raiz"))
 
 
+@pytest.fixture
+def turma_ficticia():
+    """M3: turma inventada na RAIZ temporária (alunos.csv com senha falsa).
+    Retorna os argumentos do main: ["--escola", ..., "--turma", ...]."""
+    from modulos.base.turma import raiz_redacoes
+    pasta = raiz_redacoes() / "Escola Ficticia" / "Turma A"
+    (pasta / "temas").mkdir(parents=True)
+    (pasta / "alunos.csv").write_text("Nome;Email;Senha\nAna Exemplo;ana@example.com;senha-falsa-1\n",
+                                      encoding="utf-8")
+    return ["--escola", "Escola Ficticia", "--turma", "Turma A"]
+
+
 @pytest.fixture(autouse=True)
 def longe_da_meia_noite(monkeypatch):
     """Os testes não dependem do relógio: rodando entre 23:55 e 00:05 a trava

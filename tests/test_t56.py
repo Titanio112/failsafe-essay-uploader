@@ -21,7 +21,7 @@ from modulos.ferramentas import configuracoes, menu
 from modulos.site import conferencia_site as cs
 from modulos.site.lista_redacoes import ItemListaRedacao
 
-ANA = Aluno(nome="Ana Souza", email="ana@x.com")
+ANA = Aluno(nome="Ana Souza", email="ana@x.com", senha="s")
 
 
 def _respostas(*r):
@@ -53,10 +53,10 @@ def test_sobra_de_outro_tema_segura_todas_as_que_faltam():
 
 def test_parou_antes_conta_como_nao_tentado(tmp_path, monkeypatch):
     monkeypatch.setenv("ESQUEMA_SENHA_PADRAO", "x")
-    bia = Aluno(nome="Bia Lima", email="bia@x.com")
+    bia = Aluno(nome="Bia Lima", email="bia@x.com", senha="s")
     saidas = []
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].erro = "CAPTCHA/bloqueio: x"
         return True  # parou: a Bia nunca foi tentada
 
@@ -74,7 +74,7 @@ def test_parou_antes_conta_como_nao_tentado(tmp_path, monkeypatch):
 def test_erro_no_meio_ainda_grava_o_relatorio(tmp_path, monkeypatch):
     monkeypatch.setenv("ESQUEMA_SENHA_PADRAO", "x")
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].lista = [_linha("000")]
         raise RuntimeError("navegador caiu")
 
@@ -138,10 +138,15 @@ def test_enviar_faltantes_usa_a_fila_inteira_contra_foto_repetida(tmp_path, monk
     assert vistos["lotes"] == []  # B é a mesma foto de A: fica de fora
 
 
-def test_enviar_faltantes_bloqueado_antes_de_montar(monkeypatch):
+def test_enviar_faltantes_bloqueado_antes_de_montar(monkeypatch, capsys, turma_ficticia):
     import main as main_mod
     monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", True)
-    assert main_mod.main(["--enviar-faltantes"]) == 2
+    # M3: com turma (sem ela o main recusa antes e a trava nem seria testada)
+    dados = config_mod.RAIZ / "Redações plataforma" / "Escola Ficticia" / "Turma A" / "dados"
+    dados.mkdir()
+    (dados / "temas_site.csv").write_text("codigo,texto\n100,100- Tema\n", encoding="utf-8")
+    assert main_mod.main(["--enviar-faltantes", *turma_ficticia]) == 2
+    assert "[BLOQUEADO] Envio para alunos reais desativado" in capsys.readouterr().out
 
 
 # ─── Configurações ───────────────────────────────────────────

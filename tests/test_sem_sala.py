@@ -35,7 +35,8 @@ def test_codigo_nao_menciona_sala():
 
 
 def test_aluno_so_tem_nome_email_creditos():
-    assert [f.name for f in dataclasses.fields(Aluno)] == ["nome", "email", "creditos"]
+    # M3: + senha (do alunos.csv da turma); sala continua não existindo
+    assert [f.name for f in dataclasses.fields(Aluno)] == ["nome", "email", "creditos", "senha"]
 
 
 def test_config_ini_com_secao_planilha_nao_quebra(tmp_path):

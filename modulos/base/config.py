@@ -33,32 +33,33 @@ def configurar_modo_teste(cfg: "Config") -> None:
     cfg.arquivo_pastas_aprovadas = RAIZ / "testes" / "pastas_aprovadas_teste.csv"
 RAIZ_PASTA_REDACOES_LEIAME = """# 📂 Redações para enviar
 
-Coloque aqui as redações que o script vai enviar para a plataforma.
+Coloque aqui as redações da turma que o script vai enviar para a plataforma.
 
 ## Como organizar
 
 ```
-Redações plataforma/
-├── 100 - Impactos da invisibilidade da filiação/
-│   ├── Ana Lalara Larili.JPG
-│   └── Bruno Silva.JPG
-└── 3B - Efeitos da aporofobia/
-    ├── Ana Lalara Larili.JPG
-    └── Cecília em branco.JPG
+Redações plataforma/<Escola>/<Turma>/
+├── alunos.csv                      Nome;Email;Senha
+└── temas/
+    ├── 100 - Impactos da invisibilidade da filiação/
+    │   ├── Ana Lalara Larili.JPG
+    │   └── Bruno Silva.JPG
+    └── Efeitos da aporofobia/
+        ├── Ana Lalara Larili.JPG
+        └── Cecília em branco.JPG
 ```
 
 | O quê | Regra |
 |---|---|
-| **Subpasta** | Uma por tema. Se começar com o código do tema do site (`100 - ...`), o script já sabe o tema. |
-| **Pasta sem código** | Rode `python main.py --revisar` e escolha o tema (ou `g` = tema genérico 000, quando o tema não existe no site). |
+| **Subpasta de temas/** | Uma por tema. Se começar com o código do tema do site (`100 - ...`), o script já sabe o tema. |
+| **Pasta sem código** | Rode a revisão (menu 2) e escolha o tema (ou `g` = tema genérico 000, quando o tema não existe no site). |
 | **Arquivo** | Um JPG por aluno, com o **nome do aluno**. Nome curto ou com erro: a revisão pergunta quem é. |
 | **Folha sem redação** | Coloque `em branco` no nome. Ela nunca é enviada. |
 
 ## Depois de colocar as redações
 
-1. `python main.py` — confere tudo, sem enviar nada.
-2. `python main.py --revisar` — escolhe temas e confirma nomes.
-3. `python main.py` de novo — confere a fila.
+1. `python main.py` — escolhe a turma e abre o menu.
+2. Menu 1 confere tudo, sem enviar nada; menu 2 escolhe temas e confirma nomes.
 """
 
 # Regra do Antônio (22/10/2026): por enquanto NENHUMA redação é enviada nas
@@ -112,9 +113,18 @@ class Config:
     # Código de tema aprovado por humano para pasta sem código (T28)
     arquivo_pastas_aprovadas: Path = field(default_factory=lambda: RAIZ / "dados" / "pastas_aprovadas.csv")
 
+    # M3: escola/turma (modulos/base/turma.aplicar_turma troca os caminhos acima).
+    # Sem turma só o modo teste roda; o main recusa o resto.
+    escola: str = ""
+    turma: str = ""
+    id_turma: str = ""  # "Escola/Turma", gravado no caderno
+    temas_site: Path | None = None  # None = dados/temas_site.csv do projeto (modo teste)
+    pasta_logs: Path = field(default_factory=lambda: RAIZ / "logs")
+    dados_do_ini: bool = False  # config.ini tem [dados] pasta_raiz/planilha (recusado com turma)
+
     def __post_init__(self) -> None:
         if not self.planilha or str(self.planilha) == ".":
-            # Lista de alunos (T26): CSV em dados/ com Nome;Email (Senha é ignorada)
+            # Lista antiga (T26); com turma vira <Turma>/alunos.csv
             self.planilha = RAIZ / "dados" / "dados_alunos.csv"
 
 
@@ -131,6 +141,7 @@ def _ler_ini(caminho: Path) -> Config:
     if parser.has_section("dados"):
         sec = parser["dados"]
         pasta = sec.get("pasta_raiz", "")
+        cfg.dados_do_ini = bool(pasta or sec.get("planilha", ""))
         if pasta:
             cfg.pasta_raiz = (RAIZ / pasta).resolve()
         planilha = sec.get("planilha", "")
@@ -196,8 +207,9 @@ def eh_valor_de_exemplo(valor: str) -> bool:
     return valor.strip().startswith("<")
 
 
-def obter_senha(senha_env: str = "ESQUEMA_SENHA_PADRAO") -> str:
-    """Senha somente por variável de ambiente ou getpass. Nunca em arquivo/log."""
+def obter_senha(senha_env: str = "ESQUEMA_SENHA_TESTE") -> str:
+    """Senha da CONTA DE TESTE: variável de ambiente ou getpass. Nunca em
+    arquivo/log. M3: aluno usa só a senha dele, do alunos.csv da turma."""
     senha = os.environ.get(senha_env)
     if senha and not eh_valor_de_exemplo(senha):
         return senha

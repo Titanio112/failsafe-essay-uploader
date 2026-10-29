@@ -50,11 +50,11 @@ from modulos.dados.sugestao_temas import (
 
 
 def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pastas, codigos_pasta,
-                       revisar: str = "python main.py --revisar") -> None:
+                       revisar: str = "python main.py --revisar", temas_csv: Path = TEMAS_SITE_CSV) -> None:
     """Sugestões para o humano resolver (T26/T28): nomes e códigos de tema. Só sugere."""
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
     pastas = [p for p in arquivos if p not in codigos_pasta]
-    sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
+    sugestoes = sugerir_codigos(pastas, ler_temas_site(temas_csv))
     if not novas and not sugestoes:
         return
     tela.secao("O que falta revisar")
@@ -65,7 +65,7 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
         tela.aviso("Pastas SEM tema aprovado (nada delas é enviado):")
         for pasta, codigo, texto, score in sugestoes:
             if not codigo:
-                tela.status("fraco", f"{pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)", recuo=4)
+                tela.status("fraco", f"{pasta}: nenhum tema parecido em {temas_csv} (tema novo no site?)", recuo=4)
             else:
                 nivel = "provável" if score >= SCORE_PROVAVEL else "fraco, conferir"
                 print(f"    {tela.porcentagem(score)} {pasta}: {nivel} → {texto}")
@@ -78,7 +78,7 @@ def _ler_alunos(cfg):
         return carregar_alunos(cfg)
     except (PlanilhaError, OSError, KeyError) as e:
         tela.erro(f"Não consegui ler a lista de alunos {tela.caminho(cfg.planilha)}: {e}")
-        tela.status("fraco", "O arquivo precisa ter as colunas Nome e Email (separadas por ; ou ,).", recuo=4)
+        tela.status("fraco", "O arquivo precisa ter as colunas Nome, Email e Senha (separadas por ; ou ,).", recuo=4)
         return None
 
 
@@ -95,9 +95,22 @@ def _resumo_pasta_sem_tema(itens, alunos) -> None:
                 recuo=5)
 
 
+def _tem_turma(cfg) -> bool:
+    """M3: sem turma escolhida nada roda (nem cai na lista/pasta antigas)."""
+    if cfg.turma:
+        return True
+    tela.erro("Escolha a turma: --escola \"<Escola>\" --turma \"<Turma>\" "
+              "(ou rode python main.py para o menu). Só o --modo-teste roda sem turma.")
+    return False
+
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Automacao de redacoes — MVP")
     p.add_argument("--config", help="caminho do config.ini")
+    p.add_argument("--escola", default=None,
+                   help="escola (pasta em \"Redações plataforma/\"); obrigatória fora do --modo-teste")
+    p.add_argument("--turma", default=None,
+                   help="turma da escola (pasta com alunos.csv e temas/); vai junto com --escola")
     p.add_argument("--modo-teste", action="store_true",
                    help="usa conta de teste e pasta testes/redacoes_teste/")
     p.add_argument("--envio-real", action="store_true",
@@ -105,7 +118,7 @@ def parse_args(argv=None):
     p.add_argument("--analise-remota", action="store_true",
                    help="so leitura: login na conta de teste, le o combo de temas e atualiza dados/temas_site.csv (confirmacao ANALISAR)")
     p.add_argument("--conta-aluno", metavar="EMAIL", default=None,
-                   help="com --analise-remota: le o combo na conta deste aluno da lista (senha ESQUEMA_SENHA_PADRAO)")
+                   help="com --analise-remota: le o combo na conta deste aluno da turma (senha do alunos.csv)")
     p.add_argument("--revisar", action="store_true",
                    help="revisao no terminal: aprova o tema de cada pasta e renomeia arquivos para o nome do aluno")
     p.add_argument("--desfazer-renomeacao", metavar="LOG_CSV", default=None,
@@ -115,7 +128,7 @@ def parse_args(argv=None):
     p.add_argument("--limite-redacoes", type=int, default=None,
                    help="producao: envia so as N primeiras redacoes do lote")
     p.add_argument("--pasta", default=None,
-                   help="pasta com as redacoes; padrao: \"Redações plataforma\" na raiz do projeto")
+                   help="saiu na M3 (recusado): use --escola e --turma")
     p.add_argument("--preparar", action="store_true",
                    help="primeiro uso: cria as pastas/arquivos que faltam e mostra onde colocar cada coisa")
     p.add_argument("--sem-janela", action="store_true",
@@ -196,13 +209,26 @@ def main(argv=None) -> int:
         return 2
     if args.sem_janela:
         cfg.headless = True  # T51: escolha da pessoa; o padrão continua mostrando o navegador
-    if args.pasta and args.modo_teste:
-        tela.erro("--pasta nao vale no --modo-teste (usa sempre testes/redacoes_teste/).")
-        return 2
     if args.pasta:
-        cfg.pasta_raiz = Path(args.pasta)
-        if not cfg.pasta_raiz.is_dir():
-            tela.erro(f"Pasta de redacoes nao encontrada: {cfg.pasta_raiz}")
+        # M3: a pasta vem da turma; uma pasta solta misturaria lista e temas de turmas diferentes
+        tela.erro("--pasta saiu: escolha a turma com --escola e --turma (ou rode python main.py para o menu).")
+        return 2
+    if bool(args.escola) != bool(args.turma):
+        tela.erro("--escola e --turma vao juntos.")
+        return 2
+    if args.escola:
+        if args.modo_teste:
+            tela.erro("--modo-teste nao usa turma (usa sempre testes/redacoes_teste/).")
+            return 2
+        if cfg.dados_do_ini:
+            tela.erro("Com --escola/--turma a planilha e a pasta vem da turma: tire pasta_raiz/planilha "
+                      "da secao [dados] do config.ini.")
+            return 2
+        from modulos.base.turma import TurmaInvalida, aplicar_turma
+        try:
+            aplicar_turma(cfg, args.escola, args.turma, criar=args.preparar)
+        except TurmaInvalida as e:
+            tela.erro(str(e))
             return 2
     # Bug 020: ações que rodam sozinhas, conferidas antes de qualquer uma rodar
     sozinhas = [nome for nome, ligada in (
@@ -221,12 +247,14 @@ def main(argv=None) -> int:
         if args.envio_real or args.modo_teste or args.revisar or args.analise_remota or args.ensaio is not None:
             tela.erro("--arquivar roda sozinho.")
             return 2
+        if not _tem_turma(cfg):
+            return 2
         from modulos.ferramentas.arquivo_morto import executar_arquivar
         return executar_arquivar(cfg.pasta_raiz, config_mod.RAIZ, cfg.pasta_relatorios)
     # Os avisos já saem na tela; não repetir como UserWarning do Python
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="modulos")
-    log = configurar_logging(config_mod.RAIZ / "logs")  # T45: logs/automacao.log guarda cada execução
+    log = configurar_logging(cfg.pasta_logs)  # T45: automacao.log de cada execução (M3: da turma)
     # T57: o log diz qual comando rodou (o Antônio quer acompanhar pelos logs)
     log.info("Inicio: python main.py %s", " ".join(argv if argv is not None else sys.argv[1:]) or "(conferencia)",
              extra={"so_no_arquivo": True})
@@ -269,8 +297,11 @@ def main(argv=None) -> int:
     if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
         tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
         return 2
+    if not args.modo_teste and not _tem_turma(cfg):
+        return 2
     if args.modo_teste:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
+    temas_csv = cfg.temas_site or TEMAS_SITE_CSV  # M3: o da turma; sem turma (modo teste), o do projeto
     if args.resolver:
         # T49: só mexe no caderno; os nomes vêm da lista, se ela existir
         from modulos.ferramentas.resolver import executar_resolver
@@ -301,7 +332,7 @@ def main(argv=None) -> int:
             if aluno_conta is None:
                 tela.erro(f"{args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
                 return 2
-        return executar_analise_remota(cfg, TEMAS_SITE_CSV, aluno=aluno_conta)
+        return executar_analise_remota(cfg, temas_csv, aluno=aluno_conta)
 
     modo = ("MODO TESTE (conta de teste)" if args.modo_teste
             else "ENSAIO (redacoes reais -> conta de teste)" if args.ensaio is not None
@@ -322,8 +353,8 @@ def main(argv=None) -> int:
     else:
         if args.envio_real or args.enviar_faltantes:  # T56: as mesmas checagens antes do envio
             # Produção (F4/T24): fail-closed sem a referência de códigos do site
-            if not ler_codigos_site_csv(TEMAS_SITE_CSV):
-                tela.erro(f"Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
+            if not ler_codigos_site_csv(temas_csv):
+                tela.erro(f"Envio de producao exige {temas_csv} com os codigos do combo de temas.")
                 tela.erro("Nada foi enviado.")
                 return 2
             if config_mod.PRODUCAO_BLOQUEADA and args.ensaio is None:
@@ -350,15 +381,15 @@ def main(argv=None) -> int:
     # O CSV é só referência; a trava real é o combo da conta logada,
     # conferido item a item antes do clique (T18D).
     codigos_site: list[str] = []
-    if TEMAS_SITE_CSV.exists():
-        codigos_site = ler_codigos_site_csv(TEMAS_SITE_CSV)
+    if Path(temas_csv).exists():
+        codigos_site = ler_codigos_site_csv(temas_csv)
         if codigos_site:
-            tela.info(f"Temas do site: {len(set(codigos_site))} códigos em dados/temas_site.csv "
+            tela.info(f"Temas do site: {len(set(codigos_site))} códigos em {tela.caminho(temas_csv)} "
                       "(atualize com --analise-remota)")
         else:
-            tela.aviso("dados/temas_site.csv existe mas sem códigos válidos")
+            tela.aviso(f"{temas_csv} existe mas sem códigos válidos")
     else:
-        tela.aviso("dados/temas_site.csv não encontrado, sem validação de CODIGO_INVALIDO")
+        tela.aviso(f"{temas_csv} não encontrado, sem validação de CODIGO_INVALIDO")
 
     # Conciliação com as aprovações do humano (T26/T28); T40: vale também no modo teste
     conciliacao = conciliar_com_aprovacoes(cfg, alunos, codigos_site)
@@ -396,7 +427,7 @@ def main(argv=None) -> int:
         return _enviar_faltantes(cfg, faltam, resultado=resultado)
     if args.revisar:
         return executar_revisao(
-            resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,
+            resultado, alunos, arquivos, ler_temas_site(temas_csv), codigos_pasta,
             cfg.pasta_raiz, cfg.arquivo_pastas_aprovadas, cfg.banco_progresso,
             cfg.pasta_relatorios, nomes_aprovados,
         )
@@ -455,7 +486,8 @@ def main(argv=None) -> int:
 
     _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
                        cfg.arquivo_pastas_aprovadas, codigos_pasta,
-                       "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar")
+                       "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar",
+                       temas_csv)
 
     # Ensaio (T42): redações reais -> conta de teste
     if args.ensaio is not None:

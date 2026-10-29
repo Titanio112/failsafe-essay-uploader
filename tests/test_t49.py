@@ -69,10 +69,10 @@ def test_sem_nada_para_resolver(tmp_path):
     assert any("Nenhuma redação em revisão manual" in s for s in saidas)
 
 
-def test_main_resolver_e_menu(monkeypatch):
+def test_main_resolver_e_menu(monkeypatch, turma_ficticia):
     import main as main_mod
     from modulos.ferramentas import menu
     assert main_mod.main(["--resolver", "--envio-real"]) == 2
     monkeypatch.setattr("builtins.input", lambda _p: "q")
-    assert main_mod.main(["--resolver"]) == 0
+    assert main_mod.main(["--resolver", *turma_ficticia]) == 0  # M3: turma obrigatória
     assert menu.argumentos_da_opcao("8") == ["--resolver"]

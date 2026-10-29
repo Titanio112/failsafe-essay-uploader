@@ -226,6 +226,7 @@ def test_sem_terminal_sai_em_vez_de_travar(tmp_path):
 
 def _cfg(tmp_path, raiz):
     cfg = Config()
+    cfg.turma, cfg.pasta_raiz = "Turma", raiz  # M3: o que aplicar_turma faria (antes era --pasta)
     cfg.planilha = tmp_path / "dados_alunos.csv"
     cfg.planilha.write_text("Nome;Email\nANA LALARA LARILI DOS LARITO;ana@escola.com\n", encoding="utf-8")
     cfg.pasta_relatorios = tmp_path / "relatorios"
@@ -247,13 +248,13 @@ def test_main_revisar_e_depois_o_dry_run_tem_fila(tmp_path, monkeypatch, capsys)
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: cfg)
     monkeypatch.setattr("builtins.input", respostas("", ""))  # Enter no tema 100, Enter na Ana
 
-    assert main_mod.main(["--pasta", str(raiz), "--revisar"]) == 0
+    assert main_mod.main(["--revisar"]) == 0
     assert "1 pasta(s) aprovada(s) (1 renomeada(s)), 1 arquivo(s) renomeado(s)" in capsys.readouterr().out
     # T59: a pasta passou a ter o nome do tema do site
     assert [p.name for p in raiz.iterdir() if p.is_dir()] == [
         "100 - Impactos da invisibilidade de filiação para os cidadãos brasileiros"]
 
-    assert main_mod.main(["--pasta", str(raiz)]) == 0
+    assert main_mod.main([]) == 0
     assert "Prontas para enviar:" in capsys.readouterr().out
 
 
@@ -289,18 +290,23 @@ def analise_mocks():
                "email_teste": email_teste}
 
 
-def test_analise_remota_na_conta_do_aluno_usa_senha_padrao(tmp_path, analise_mocks, capsys):
+def test_analise_remota_na_conta_do_aluno_usa_a_senha_dele(tmp_path, analise_mocks, capsys):
+    """M3: a senha vem do alunos.csv do aluno (antes: ESQUEMA_SENHA_PADRAO)."""
+    from dataclasses import replace
     from modulos.site.analise_remota import executar_analise_remota
     caminho = tmp_path / "temas_site.csv"
     caminho.write_text("codigo,texto\n100,100- Filiação\n", encoding="utf-8")
     analise_mocks["combo"].return_value = [("100", "100- Filiação"), ("102", "102- Aporofobia")]
 
-    assert executar_analise_remota(Config(), caminho, aluno=ANA) == 0
+    assert executar_analise_remota(Config(), caminho, aluno=ANA) == 2  # sem senha: nenhuma conta abre
+    assert analise_mocks["login"].call_count == 0
+    ana = replace(ANA, senha="senha-da-ana")
+    assert executar_analise_remota(Config(), caminho, aluno=ana) == 0
 
-    analise_mocks["senha"].assert_called_once_with("ESQUEMA_SENHA_PADRAO")
+    assert analise_mocks["senha"].call_count == 0
     assert analise_mocks["email_teste"].call_count == 0
-    assert analise_mocks["login"].call_args.args[2] == ANA.email
-    assert analise_mocks["identidade"].call_args.args[1] is ANA
+    assert analise_mocks["login"].call_args.args[2:] == (ANA.email, "senha-da-ana")
+    assert analise_mocks["identidade"].call_args.args[1] is ana
     assert "Codigos novos em relacao ao CSV anterior: ['102']" in capsys.readouterr().out
 
 
@@ -322,7 +328,7 @@ def test_main_envio_real_de_producao_bloqueado_sem_ler_alunos(tmp_path, monkeypa
     monkeypatch.setattr(main_mod, "carregar_alunos", proibido)
     monkeypatch.setattr(main_mod, "executar_envio_producao", proibido)
 
-    assert main_mod.main(["--envio-real", "--pasta", str(tmp_path)]) == 2
+    assert main_mod.main(["--envio-real"]) == 2
     assert "Envio para alunos reais desativado" in capsys.readouterr().out
 
 

@@ -18,7 +18,7 @@ from modulos.ferramentas import menu
 from modulos.site import conferencia_site as cs
 from modulos.site.lista_redacoes import ItemListaRedacao
 
-ANA = Aluno(nome="Ana Souza", email="ana@x.com")
+ANA = Aluno(nome="Ana Souza", email="ana@x.com", senha="s")
 
 
 def _respostas(*r):
@@ -75,7 +75,7 @@ def test_depois_recebe_so_as_que_faltam(tmp_path, monkeypatch):
     monkeypatch.setenv("ESQUEMA_SENHA_PADRAO", "x")
     recebidos = []
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].lista = [_linha("000")]
         return False
 
@@ -92,7 +92,7 @@ def test_depois_nao_e_chamado_se_parou(tmp_path, monkeypatch):
     recebidos = []
     itens = [_item("F", "100")]
     cs.executar_conferencia_site(_cfg(tmp_path), ResultadoConciliacao(itens=itens), _respostas("CONFERIR"),
-                                 lambda *_: None, ler=lambda c, conf, s, o: (setattr(conf[0], "lista", []), True)[1],
+                                 lambda *_: None, ler=lambda c, conf, o: (setattr(conf[0], "lista", []), True)[1],
                                  depois=recebidos.append)
     assert recebidos == []
 

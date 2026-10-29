@@ -37,20 +37,22 @@ def test_padrao_e_dados_alunos_csv():
 
 
 @pytest.mark.parametrize("sep", [";", ","])
-def test_csv_com_senha_le_nome_email_e_ignora_senha(tmp_path, sep):
+def test_csv_com_senha_le_nome_email_e_senha(tmp_path, sep):
+    """M3: a senha passa a ser lida (antes era ignorada), como texto exato:
+    sem strip e sem virar número (zero à esquerda fica). Nunca no repr."""
     cfg = Config()
     cfg.planilha = _csv(tmp_path / "dados_alunos.csv", [
         ["Nome", "Email", "Senha"],
-        ["Ana Lalara Larili dos Larito", "ana@escola.com", "segredo123"],
+        ["Ana Lalara Larili dos Larito", "ana@escola.com", "0123segredo "],
         ["", "sem-nome@escola.com", "x"],
         ["Isabela Laruli Lapera", "isa@escola.com", ""],
     ], sep)
 
-    with pytest.warns(UserWarning, match="Senha"):
-        alunos = carregar_alunos(cfg)
+    alunos = carregar_alunos(cfg)
 
     assert alunos == [ANA, ISA]
-    assert "segredo123" not in repr(alunos)
+    assert [a.senha for a in alunos] == ["0123segredo ", ""]
+    assert "0123segredo" not in repr(alunos)
 
 
 def test_csv_sem_colunas_obrigatorias_da_erro_claro(tmp_path):

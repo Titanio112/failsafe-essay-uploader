@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 import re
 import sqlite3
 import sys
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from modulos.dados.planilha_arquivos import (
+    SENHAS_LIDAS,  # M3: senhas do alunos.csv também são mascaradas
     ResultadoConciliacao,
     mascarar_email,
     normalizar_nome,
@@ -43,10 +45,9 @@ _VARIAVEIS_SECRETAS = ("ESQUEMA_SENHA_PADRAO", "ESQUEMA_SENHA_TESTE")
 
 
 def _tem_segredo(texto: str) -> bool:
-    import os
     if _PADRAO_SEGREDO.search(texto):
         return True
-    valores = (os.environ.get(v, "") for v in _VARIAVEIS_SECRETAS)
+    valores = [os.environ.get(v, "") for v in _VARIAVEIS_SECRETAS] + list(SENHAS_LIDAS)
     return any(len(valor) >= 3 and valor in texto for valor in valores)
 
 
@@ -70,17 +71,26 @@ class _FiltroSanitizador(logging.Filter):
 
 def configurar_logging(pasta_logs: Path | None = None) -> logging.Logger:
     logger = logging.getLogger("automacao_redacoes")
-    if logger.handlers:
+    arquivos = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
+    if pasta_logs is not None:
+        # M3: o menu troca de turma no mesmo processo: fecha o log da turma anterior
+        alvo = os.path.abspath(Path(pasta_logs) / "automacao.log")  # como o FileHandler guarda
+        for h in arquivos:
+            if h.baseFilename != alvo:
+                h.close()
+                logger.removeHandler(h)
+    if logger.handlers and (pasta_logs is None or any(isinstance(h, logging.FileHandler) for h in logger.handlers)):
         return logger
-    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.setLevel(logging.INFO)
+        console = logging.StreamHandler(sys.stdout)
+        from modulos.base.tela import FormatoTerminal
+        console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
+        console.addFilter(_FiltroSanitizador())
+        # T54: log.info(..., extra={"so_no_arquivo": True}) vai só para o arquivo
+        console.addFilter(lambda record: not getattr(record, "so_no_arquivo", False))
+        logger.addHandler(console)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    console = logging.StreamHandler(sys.stdout)
-    from modulos.base.tela import FormatoTerminal
-    console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
-    console.addFilter(_FiltroSanitizador())
-    # T54: log.info(..., extra={"so_no_arquivo": True}) vai só para o arquivo
-    console.addFilter(lambda record: not getattr(record, "so_no_arquivo", False))
-    logger.addHandler(console)
     if pasta_logs is not None:
         pasta_logs.mkdir(parents=True, exist_ok=True)
         arq = logging.FileHandler(pasta_logs / "automacao.log", encoding="utf-8")
