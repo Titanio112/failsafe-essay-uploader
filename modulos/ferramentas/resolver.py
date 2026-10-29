@@ -10,6 +10,11 @@ o site na conta do aluno e responde aqui:
 
 A data do registro não muda (a contagem "de hoje" continua certa) e cada
 resposta fica em relatorios/resolucoes_<data>.csv.
+
+M3: só aparecem os registros da turma (e os da conta de teste sem turma,
+que não é de turma nenhuma). Os de antes da M3 (sem turma) continuam
+valendo para todas as travas, mas só aparecem aqui depois de
+``--vincular-antigos`` (com cópia do caderno antes).
 """
 
 from __future__ import annotations
@@ -28,18 +33,34 @@ COLUNAS_LOG = ["aluno", "arquivo", "tema", "antes", "depois", "resposta", "quand
 
 def executar_resolver(banco: Path, pasta_relatorios: Path, nomes: dict[str, str] | None = None,
                       entrada: Entrada | None = None, saida: Callable = print,
-                      pasta_raiz: Path | None = None) -> int:
+                      pasta_raiz: Path | None = None, turma: str | None = None,
+                      contas_teste: tuple[str, ...] = ()) -> int:
     """``nomes``: {aluno_id: nome} para mostrar o nome em vez do e-mail.
-    Retorna quantos itens foram resolvidos."""
+    ``turma`` (M3): só os registros dela (+ os da conta de teste sem turma);
+    None = todos. Retorna quantos itens foram resolvidos."""
     nomes = nomes or {}
     tela.titulo("RESOLVER REVISÕES  ·  o script não envia nada aqui", saida)
     if not Path(banco).is_file():
         tela.info("Ainda não há caderno de envios: nada para resolver.", saida)
         return 0
     with Progresso(banco) as prog:
+        filtro, params = "", ()
+        if turma is not None:
+            marcas = ",".join("?" * len(contas_teste)) or "''"  # sem conta de teste: lista que não casa
+            filtro = f" AND (turma = ? OR (turma = '' AND aluno_id IN ({marcas})))"
+            params = (turma, *contas_teste)
+            antigos = prog.con.execute(
+                f"SELECT COUNT(*) FROM progresso WHERE estado = ? AND turma = '' AND aluno_id NOT IN ({marcas})",
+                (REVISAO_MANUAL, *contas_teste)).fetchone()[0]
+            if antigos:
+                tela.aviso(f"{antigos} redação(ões) em revisão manual de antes das turmas (sem turma no caderno). "
+                           "Elas continuam travando reenvio; para resolver aqui, vincule à turma:", saida)
+                escola, nome_turma = turma.split("/", 1)
+                tela.comando(f'python main.py --vincular-antigos --escola "{escola}" --turma "{nome_turma}"',
+                             "faz cópia do caderno antes", saida)
         pendentes = prog.con.execute(
             "SELECT aluno_id, arquivo, pasta, detalhe, atualizado_em FROM progresso "
-            "WHERE estado = ? ORDER BY atualizado_em", (REVISAO_MANUAL,)).fetchall()
+            f"WHERE estado = ?{filtro} ORDER BY atualizado_em", (REVISAO_MANUAL, *params)).fetchall()
         if not pendentes:
             tela.ok("Nenhuma redação em revisão manual.", saida)
             return 0
@@ -127,3 +148,31 @@ def _registrar(log_csv: Path, linha: list) -> None:
         if novo:
             escritor.writerow(COLUNAS_LOG)
         escritor.writerow(linha)
+
+
+def vincular_antigos(banco: Path, turma: str, alunos_ids: list[str], entrada: Entrada | None = None,
+                     saida: Callable = print) -> int:
+    """M3: registros sem turma (de antes da M3) dos alunos desta turma passam a
+    ser dela. Cópia do caderno antes; pergunta s/n. Retorna quantos vinculou."""
+    from modulos.base.copia_seguranca import copiar_caderno
+    tela.titulo(f"VINCULAR REGISTROS ANTIGOS  ·  {turma}", saida)
+    if not Path(banco).is_file():
+        tela.info("Ainda não há caderno de envios: nada para vincular.", saida)
+        return 0
+    with Progresso(banco, turma) as prog:
+        marcas = ",".join("?" * len(alunos_ids)) or "''"
+        n = prog.con.execute(f"SELECT COUNT(*) FROM progresso WHERE turma = '' AND aluno_id IN ({marcas})",
+                             tuple(alunos_ids)).fetchone()[0]
+        if not n:
+            tela.ok("Nenhum registro antigo dos alunos desta turma.", saida)
+            return 0
+        tela.texto(f"{n} registro(s) do caderno sem turma são de alunos desta turma (pelo e-mail). "
+                   "Só a turma muda: estado, datas e foto ficam como estão.", saida)
+        if tela.perguntar(f"  Vincular os {n} a {turma}? (s/n): ", entrada).lower() not in ("s", "sim"):
+            tela.info("Nada mudou.", saida)
+            return 0
+        copia = copiar_caderno(prog.con, Path(banco).parent / "copias")
+        tela.info(f"Cópia de segurança do caderno: {tela.caminho(copia)}", saida)
+        vinculados = prog.vincular_antigos(alunos_ids)
+    tela.ok(f"{vinculados} registro(s) vinculado(s) a {turma}.", saida)
+    return vinculados

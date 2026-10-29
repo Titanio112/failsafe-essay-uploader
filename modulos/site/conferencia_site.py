@@ -33,7 +33,8 @@ NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não es
 OUTRO_TEMA = "talvez no site com outro tema"
 NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
 CANCELADA = "cancelada no site (conferir)"  # bug 018
-COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes"]
+COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes",
+               "turma"]  # M3: o menu 7 só usa relatório da mesma turma
 
 
 @dataclass
@@ -212,7 +213,7 @@ def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = p
         tela.status(PAPEL.get(estado, "fraco"), inicio + pasta, saida, recuo=4)
 
 
-def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
+def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path, turma: str = "") -> Path:
     caminho = Path(pasta) / f"conferencia_site_{relogio.agora():%Y%m%d_%H%M%S}.csv"
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
@@ -225,17 +226,18 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
                 escritor.writerow([conf.aluno.nome, item.pasta, item.arquivo, item.codigo_tema,
                                    conf.erro and NAO_CONFERIDO or estado, len(do_tema),
                                    " | ".join(r.data for r in do_tema),
-                                   " | ".join(r.situacao for r in do_tema)])
+                                   " | ".join(r.situacao for r in do_tema), turma])
     return caminho
 
 
 def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliacao,
-                           saida: Callable = print) -> list[ItemConciliacao] | None:
+                           saida: Callable = print, turma: str | None = None) -> list[ItemConciliacao] | None:
     """T54 (menu 7): as que faltam segundo a conferência de HOJE, sem refazê-la.
 
     Só vale relatório de hoje (Brasília): de outro dia, alguém pode ter
     mandado à mão depois. Só entram fotos que continuam conferidas na pasta
-    (mesma pasta, mesmo arquivo, mesmo aluno). None = sem relatório válido."""
+    (mesma pasta, mesmo arquivo, mesmo aluno). None = sem relatório válido.
+    ``turma`` (M3): toda linha tem de ser desta turma."""
     hoje = relogio.agora().strftime("%Y%m%d")
     relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
     if not relatorios:
@@ -251,12 +253,16 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
             leitor = csv.DictReader(f, delimiter=";")
             if leitor.fieldnames != COLUNAS_CSV:
                 raise ValueError("colunas diferentes")
+            linhas = list(leitor)
             # T56: o tema também tem de bater (pasta reaprovada com outro tema
             # depois da conferência = tema que a conferência não olhou)
-            faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in leitor
+            faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in linhas
                         if l.get("resultado") == FORA_DO_SITE}
     except (OSError, UnicodeDecodeError, ValueError, KeyError, csv.Error) as e:
         tela.aviso(f"Não consegui ler {tela.caminho(ultimo)} ({type(e).__name__}). Rode a opção 5 de novo.", saida)
+        return None
+    if turma is not None and any(l["turma"] != turma for l in linhas):
+        tela.aviso(f"{tela.caminho(ultimo)} é de outra turma. Rode a opção 5 (Conferir no site) nesta turma.", saida)
         return None
     tela.info(f"Conferência usada: {tela.caminho(ultimo)}", saida)
     return [item for item in resultado.fila_validada()
@@ -325,7 +331,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                     ("Não tentadas (parou antes)", contagem[NAO_TENTADO], "aviso")], saida)
     if parou:
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
-    tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios))}", saida)
+    tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios, cfg.id_turma))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
     if contagem[OUTRO_TEMA]:
         tela.status("fraco", "\"Outro tema?\": o site tem redações a mais de outro tema (ex.: mandada como 000).",

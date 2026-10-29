@@ -142,6 +142,9 @@ def parse_args(argv=None):
                    help="arquivo morto: move pastas de tema ja enviadas para \"Arquivo morto/<data>\" (nada e apagado)")
     p.add_argument("--resolver", action="store_true",
                    help="resolve as redacoes em REVISAO_MANUAL: chegou no site (s) ou nao (n)")
+    p.add_argument("--vincular-antigos", action="store_true",
+                   help="registros do caderno de antes das turmas, dos alunos desta turma, passam a ser dela "
+                        "(copia do caderno antes; pergunta s/n)")
     p.add_argument("--ensaio", nargs="?", type=int, const=QUANTIDADE_PADRAO, default=None, metavar="N",
                    help=f"redacoes REAIS ja conferidas (padrao {QUANTIDADE_PADRAO}) vao para a CONTA DE TESTE; "
                         "com --envio-real envia (ENVIAR TESTE)")
@@ -156,7 +159,7 @@ def _executar_ensaio(cfg, resultado, alunos, quantidade: int, envio_real: bool) 
     if any(a.id == conta.id for a in alunos):
         tela.erro("ESQUEMA_EMAIL_TESTE e o e-mail de um aluno da lista. Ensaio cancelado.")
         return 2
-    with Progresso(cfg.banco_progresso) as progresso:
+    with Progresso(cfg.banco_progresso, cfg.id_turma) as progresso:
         lotes = montar_lote_ensaio(resultado, cfg.pasta_raiz, conta, progresso, quantidade)
         tela.secao("Ensaio na conta de teste")
         if not lotes:
@@ -188,7 +191,7 @@ def _enviar_faltantes(cfg, faltam, entrada=None, resultado=None) -> int:
     # pastas" e a contagem por tema precisam de todas) e depois fica só com estas
     completo = resultado or ResultadoConciliacao(itens=list(faltam))
     chaves = {(item.aluno.id, item.chave) for item in faltam}
-    with Progresso(cfg.banco_progresso) as progresso:
+    with Progresso(cfg.banco_progresso, cfg.id_turma) as progresso:
         lotes, ignorados = montar_lote_producao(completo, cfg.pasta_raiz, progresso)
         for lote in lotes:
             lote.itens = [i for i in lote.itens if (lote.aluno.id, i.chave_progresso) in chaves]
@@ -233,6 +236,7 @@ def main(argv=None) -> int:
     # Bug 020: ações que rodam sozinhas, conferidas antes de qualquer uma rodar
     sozinhas = [nome for nome, ligada in (
         ("--preparar", args.preparar), ("--arquivar", args.arquivar), ("--resolver", args.resolver),
+        ("--vincular-antigos", args.vincular_antigos),
         ("--desfazer-renomeacao", bool(args.desfazer_renomeacao)), ("--conferir-site", args.conferir_site),
         ("--enviar-faltantes", args.enviar_faltantes), ("--analise-remota", args.analise_remota)) if ligada]
     envio = args.envio_real or args.modo_teste or args.ensaio is not None or args.revisar
@@ -311,13 +315,26 @@ def main(argv=None) -> int:
         import os
         from dotenv import load_dotenv
         load_dotenv()
+        contas_teste = ()
         if os.getenv("ESQUEMA_EMAIL_TESTE"):
-            nomes[os.environ["ESQUEMA_EMAIL_TESTE"].strip().casefold()] = NOME_CONTA_TESTE
-        executar_resolver(cfg.banco_progresso, cfg.pasta_relatorios, nomes, pasta_raiz=cfg.pasta_raiz)
+            contas_teste = (os.environ["ESQUEMA_EMAIL_TESTE"].strip().casefold(),)
+            nomes[contas_teste[0]] = NOME_CONTA_TESTE
+        # M3: só os registros desta turma (+ os da conta de teste, que não é de turma nenhuma)
+        executar_resolver(cfg.banco_progresso, cfg.pasta_relatorios, nomes, pasta_raiz=cfg.pasta_raiz,
+                          turma=cfg.id_turma, contas_teste=contas_teste)
+        return 0
+    if args.vincular_antigos:
+        from modulos.ferramentas.resolver import vincular_antigos
+        alunos = _ler_alunos(cfg)
+        if alunos is None:
+            return 2
+        vincular_antigos(cfg.banco_progresso, cfg.id_turma, [a.id for a in alunos])
         return 0
     if args.desfazer_renomeacao:
         tela.titulo("DESFAZER RENOMEAÇÃO")
-        desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz, banco=cfg.banco_progresso)
+        # M3: log de outra turma (outra pasta de temas) é recusado
+        desfazer_renomeacoes(Path(args.desfazer_renomeacao), cfg.pasta_raiz, banco=cfg.banco_progresso,
+                             exigir_raiz=True)
         return 0
 
     # Análise remota (T27): só lê o combo de temas do site e atualiza o CSV
@@ -418,7 +435,7 @@ def main(argv=None) -> int:
         from modulos.site.conferencia_site import faltantes_do_relatorio
         load_dotenv()
         tela.titulo("ENVIAR AS QUE FALTAM NO SITE")
-        faltam = faltantes_do_relatorio(cfg.pasta_relatorios, resultado)
+        faltam = faltantes_do_relatorio(cfg.pasta_relatorios, resultado, turma=cfg.id_turma)
         if faltam is None:
             return 2
         if not faltam:
@@ -430,6 +447,7 @@ def main(argv=None) -> int:
             resultado, alunos, arquivos, ler_temas_site(temas_csv), codigos_pasta,
             cfg.pasta_raiz, cfg.arquivo_pastas_aprovadas, cfg.banco_progresso,
             cfg.pasta_relatorios, nomes_aprovados,
+            turma_args=" --modo-teste" if args.modo_teste else f' --escola "{cfg.escola}" --turma "{cfg.turma}"',
         )
     csv_path = gerar_relatorio_conciliacao(
         resultado, cfg.pasta_relatorios / "relatorio_conciliacao.csv"
@@ -438,7 +456,7 @@ def main(argv=None) -> int:
         resultado, cfg.pasta_relatorios / "fila_dry_run.txt"
     )
 
-    with Progresso(cfg.banco_progresso) as prog:
+    with Progresso(cfg.banco_progresso, cfg.id_turma) as prog:
         for item in resultado.fila_validada():
             if prog.obter(item.aluno.id, item.chave) is None:
                 prog.marcar(item.aluno.id, item.chave, "A_ENVIAR", pasta=item.pasta)
@@ -495,12 +513,12 @@ def main(argv=None) -> int:
 
     # Modo teste com envio real: executar fluxo de envio de teste
     if args.modo_teste and args.envio_real:
-        with Progresso(cfg.banco_progresso) as progresso:
+        with Progresso(cfg.banco_progresso, cfg.id_turma) as progresso:
             return executar_envio_teste(cfg, progresso)
 
     # Produção com envio real (F4/T24): confirmação ENVIAR dentro do fluxo
     if args.envio_real:
-        with Progresso(cfg.banco_progresso) as progresso:
+        with Progresso(cfg.banco_progresso, cfg.id_turma) as progresso:
             return executar_envio_producao(
                 cfg, resultado, progresso,
                 limite_alunos=args.limite_alunos,
