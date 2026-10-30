@@ -86,7 +86,7 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
             abrir_formulario_envio(page)
             temas = ler_combo_temas(page)
         except Exception as e:
-            log.error("Analise remota falhou: %s. %s ficou como estava.", type(e).__name__, caminho_csv)
+            log.error("Analise remota falhou: %s: %s. %s ficou como estava.", type(e).__name__, e, caminho_csv)
             return 1
         finally:
             context.close()

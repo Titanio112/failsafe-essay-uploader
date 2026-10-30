@@ -193,6 +193,17 @@ def test_analise_remota_combo_vazio_nao_mexe_no_csv(tmp_path, analise_mocks):
     assert caminho.read_text(encoding="utf-8") == "codigo,texto\n9,antigo\n"
 
 
+def test_analise_remota_falha_de_identidade_mostra_o_diagnostico(tmp_path, analise_mocks):
+    from modulos.site import analise_remota as ar
+    from modulos.site.login import IdentidadeDivergente
+    caminho = tmp_path / "temas_site.csv"
+    with patch.object(ar, "confirmar_identidade", side_effect=IdentidadeDivergente("Encontrado: VAZIO")), \
+         patch.object(ar, "log") as log:
+        assert ar.executar_analise_remota(Config(), caminho) == 1
+    assert "Encontrado: VAZIO" in log.error.call_args.args[0] % log.error.call_args.args[1:]
+    assert not caminho.exists()
+
+
 def test_analise_remota_sem_ANALISAR_nao_faz_login(tmp_path, analise_mocks):
     from modulos.site.analise_remota import executar_analise_remota
     analise_mocks["input"].return_value = "analisar"
