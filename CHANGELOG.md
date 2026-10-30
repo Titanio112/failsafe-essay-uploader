@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Primeiro uso guiado (#34):** sem nenhuma turma, `python main.py` pergunta "É a primeira vez?" e monta escolas e turmas passo a passo (ou cria só uma escola de exemplo), com `LEIA-ME.md` em cada pasta, links clicáveis e resumo final.
 - `CHANGELOG.md`, modelos de issue e de pull request, etiquetas e milestones no GitHub.
 - **M3 — várias escolas e turmas:** cada turma é `Redações plataforma/<Escola>/<Turma>/`
   (`alunos.csv`, `temas/`, `dados/`, `relatorios/`, `logs/`). `python main.py` escolhe
