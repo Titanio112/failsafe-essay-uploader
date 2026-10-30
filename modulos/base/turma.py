@@ -22,6 +22,8 @@ from pathlib import Path
 from modulos.base import config as config_mod
 
 PLANILHA = "alunos.csv"
+# Pasta de exemplo dentro de temas/: a pessoa troca o nome pelo tema. Enquanto tiver este nome, o script a ignora.
+PASTA_GUIA = "Renomeie_Para_O_Tema_E_Coloque_As_Redacoes_Aqui"
 _PROIBIDOS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 

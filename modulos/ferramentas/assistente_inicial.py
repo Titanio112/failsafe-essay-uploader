@@ -1,4 +1,4 @@
-"""Primeiro uso guiado (issue #34): cria escolas e turmas perguntando, com LEIA-ME.md em cada pasta.
+"""Primeiro uso guiado (issue #34): cria escolas e turmas perguntando; um LEIA-ME.md por escola.
 
 Só roda quando não existe nenhuma turma (``listar_escolas()`` vazio) e quem chama
 tem terminal. Só cria pastas e arquivos-modelo; nunca abre o site nem lê senha.
@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Callable
 
 from modulos.base import tela
-from modulos.base.config import PASTA_REDACOES, RAIZ_PASTA_REDACOES_LEIAME
-from modulos.base.turma import PLANILHA, TurmaInvalida, _validar_nome, listar_escolas, pasta_da_turma, raiz_redacoes
+from modulos.base.config import PASTA_REDACOES
+from modulos.base.turma import PASTA_GUIA, PLANILHA, TurmaInvalida, _validar_nome, listar_escolas, pasta_da_turma
 
 Entrada = Callable[[str], str] | None
 LEIA_ME = "LEIA-ME.md"
@@ -20,30 +20,22 @@ MAX_ITENS = 99
 
 TEXTO_ESCOLA = """# Escola: {escola}
 
-Cada pasta aqui dentro é uma **turma** desta escola. Para criar outra turma, rode `python main.py`
-e escolha "12) Primeiro uso", ou crie a pasta com um `alunos.csv` dentro.
-"""
-TEXTO_TURMA = """# Turma: {escola} / {turma}
+Este é o único LEIA-ME desta escola. Cada pasta aqui dentro é uma **turma**.
 
+## Dentro de cada turma
 - `alunos.csv`: um aluno por linha, no formato `Nome;Email;Senha` (e-mail e senha da plataforma).
   Aluno sem senha não entra no site. Este arquivo nunca vai para o GitHub.
 - `temas/`: uma pasta por tema, com as fotos das redações dentro.
-- As pastas `dados/`, `relatorios/` e `logs/` aparecem sozinhas quando o script roda.
-"""
-TEXTO_TEMAS = """# Pasta temas/
+- `dados/`, `relatorios/` e `logs/` aparecem sozinhas quando o script roda.
 
-Crie **uma pasta por tema** e ponha dentro as fotos (JPG) das redações:
+## Como colocar as redações
+1. Em `temas/` já existe a pasta `{guia}`.
+2. **Renomeie** essa pasta para o tema: `<código> - <nome do tema>` (ex.: `100 - Filiação`).
+   O **código** é o número no começo do nome e tem de existir na plataforma.
+3. Solte dentro dela as fotos (JPG), uma por aluno, com o nome do aluno: `Ana Souza.jpg`.
+4. Mais um tema? Crie outra pasta ao lado, do mesmo jeito. Pasta "ENVIADA - ..." é ignorada (tema já enviado).
 
-    temas/<código> - <nome do tema>/<Nome do aluno>.jpg
-
-- O **código** é o número no começo do nome da pasta (ex.: `100 - Filiação`). Ele tem de existir na plataforma.
-- Cada foto leva o nome do aluno, como está na lista (`Ana Souza.jpg`).
-- Pasta "ENVIADA - ..." é ignorada (tema já enviado).
-"""
-TEXTO_TEMA_EXEMPLO = """# Exemplo de pasta de tema
-
-Ponha aqui as fotos desta turma neste tema, uma por aluno (`Aluno Exemplo.jpg`).
-O número no começo do nome da pasta (100) é o código do tema na plataforma; troque pelo código real.
+Para adicionar ou renomear escolas e turmas: `python main.py` -> 13) Configurações.
 """
 
 
@@ -93,19 +85,15 @@ def _escrever(arquivo: Path, texto: str, criados: list[Path]) -> None:
 
 
 def criar_turma(escola: str, turma: str, criados: list[Path], exemplo: bool = False) -> Path:
-    """Cria Redações plataforma/<escola>/<turma>/ (alunos.csv, temas/, LEIA-ME.md em cada nível)."""
+    """Cria Redações plataforma/<escola>/<turma>/ (alunos.csv, temas/<pasta-guia>) e o LEIA-ME.md da escola."""
     pasta = pasta_da_turma(escola, turma, criar=True)
-    temas = pasta / "temas"
-    temas.mkdir(parents=True, exist_ok=True)
-    if exemplo:  # aluno inventado e SEM senha: nunca entra no site
-        tema = temas / "100 - Exemplo de tema"
-        tema.mkdir(exist_ok=True)
-        _escrever(tema / LEIA_ME, TEXTO_TEMA_EXEMPLO, criados)
+    guia = pasta / "temas" / PASTA_GUIA
+    if not guia.exists():
+        guia.mkdir(parents=True)
+        criados.append(guia)
+    # aluno inventado e SEM senha: nunca entra no site
     _escrever(pasta / PLANILHA, CABECALHO + ("Aluno Exemplo;aluno.exemplo@example.com;\n" if exemplo else ""), criados)
-    _escrever(raiz_redacoes() / LEIA_ME, RAIZ_PASTA_REDACOES_LEIAME, criados)
-    _escrever(pasta.parent / LEIA_ME, TEXTO_ESCOLA.format(escola=escola), criados)
-    _escrever(pasta / LEIA_ME, TEXTO_TURMA.format(escola=escola, turma=turma), criados)
-    _escrever(temas / LEIA_ME, TEXTO_TEMAS, criados)
+    _escrever(pasta.parent / LEIA_ME, TEXTO_ESCOLA.format(escola=escola, guia=PASTA_GUIA), criados)
     return pasta
 
 
@@ -155,9 +143,10 @@ def _resumo(criadas: list[tuple[str, str]], criados: list[Path]) -> bool:
     tela.secao("Como colocar as redações")
     for linha in (
         "1. Abra a pasta da turma e preencha o alunos.csv: Nome;Email;Senha, um aluno por linha.",
-        "2. Dentro de temas/, crie uma pasta por tema: \"100 - Nome do tema\" (o número do começo é o código do tema).",
-        "3. Ponha as fotos JPG dentro da pasta do tema, uma por aluno, com o nome do aluno: Ana Souza.jpg.",
+        f"2. Em temas/ está a pasta \"{PASTA_GUIA}\": renomeie para \"<código> - <tema>\" (ex.: 100 - Filiação).",
+        "3. Solte dentro dela as fotos JPG, uma por aluno, com o nome do aluno: Ana Souza.jpg.",
         "4. Rode python main.py, escolha a escola e a turma e use \"1) Conferir as redações\" (não envia nada).",
+        "O LEIA-ME.md de cada escola explica tudo de novo.",
     ):
         tela.status("fraco", linha, recuo=4)
     tela.status("ok" if tudo_certo else "erro",
