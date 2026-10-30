@@ -12,6 +12,7 @@ continua podendo usar ``python main.py --revisar --escola X --turma Y`` etc.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Callable
 
@@ -197,6 +198,11 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print) -> t
     while True:
         escolas = listar_escolas()
         if not escolas:
+            if entrada is None and sys.stdin.isatty():  # primeiro uso guiado (issue #34); só com pessoa no teclado
+                from modulos.ferramentas.assistente_inicial import executar_assistente
+                if executar_assistente():
+                    continue
+                return None
             tela.aviso("Nenhuma turma encontrada. Cada turma é uma pasta "
                        f"\"{config_mod.PASTA_REDACOES}/<Escola>/<Turma>/\" com alunos.csv.", saida)
             tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida)
