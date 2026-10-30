@@ -208,7 +208,12 @@ Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
 
 - `python main.py` pergunta a escola e a turma, mostra o resumo e abre o menu só daquela turma
   (opção 14 troca de turma). Direto: `python main.py --escola "Escola" --turma "3A" --revisar`.
-- Turma nova: `python main.py --preparar --escola "Escola" --turma "3A"` (cria `alunos.csv` e `temas/`).
+- Turma nova: na escolha de escola, tecla `n` (escola nova ou turma nova numa escola); ou, direto,
+  `python main.py --preparar --escola "Escola" --turma "3A"` (cria `alunos.csv` e `temas/`).
+- Turma sem a lista de temas do site: ao escolhê-la o menu oferece lê-la na hora (só leitura, conta de teste).
+- **Sem terminal:** duplo clique em `AutoReda.bat` abre o menu. Para ter na Área de Trabalho (ou em outra
+  pasta), duplo clique em `Criar atalho AutoReda.bat` (ou `Criar atalho AutoReda.bat "C:\outra\pasta"`); o
+  atalho aponta para a pasta do projeto e funciona de onde estiver. Não copie o `.bat`, copie o atalho.
 - Sem turma só o `--modo-teste` roda. `--pasta` saiu; com `--escola/--turma`, `pasta_raiz`/`planilha`
   em `[dados]` do `config.ini` são recusados.
 - **Nome igual ao do site.** Depois do login, o nome no menu do usuário tem de ser igual ao do
