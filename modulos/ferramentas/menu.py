@@ -60,7 +60,7 @@ def mostrar_menu(saida: Callable = print, turma: tuple[str, str] | None = None) 
         if tecla in ("6", "7") and config_mod.PRODUCAO_BLOQUEADA:
             ajuda = tela.c(f"{tela.SIMBOLOS['bloqueado']} bloqueado (só a conta de teste envia)", "bloqueado")
         elif tecla == "13":  # T52: mostra a escolha atual
-            ajuda = tela.c(resumo_navegador(), "fraco")
+            ajuda = tela.c(f"{resumo_navegador()} · escolas e turmas", "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
         rotulo = f"{tecla})".rjust(3)  # 1) a 14) alinhados
@@ -144,7 +144,8 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
     if opcao == "12":
         return ["--preparar"]
     if opcao == "13":
-        executar_configuracoes(entrada=entrada, saida=saida)
+        from modulos.ferramentas.estrutura import executar_configuracoes_e_estrutura
+        executar_configuracoes_e_estrutura(entrada=entrada, saida=saida)  # navegador, escolas e turmas (#35)
         return None
     tela.erro("Opção inválida.", saida)
     return None
