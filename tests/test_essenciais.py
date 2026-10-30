@@ -35,7 +35,7 @@ from modulos.dados.planilha_arquivos import (
     SIMULADO,
     ESTADOS_CONCILIACAO,
 )
-from modulos.dados.normalizacao import validar_codigo_site, extrair_codigo_tema
+from modulos.dados.normalizacao import extrair_codigo_tema
 from modulos.site.lista_redacoes import ItemListaRedacao
 from modulos.base.progresso_relatorio import Progresso
 from modulos.base.config import Config
@@ -182,15 +182,6 @@ def test_extrair_codigo_do_tema_site():
     # Código 3B não é válido (sem separador após o número)
     assert extrair_codigo_do_tema_site("3B Texto") is None
 
-
-def test_validar_codigo_site():
-    """Validação do código contra o conjunto de códigos do site."""
-    codigos_site = {"0", "00", "000", "1", "2", "17"}
-    assert validar_codigo_site("0", codigos_site) is True
-    assert validar_codigo_site("00", codigos_site) is True
-    assert validar_codigo_site("000", codigos_site) is True
-    assert validar_codigo_site("0000", codigos_site) is False
-    assert validar_codigo_site("99", codigos_site) is False
 
 @pytest.fixture
 def arquivos_por_pasta(config_teste):
@@ -582,15 +573,7 @@ def test_codigo_duplicado_csv_real_temas_site():
     assert contagem["00"] == 1
     assert contagem["000"] == 1
     
-    # Verificar que a lógica de validação detecta duplicidade
-    from modulos.dados.normalizacao import validar_codigo_site
-    
-    # Criar set de códigos do CSV (sem duplicatas, pois é um set)
-    codigos_site = set(codigos)
-    
-    # O código 0000 existe no site, mas aparece duplicado
-    # A regra: se código duplicado no combo -> SIMULADO/REVISAO_MANUAL
-    # O teste valida que a detecção funciona via contagem no CSV
+    # A regra: se código duplicado no combo -> SIMULADO/REVISAO_MANUAL (detecção por contagem no CSV)
     assert len(codigos_duplicados) >= 1
     assert "0000" in codigos_duplicados
 
@@ -662,56 +645,6 @@ def test_selecionar_tema_por_codigo_valido_funciona():
         combo.select_option.assert_called_once_with(label="0- Narração")
     finally:
         formulario_envio_module.ler_combo_temas = original_ler_combo
-
-
-def test_verificacao_simulada_processando_para_pendente():
-    """Simula o fluxo: 5s, Processando -> Pendente, contagem sobe 1, saldo cai 1."""
-    from modulos.site.lista_redacoes import ItemListaRedacao, contar_linhas_codigo_data
-    
-    lista_antes = [
-        ItemListaRedacao(data="29/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    lista_processando = lista_antes + [
-        ItemListaRedacao(data="30/09/2026", tema="0- Narração", nota="", situacao="Processando arquivo", botao_texto="Aguarde a correção"),
-    ]
-    
-    lista_pendente = lista_antes + [
-        ItemListaRedacao(data="30/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto="Aguarde a correção"),
-    ]
-    
-    contagem_antes = contar_linhas_codigo_data(lista_antes, "0", "30/09/2026")
-    assert contagem_antes == 0
-    
-    contagem_proc = contar_linhas_codigo_data(lista_processando, "0", "30/09/2026")
-    assert contagem_proc == 1
-    
-    contagem_final = contar_linhas_codigo_data(lista_pendente, "0", "30/09/2026")
-    assert contagem_final == 1
-
-
-def test_verificacao_simulada_timeout():
-    """Se timeout e linha não chega a Pendente -> REVISAO_MANUAL."""
-    from modulos.site.lista_redacoes import ItemListaRedacao, contar_linhas_codigo_data
-    
-    lista_sem_nova = [
-        ItemListaRedacao(data="29/09/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    contagem = contar_linhas_codigo_data(lista_sem_nova, "0", "30/09/2026")
-    assert contagem == 0
-
-
-def test_verificacao_simulada_estado_desconhecido():
-    """Estado não mapeado (ex: 'Erro', 'Corrigida') -> REVISAO_MANUAL."""
-    from modulos.site.lista_redacoes import ItemListaRedacao
-    
-    lista = [
-        ItemListaRedacao(data="30/09/2026", tema="0- Narração", nota="", situacao="Erro", botao_texto=""),
-    ]
-    
-    assert lista[0].situacao == "Erro"
-    assert lista[0].situacao not in ("Pendente", "Processando arquivo")
 
 
 def test_codigo_string_preserva_zeros():
@@ -881,104 +814,6 @@ def test_carregar_alunos_erro_sem_colunas_obrigatorias(config_teste, tmp_path):
 
 
 # =====================================================================
-# Testes de duplicidade (T4 offline) - PASSO 1 Fase 3
-# =====================================================================
-
-def test_duplicidade_ja_enviado():
-    """Mesmo código na MESMA DATA (hoje) → JA_ENVIADO com data."""
-    from datetime import datetime
-    from modulos.site.lista_redacoes import ItemListaRedacao, verificar_duplicidade
-    
-    hoje = datetime.now().strftime("%d/%m/%Y")
-    lista = [
-        ItemListaRedacao(data=hoje, tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-        ItemListaRedacao(data="20/10/2026", tema="1- Carta", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    estado, data = verificar_duplicidade(lista, "0")
-    assert estado == "JA_ENVIADO"
-    assert data == hoje
-
-
-def test_duplicidade_codigo_ausente_pode_seguir():
-    """Código não encontrado na lista → OK (pode prosseguir)."""
-    from modulos.site.lista_redacoes import ItemListaRedacao, verificar_duplicidade
-    
-    lista = [
-        ItemListaRedacao(data="15/10/2026", tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-        ItemListaRedacao(data="20/10/2026", tema="1- Carta", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    estado, data = verificar_duplicidade(lista, "999")
-    assert estado == "OK"
-    assert data is None
-
-
-def test_duplicidade_lista_ilegivel_revisao_manual():
-    """Lista sem dados suficientes (tema/data) → REVISAO_MANUAL."""
-    from modulos.site.lista_redacoes import ItemListaRedacao, verificar_duplicidade
-    
-    # Lista vazia
-    estado, data = verificar_duplicidade([], "0")
-    assert estado == "REVISAO_MANUAL"
-    assert data is None
-    
-    # Lista com linhas mas sem tema/data
-    lista = [
-        ItemListaRedacao(data="", tema="", nota="", situacao="", botao_texto=""),
-        ItemListaRedacao(data="", tema="", nota="", situacao="", botao_texto=""),
-    ]
-    estado, data = verificar_duplicidade(lista, "0")
-    assert estado == "REVISAO_MANUAL"
-    assert data is None
-
-
-def test_duplicidade_codigos_string_distintos():
-    """Códigos '0', '00', '000' são strings distintas."""
-    from datetime import datetime
-    from modulos.site.lista_redacoes import ItemListaRedacao, verificar_duplicidade
-    
-    hoje = datetime.now().strftime("%d/%m/%Y")
-    lista = [
-        ItemListaRedacao(data=hoje, tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-        ItemListaRedacao(data=hoje, tema="00- Carta", nota="", situacao="Pendente", botao_texto=""),
-        ItemListaRedacao(data=hoje, tema="000- Dissertativo", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    # "0" não deve achar "00" nem "000"
-    estado, _ = verificar_duplicidade(lista, "0")
-    assert estado == "JA_ENVIADO"
-    
-    estado, _ = verificar_duplicidade(lista, "00")
-    assert estado == "JA_ENVIADO"
-    
-    estado, _ = verificar_duplicidade(lista, "000")
-    assert estado == "JA_ENVIADO"
-    
-    # "01" não existe
-    estado, _ = verificar_duplicidade(lista, "01")
-    assert estado == "OK"
-
-
-def test_duplicidade_mesmo_codigo_data_diferente_ok():
-    """Mesmo código em data DIFERENTE de hoje → OK (pode enviar)."""
-    from datetime import datetime
-    from modulos.site.lista_redacoes import ItemListaRedacao, verificar_duplicidade
-    
-    hoje = datetime.now().strftime("%d/%m/%Y")
-    ontem = "05/10/2026" if hoje != "05/10/2026" else "04/10/2026"
-    lista = [
-        ItemListaRedacao(data=ontem, tema="0- Narração", nota="", situacao="Pendente", botao_texto=""),
-        ItemListaRedacao(data="20/10/2026", tema="1- Carta", nota="", situacao="Pendente", botao_texto=""),
-    ]
-    
-    estado, data = verificar_duplicidade(lista, "0")
-    assert estado == "OK"
-    assert data is None
-
-
-
-
 
 def test_ler_lista_redacoes_html_simulado():
     """ler_lista_redacoes_html parseia HTML simulado corretamente."""

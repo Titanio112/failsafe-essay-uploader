@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import unicodedata
 from pathlib import Path
-from typing import Set
 
 
 _PONTUACAO_RE = re.compile(r"[^\w\s]", re.UNICODE)
@@ -116,7 +115,3 @@ def extrair_codigo_tema(nome_arquivo: str, pasta: str = "") -> str | None:
 
 MARCADOR_PESSOA = " - Red"
 
-
-def validar_codigo_site(codigo: str, codigos_site: Set[str]) -> bool:
-    """Valida se o código existe no combo do site."""
-    return codigo in codigos_site
