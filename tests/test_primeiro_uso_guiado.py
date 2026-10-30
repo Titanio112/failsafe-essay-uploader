@@ -19,7 +19,7 @@ def _rodar(*respostas):
 
 
 def test_sim_sim_cria_duas_escolas_com_um_leiame_por_escola_e_a_pasta_guia():
-    assert _rodar("sim", "sim", "2", "Escola A", "2", "1A", "1B", "Escola B", "1", "2A")
+    assert _rodar("sim", "2", "2", "Escola A", "2", "1A", "1B", "Escola B", "1", "2A")
     raiz = raiz_redacoes()
     assert listar_escolas() == ["Escola A", "Escola B"]
     assert listar_turmas("Escola A") == ["1A", "1B"] and listar_turmas("Escola B") == ["2A"]
@@ -30,7 +30,7 @@ def test_sim_sim_cria_duas_escolas_com_um_leiame_por_escola_e_a_pasta_guia():
 
 
 def test_nao_cria_so_a_escola_de_exemplo_sem_senha():
-    assert _rodar("s", "n")
+    assert _rodar("s", "3")
     assert listar_escolas() == ["Escola Teste"]
     pasta = raiz_redacoes() / "Escola Teste" / "Turma Exemplo"
     assert (pasta / "temas" / PASTA_GUIA).is_dir()
@@ -43,11 +43,22 @@ def test_nao_cria_so_a_escola_de_exemplo_sem_senha():
 
 
 def test_nome_repetido_ou_invalido_pergunta_de_novo():
-    assert _rodar("sim", "sim", "2", "Escola A", "1", "1A", "../x", "escola a", "Escola B", "1", "1A")
+    assert _rodar("sim", "2", "2", "Escola A", "1", "1A", "../x", "escola a", "Escola B", "1", "1A")
     assert listar_escolas() == ["Escola A", "Escola B"]
 
 
 def test_nao_na_primeira_vez_ou_cancelar_nao_cria_nada():
     assert not _rodar("nao")
-    assert not _rodar("sim", "sim", "2", "Escola A", "")  # Enter em vez do nº de turmas
+    assert not _rodar("sim", "2", "2", "Escola A", "")  # Enter em vez do nº de turmas
     assert not raiz_redacoes().exists() or not list(raiz_redacoes().iterdir())
+
+
+def test_preconfigurado_cria_alpha_e_marista_com_o_mesmo_padrao():
+    assert _rodar("sim", "")  # Enter = opção 1
+    raiz = raiz_redacoes()
+    assert listar_escolas() == ["Alpha", "Marista"]
+    assert listar_turmas("Alpha") == ["1 - Alpha", "2 - Alpha", "3 - Alpha"]
+    assert listar_turmas("Marista") == ["3A - Marista", "3B - Marista"]
+    assert sorted(p.relative_to(raiz).as_posix() for p in raiz.rglob("LEIA-ME.md")) == ["Alpha/LEIA-ME.md",
+                                                                                         "Marista/LEIA-ME.md"]
+    assert all((raiz / e / t / "temas" / PASTA_GUIA).is_dir() for e in listar_escolas() for t in listar_turmas(e))

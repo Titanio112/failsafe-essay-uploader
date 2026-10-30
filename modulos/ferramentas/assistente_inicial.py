@@ -17,6 +17,8 @@ Entrada = Callable[[str], str] | None
 LEIA_ME = "LEIA-ME.md"
 CABECALHO = "Nome;Email;Senha\n"
 MAX_ITENS = 99
+# escolas atendidas hoje (opção 1 do primeiro uso)
+ESTRUTURA_PADRAO = [("Alpha", ["1 - Alpha", "2 - Alpha", "3 - Alpha"]), ("Marista", ["3A - Marista", "3B - Marista"])]
 
 TEXTO_ESCOLA = """# Escola: {escola}
 
@@ -154,6 +156,18 @@ def _resumo(criadas: list[tuple[str, str]], criados: list[Path]) -> bool:
     return tudo_certo
 
 
+def _modo(entrada: Entrada) -> str:
+    """"1" pré-configurado (Enter), "2" manual, "3" só exemplo."""
+    tela.menu([("1", "usar escolas e turmas pré-configuradas (padrão: Alpha e Marista)"),
+               ("2", "configurar escolas e turmas manualmente, do zero"),
+               ("3", "só criar uma escola de exemplo, para ver como fica")])
+    while True:
+        r = tela.perguntar("  Escolha (Enter = 1): ", entrada) or "1"
+        if r in ("1", "2", "3"):
+            return r
+        tela.erro("Digite 1, 2 ou 3.")
+
+
 def executar_assistente(entrada: Entrada = None) -> bool:
     """Passo a passo do primeiro uso. True = criou ao menos uma turma."""
     tela.titulo("PRIMEIRO USO  ·  vamos montar as pastas")
@@ -163,23 +177,20 @@ def executar_assistente(entrada: Entrada = None) -> bool:
                    "com alunos.csv. Se as suas pastas já existem, confira se estão nesse formato.")
         tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma")
         return False
-    agora = _sim(entrada, "Você deseja já configurar as escolas e as turmas agora?")
-    if agora is None:
-        return False
+    modo = _modo(entrada)
     criados: list[Path] = []
-    if agora:
-        estrutura = _perguntar_estrutura(entrada)
+    if modo == "3":
+        tela.info("Vou criar só uma escola de exemplo, para você ver como as pastas ficam.")
+        estrutura = [("Escola Teste", ["Turma Exemplo"])]
+    else:
+        estrutura = ESTRUTURA_PADRAO if modo == "1" else _perguntar_estrutura(entrada)
         if estrutura is None:
             tela.aviso("Cancelado. Nada foi criado.")
             return False
-        criadas = []
-        for escola, turmas in estrutura:
-            for turma in turmas:
-                criar_turma(escola, turma, criados)
-                criadas.append((escola, turma))
-    else:
-        tela.info("Vou criar só uma escola de exemplo, para você ver como as pastas ficam.")
-        criar_turma("Escola Teste", "Turma Exemplo", criados, exemplo=True)
-        criadas = [("Escola Teste", "Turma Exemplo")]
+    criadas = []
+    for escola, turmas in estrutura:
+        for turma in turmas:
+            criar_turma(escola, turma, criados, exemplo=modo == "3")
+            criadas.append((escola, turma))
     _resumo(criadas, criados)
     return bool(listar_escolas())
