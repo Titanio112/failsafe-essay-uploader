@@ -22,6 +22,7 @@ def _main(tmp_path, monkeypatch):
         for nome in arquivos:
             (raiz / pasta / nome).write_bytes(nome.encode())
     cfg = Config()
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     cfg.pasta_raiz = raiz
     cfg.planilha = tmp_path / "alunos.csv"
     cfg.planilha.write_text("Nome;Email\nAna Souza;ana@x.com\n", encoding="utf-8")

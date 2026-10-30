@@ -4,9 +4,11 @@ O repositório é público. Confere os arquivos que o git vai publicar
 (``git ls-files``) e diz ONDE há problema, nunca o valor:
 
 - nome de arquivo proibido: anotação/memória de IA, foto, banco, planilha,
-  ``.env``, CSV fora da lista permitida;
-- conteúdo com nome ou e-mail de aluno (``dados/dados_alunos.csv``), valor do
-  ``.env`` ou o usuário do Windows (caminho deve usar ``%USERNAME%``).
+  ``.env``, CSV fora da lista permitida (M3: ``exemplos/**/alunos.csv`` é
+  permitido se só tiver e-mail de exemplo, ``@example.com``);
+- conteúdo com nome, e-mail ou senha de aluno (``dados/dados_alunos.csv`` e
+  ``alunos.csv`` de cada turma), valor do ``.env`` ou o usuário do Windows
+  (caminho deve usar ``%USERNAME%``).
 
 Saída 0 = nada encontrado; 1 = achou algo (não faça push).
 """
@@ -28,6 +30,9 @@ NOMES_PROIBIDOS = re.compile(
     re.IGNORECASE,
 )
 CSV_PERMITIDOS = {"dados/temas_site.csv"}
+# M3: lista de alunos inventada da demonstração; só com e-mail de exemplo (RFC 2606)
+EXEMPLO_ALUNOS = re.compile(r"^exemplos/(.+/)?alunos\.csv$")
+DOMINIOS_EXEMPLO = {"example.com", "example.org", "example.net"}
 
 
 def _norm(texto: str) -> str:
@@ -42,7 +47,7 @@ def nome_proibido(caminho: str) -> str | None:
         return None  # só guarda a pasta vazia
     if NOMES_PROIBIDOS.search(caminho):
         return "arquivo que nao pode ser publico (IA, foto, banco, planilha, .env ou pasta local)"
-    if caminho.lower().endswith(".csv") and caminho not in CSV_PERMITIDOS:
+    if caminho.lower().endswith(".csv") and caminho not in CSV_PERMITIDOS and not EXEMPLO_ALUNOS.match(caminho):
         return "CSV fora da lista permitida (pode ter dados de alunos)"
     return None
 
@@ -59,6 +64,20 @@ def alvos_locais(raiz: Path) -> dict[str, str]:
                 alvos[f"nome do aluno {n}"] = _norm(partes[0])
             if len(partes) > 1 and "@" in partes[1]:
                 alvos[f"e-mail do aluno {n}"] = _norm(partes[1])
+    # M3: a lista de cada turma (nome, e-mail e senha)
+    from modulos.base.config import PASTA_REDACOES, Config
+    from modulos.dados.planilha_arquivos import carregar_alunos
+    for t, planilha in enumerate(sorted((raiz / PASTA_REDACOES).glob("*/*/alunos.csv")), 1):
+        cfg = Config()
+        cfg.planilha = planilha
+        try:
+            alunos = carregar_alunos(cfg)
+        except Exception:  # noqa: BLE001 - lista ilegível não derruba a auditoria
+            alunos = []
+        for n, aluno in enumerate(alunos, 1):
+            alvos[f"nome do aluno {n} da turma {t}"] = _norm(aluno.nome)
+            alvos[f"e-mail do aluno {n} da turma {t}"] = _norm(aluno.email)
+            alvos[f"senha do aluno {n} da turma {t}"] = _norm(aluno.senha)
     env = raiz / ".env"
     if env.is_file():
         for linha in ler_texto(env).splitlines():
@@ -78,6 +97,9 @@ def auditar(arquivos: dict[str, str], alvos: dict[str, str]) -> list[tuple[str, 
         motivo = nome_proibido(caminho)
         if motivo:
             achados.append((caminho, motivo))
+        dominios = {d.lower() for d in re.findall(r"@([\w.-]+)", conteudo)}
+        if EXEMPLO_ALUNOS.match(caminho) and not dominios <= DOMINIOS_EXEMPLO:
+            achados.append((caminho, "lista de exemplos/ com e-mail que nao e de exemplo (use @example.com)"))
         texto = _norm(conteudo)
         achados.extend((caminho, rotulo) for rotulo, valor in alvos.items() if valor in texto)
     return achados

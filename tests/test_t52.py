@@ -55,7 +55,7 @@ def test_revisao_v_abre_as_fotos(tmp_path, monkeypatch):
     abertos = []
     monkeypatch.setattr(tela, "abrir", lambda alvo: abertos.append(Path(alvo).name) or "")
     item = ItemConciliacao(pasta="100 - T", arquivo="Ana S.JPG", pessoa="Ana S", estado="SUGESTAO_FUZZY")
-    alunos = [Aluno(nome="Ana Souza", email="ana@x.com")]
+    alunos = [Aluno(nome="Ana Souza", email="ana@x.com", senha="s")]
     renomeados, saiu = ri.revisar_nomes([("Ana S", [item])], alunos, tmp_path, tmp_path / "p.db",
                                         tmp_path / "log.csv", entrada=_respostas("v", "q"),
                                         saida=lambda *_: None)
@@ -108,8 +108,8 @@ def test_envio_pelo_menu_nao_pergunta_mais_do_navegador():
 
 # ─── Conferência no site ─────────────────────────────────────
 
-ANA = Aluno(nome="Ana Souza", email="ana@x.com")
-BIA = Aluno(nome="Bia Lima", email="bia@x.com")
+ANA = Aluno(nome="Ana Souza", email="ana@x.com", senha="s")
+BIA = Aluno(nome="Bia Lima", email="bia@x.com", senha="s")
 
 
 def _item(aluno, pasta, arquivo, codigo):
@@ -155,7 +155,7 @@ def test_conferencia_grava_relatorio_e_nao_toca_no_caderno(tmp_path, monkeypatch
     monkeypatch.setenv("ESQUEMA_SENHA_PADRAO", "x")
     cfg = _cfg(tmp_path)
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         ana, bia = conferencias
         ana.lista = [_linha("100")]
         bia.erro = "o site nao aceitou o login"

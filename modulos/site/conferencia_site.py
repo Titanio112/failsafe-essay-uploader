@@ -1,7 +1,7 @@
 """Conferência no site (T52): `python main.py --conferir-site`.
 
 Só leitura. Para cada aluno com redação conferida na pasta, entra na conta
-dele (senha ESQUEMA_SENHA_PADRAO), lê Minhas redações e compara com as fotos
+dele (M3: senha dele no alunos.csv da turma), lê Minhas redações e compara com as fotos
 da pasta: o tema já está no site (qualquer data) ou ainda não. Nada é
 anexado, clicado em "Enviar" nem gravado no caderno; o resultado vai para a
 tela e para relatorios/conferencia_site_<data>.csv.
@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Callable
 
 from modulos.base import relogio, tela
-from modulos.base.config import Config, obter_senha
+from modulos.base.config import Config
 from modulos.base.excecoes import CaptchaOuBloqueio, IdentidadeDivergente, LoginFalhou
 from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, mascarar_email
 from modulos.site.confirmacao import logout
@@ -33,7 +33,8 @@ NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não es
 OUTRO_TEMA = "talvez no site com outro tema"
 NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
 CANCELADA = "cancelada no site (conferir)"  # bug 018
-COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes"]
+COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes",
+               "turma"]  # M3: o menu 7 só usa relatório da mesma turma
 
 
 @dataclass
@@ -111,19 +112,18 @@ def faltam_enviar(conferencias: list[ConferenciaAluno]) -> list[ItemConciliacao]
             for item, estado, _ in conf.linhas if estado == FORA_DO_SITE]
 
 
-def _ler_conta(page, cfg: Config, senha: str, aluno: Aluno) -> list[ItemListaRedacao]:
+def _ler_conta(page, cfg: Config, aluno: Aluno) -> list[ItemListaRedacao]:
     from modulos.site.lista_redacoes import ler_lista_redacoes
     from modulos.site.login import DOMINIO_ESPERADO, confirmar_identidade, login, verificar_dominio_autorizado
     page.goto(f"https://{DOMINIO_ESPERADO}", wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle")
     verificar_dominio_autorizado(page)
-    login(page, cfg, aluno.email, senha)
+    login(page, cfg, aluno.email, aluno.senha)  # M3: a senha do próprio aluno
     confirmar_identidade(page, aluno)
     return ler_lista_redacoes(page)
 
 
-def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: str,
-                      saida: Callable = print) -> bool:
+def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: Callable = print) -> bool:
     """Lê a lista de cada aluno. Retorna True se parou antes do fim."""
     from playwright.sync_api import sync_playwright
     from modulos.envio.fluxo_envio_producao import MAX_FALHAS_LOGIN_SEGUIDAS, Andamento, _motivo_login
@@ -139,7 +139,7 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
                 page = None
                 try:
                     page = context.new_page()  # T56: dentro do try (navegador caído = erro do aluno)
-                    conf.lista = _ler_conta(page, cfg, senha, conf.aluno)
+                    conf.lista = _ler_conta(page, cfg, conf.aluno)
                     falhas = 0
                 except CaptchaOuBloqueio as e:
                     conf.erro = f"CAPTCHA/bloqueio: {e}"
@@ -171,7 +171,7 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], senha: 
                 _mostrar_aluno(conf, cfg.pasta_raiz, saida)
                 andamento.avancar()
                 if falhas >= MAX_FALHAS_LOGIN_SEGUIDAS:
-                    tela.erro(f"{falhas} contas seguidas não abriram: parei (senha padrão errada? site fora?).",
+                    tela.erro(f"{falhas} contas seguidas não abriram: parei (senha do alunos.csv errada? site fora?).",
                               saida)
                     return True
         finally:
@@ -213,7 +213,7 @@ def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = p
         tela.status(PAPEL.get(estado, "fraco"), inicio + pasta, saida, recuo=4)
 
 
-def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
+def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path, turma: str = "") -> Path:
     caminho = Path(pasta) / f"conferencia_site_{relogio.agora():%Y%m%d_%H%M%S}.csv"
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
@@ -226,17 +226,18 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path) -> Path:
                 escritor.writerow([conf.aluno.nome, item.pasta, item.arquivo, item.codigo_tema,
                                    conf.erro and NAO_CONFERIDO or estado, len(do_tema),
                                    " | ".join(r.data for r in do_tema),
-                                   " | ".join(r.situacao for r in do_tema)])
+                                   " | ".join(r.situacao for r in do_tema), turma])
     return caminho
 
 
 def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliacao,
-                           saida: Callable = print) -> list[ItemConciliacao] | None:
+                           saida: Callable = print, turma: str | None = None) -> list[ItemConciliacao] | None:
     """T54 (menu 7): as que faltam segundo a conferência de HOJE, sem refazê-la.
 
     Só vale relatório de hoje (Brasília): de outro dia, alguém pode ter
     mandado à mão depois. Só entram fotos que continuam conferidas na pasta
-    (mesma pasta, mesmo arquivo, mesmo aluno). None = sem relatório válido."""
+    (mesma pasta, mesmo arquivo, mesmo aluno). None = sem relatório válido.
+    ``turma`` (M3): toda linha tem de ser desta turma."""
     hoje = relogio.agora().strftime("%Y%m%d")
     relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
     if not relatorios:
@@ -252,12 +253,16 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
             leitor = csv.DictReader(f, delimiter=";")
             if leitor.fieldnames != COLUNAS_CSV:
                 raise ValueError("colunas diferentes")
+            linhas = list(leitor)
             # T56: o tema também tem de bater (pasta reaprovada com outro tema
             # depois da conferência = tema que a conferência não olhou)
-            faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in leitor
+            faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in linhas
                         if l.get("resultado") == FORA_DO_SITE}
     except (OSError, UnicodeDecodeError, ValueError, KeyError, csv.Error) as e:
         tela.aviso(f"Não consegui ler {tela.caminho(ultimo)} ({type(e).__name__}). Rode a opção 5 de novo.", saida)
+        return None
+    if turma is not None and any(l["turma"] != turma for l in linhas):
+        tela.aviso(f"{tela.caminho(ultimo)} é de outra turma. Rode a opção 5 (Conferir no site) nesta turma.", saida)
         return None
     tela.info(f"Conferência usada: {tela.caminho(ultimo)}", saida)
     return [item for item in resultado.fila_validada()
@@ -270,7 +275,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                               ler: Callable | None = None,
                               depois: Callable[[list[ItemConciliacao]], object] | None = None) -> int:
     """0 = conferido até o fim; 1 = parou antes; 2 = cancelado/nada a conferir.
-    ``ler`` (testes): substitui o navegador (recebe cfg, conferências, senha, saida).
+    ``ler`` (testes): substitui o navegador (recebe cfg, conferências, saida).
     ``depois`` (T53): recebe as fotos que certamente faltam no site, para
     oferecer o envio só delas (o main decide; aqui nada é enviado)."""
     from modulos.base.trava import TravaOcupada, trava_de_envio
@@ -282,7 +287,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     total = sum(len(c.itens) for c in conferencias)
     tela.texto(f"Vou entrar na conta de {len(conferencias)} aluno(s), ler Minhas redações e comparar com as "
                f"{total} foto(s) da pasta. Não anexo nem envio nada, e o caderno de envios não muda.", saida)
-    tela.status("fraco", "Usa a senha padrão (ESQUEMA_SENHA_PADRAO). CAPTCHA ou 2 contas seguidas sem abrir: para.",
+    tela.status("fraco", "Cada aluno com a senha dele (alunos.csv). CAPTCHA ou 2 contas seguidas sem abrir: para.",
                 saida)
     saida("")
     if tela.perguntar(f"  Digite {tela.c(PALAVRA, 'tecla')} para começar (qualquer outro texto cancela): ",
@@ -291,10 +296,14 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
         return 2
     tela.secao("Conferindo", saida)
     try:
-        with trava_de_envio(Path(cfg.pasta_relatorios) / "envio.trava"):
-            senha = obter_senha("ESQUEMA_SENHA_PADRAO")
+        with trava_de_envio(Path(cfg.banco_progresso).parent / "envio.trava"):  # M3: trava global
+            # M3: sem senha no alunos.csv a conta nem é aberta
+            for conf in conferencias:
+                if not conf.aluno.senha:
+                    conf.erro = "sem senha no alunos.csv da turma"
+                    _mostrar_aluno(conf, cfg.pasta_raiz, saida)
             try:
-                parou = (ler or _ler_no_navegador)(cfg, conferencias, senha, saida)
+                parou = (ler or _ler_no_navegador)(cfg, [c for c in conferencias if not c.erro], saida)
             except Exception as e:  # noqa: BLE001 - T56: o que já foi lido ainda vai para o relatório
                 log.exception("Conferencia: parou com erro inesperado")
                 tela.erro(f"Erro inesperado ({type(e).__name__}): a conferência parou.", saida)
@@ -322,7 +331,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                     ("Não tentadas (parou antes)", contagem[NAO_TENTADO], "aviso")], saida)
     if parou:
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
-    tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios))}", saida)
+    tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios, cfg.id_turma))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
     if contagem[OUTRO_TEMA]:
         tela.status("fraco", "\"Outro tema?\": o site tem redações a mais de outro tema (ex.: mandada como 000).",

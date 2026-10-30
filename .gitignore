@@ -22,6 +22,9 @@ dados/*alunos*.csv
 dados/nomes_aprovados.csv
 dados/pastas_aprovadas.csv
 dados/*.bak.csv
+# M3: lista da turma (nome, e-mail e SENHA) em qualquer lugar; só a inventada de exemplos/ vai
+alunos.csv
+!exemplos/**/alunos.csv
 # Aprovações do modo teste (têm o e-mail da conta de teste)
 testes/*.csv
 *.xlsx
@@ -42,6 +45,11 @@ testes/redacoes_teste/*
 *.db
 *.db-shm
 *.db-wal
+*.db-journal
+# Cópias e backups (cópias do caderno, temas_site.<data>.bak.csv)
+copias/
+*.bak
+*.bak.*
 relatorios/
 diagnosticos/
 logs/

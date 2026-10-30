@@ -19,24 +19,34 @@ from modulos.base.estados import EXATO_UNICO, REVISAO_MANUAL, SIMULADO
 from modulos.base.excecoes import ConfirmacaoInconclusiva
 from modulos.envio.fila_teste import ItemFilaTeste
 from modulos.site.lista_redacoes import ItemListaRedacao
-from modulos.site.login import DOMINIO_ESPERADO, nomes_compativeis
+from modulos.base.excecoes import IdentidadeDivergente
+from modulos.site.login import DOMINIO_ESPERADO, confirmar_identidade
 from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, conciliar
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, ERRO
 
 
-# ---- Q2: identidade tolerante a nome abreviado ----
+# ---- Q2: identidade (M3: estrita; a T27 tolerava nome abreviado) ----
 
 @pytest.mark.parametrize("site, lista, esperado", [
     ("ana lalara larili dos larito", "ana lalara larili dos larito", True),
-    ("ana lalara", "ana lalara larili dos larito", True),        # site abrevia
-    ("ana lalara larili dos larito", "ana lalara larili", True),  # lista abreviada
+    ("Ána Lalara  Larili-dos Larito", "ana lalara larili dos larito", True),  # acento/pontuação não contam
+    ("ana lalara", "ana lalara larili dos larito", False),        # site abrevia (M3: planilha leva o nome do site)
+    ("ana lalara larili dos larito", "ana lalara larili", False),  # lista abreviada
     ("ana", "ana lalara larili dos larito", False),             # 1 palavra só
     ("lalara larili", "ana lalara larili dos larito", False),     # 1ª palavra diferente
     ("ana lalara larisa", "ana lalara larili dos larito", False),
     ("outro usuario qualquer", "usuario testes ignorar", False),
 ])
-def test_nomes_compativeis(site, lista, esperado):
-    assert nomes_compativeis(site, lista) is esperado
+def test_identidade_so_aceita_o_nome_exato(site, lista, esperado):
+    pagina = MagicMock(url=f"https://{DOMINIO_ESPERADO}/minhas-redacoes")
+    pagina.locator.return_value.count.return_value = 1
+    pagina.locator.return_value.first.text_content.return_value = site
+    aluno = Aluno(nome=lista, email="a@example.com")
+    if esperado:
+        assert confirmar_identidade(pagina, aluno) is True
+    else:
+        with pytest.raises(IdentidadeDivergente):
+            confirmar_identidade(pagina, aluno)
 
 
 # ---- Q3: "Processando arquivo" no fim do prazo = recebido ----
@@ -183,6 +193,17 @@ def test_analise_remota_combo_vazio_nao_mexe_no_csv(tmp_path, analise_mocks):
     assert caminho.read_text(encoding="utf-8") == "codigo,texto\n9,antigo\n"
 
 
+def test_analise_remota_falha_de_identidade_mostra_o_diagnostico(tmp_path, analise_mocks):
+    from modulos.site import analise_remota as ar
+    from modulos.site.login import IdentidadeDivergente
+    caminho = tmp_path / "temas_site.csv"
+    with patch.object(ar, "confirmar_identidade", side_effect=IdentidadeDivergente("Encontrado: VAZIO")), \
+         patch.object(ar, "log") as log:
+        assert ar.executar_analise_remota(Config(), caminho) == 1
+    assert "Encontrado: VAZIO" in log.error.call_args.args[0] % log.error.call_args.args[1:]
+    assert not caminho.exists()
+
+
 def test_analise_remota_sem_ANALISAR_nao_faz_login(tmp_path, analise_mocks):
     from modulos.site.analise_remota import executar_analise_remota
     analise_mocks["input"].return_value = "analisar"
@@ -203,7 +224,7 @@ def test_relatorio_do_envio_lista_estado_final_de_cada_item(tmp_path, monkeypatc
     cfg.pasta_raiz = tmp_path / "pend"
     cfg.pasta_relatorios = tmp_path / "relatorios"
     cfg.headless, cfg.slow_mo_ms = True, 0
-    ana = Aluno(nome="Ana Lalara", email="ana@escola.com")
+    ana = Aluno(nome="Ana Lalara", email="ana@escola.com", senha="s")  # M3: senha do alunos.csv
     itens = []
     for pasta in ("1 - Carta", "2 - Tema"):
         (cfg.pasta_raiz / pasta).mkdir(parents=True)

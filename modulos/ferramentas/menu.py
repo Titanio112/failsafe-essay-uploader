@@ -1,9 +1,13 @@
 """Menu principal (T47): `python main.py` sem nada abre este menu.
 
+M3: primeiro escolhe escola -> turma, mostra o resumo e pede s/n; o menu
+fica só daquela turma ("Trocar turma" volta à escolha).
+
 Cada opção só monta os argumentos e chama o mesmo ``main`` que os comandos
-com flags usam, então o menu nunca pula uma trava (confirmações digitadas,
-PRODUCAO_BLOQUEADA, ensaio só na conta de teste). Quem já sabe os comandos
-continua podendo usar ``python main.py --revisar`` etc.
+com flags usam (com ``--escola``/``--turma``), então o menu nunca pula uma
+trava (confirmações digitadas, PRODUCAO_BLOQUEADA, ensaio só na conta de
+teste) e nada da turma anterior é reaproveitado. Quem já sabe os comandos
+continua podendo usar ``python main.py --revisar --escola X --turma Y`` etc.
 """
 
 from __future__ import annotations
@@ -32,7 +36,9 @@ OPCOES = [
     ("Ferramentas", "11", "Arquivo morto", "guarda as pastas já enviadas"),
     ("Ferramentas", "12", "Primeiro uso / o que falta", "cria o que falta e explica"),
     ("Ferramentas", "13", "Configurações", ""),
+    ("Ferramentas", "14", "Trocar turma", "volta à escolha de escola e turma"),
 ]
+SEM_TURMA = ("4",)  # modo teste: conta de teste e testes/redacoes_teste, sem turma
 
 
 def _perguntar(entrada: Entrada | None, texto: str) -> str:
@@ -43,8 +49,8 @@ def _sim(entrada: Entrada | None, texto: str) -> bool:
     return _perguntar(entrada, f"  {texto} (s/n): ").lower() in ("s", "sim")
 
 
-def mostrar_menu(saida: Callable = print) -> None:
-    tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  menu", saida)
+def mostrar_menu(saida: Callable = print, turma: tuple[str, str] | None = None) -> None:
+    tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  " + (f"{turma[0]} / {turma[1]}" if turma else "menu"), saida)
     grupo_atual = None
     for grupo, tecla, nome, ajuda in OPCOES:
         if grupo != grupo_atual:
@@ -56,7 +62,7 @@ def mostrar_menu(saida: Callable = print) -> None:
             ajuda = tela.c(resumo_navegador(), "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
-        rotulo = f"{tecla})".rjust(3)  # 1) a 13) alinhados
+        rotulo = f"{tecla})".rjust(3)  # 1) a 14) alinhados
         saida(f" {tela.c(rotulo, 'tecla')} {nome:<30} {ajuda}")
     saida("")
     saida(f" {tela.c(' 0)', 'tecla')} Sair")
@@ -143,19 +149,89 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
     return None
 
 
-def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = None,
-                  saida: Callable = print) -> int:
-    """Mostra o menu até a pessoa escolher 0 (ou fechar a entrada)."""
+def _escolher(itens: list[str], o_que: str, entrada: Entrada | None, saida: Callable,
+              voltar: bool = False) -> str | None:
+    """Item escolhido, "v" (voltar) ou None (cancelar)."""
+    tela.secao(o_que, saida)
+    for i, item in enumerate(itens, 1):
+        saida(f"    {tela.c(f'{i})', 'tecla')} {item}")
+    extra = "v = voltar, " if voltar else ""
     while True:
-        mostrar_menu(saida)
+        r = _perguntar(entrada, f"  {o_que} ({extra}Enter = cancelar): ").lower()
+        if not r or r == "0":
+            return None
+        if voltar and r == "v":
+            return "v"
+        if r.isdecimal() and 1 <= int(r) <= len(itens):
+            return itens[int(r) - 1]
+        tela.erro("Opção inválida.", saida)
+
+
+def resumo_turma(escola: str, turma: str, saida: Callable = print) -> bool:
+    """Escola, turma, planilha, nº de alunos e temas. False = turma com problema."""
+    from modulos.base.turma import aplicar_turma
+    from modulos.dados.planilha_arquivos import carregar_alunos, descobrir_pastas
+    try:
+        cfg = config_mod.carregar_config()
+        aplicar_turma(cfg, escola, turma)
+        alunos = carregar_alunos(cfg)
+    except Exception as e:  # noqa: BLE001 - mostra e deixa escolher outra
+        tela.erro(f"Turma com problema: {type(e).__name__}: {e}", saida)
+        return False
+    temas = [p.name for p in descobrir_pastas(cfg)]
+    tela.secao("Turma escolhida", saida)
+    tela.info(f"Escola: {escola}  ·  Turma: {turma}", saida)
+    tela.info(f"Lista de alunos: {tela.caminho(cfg.planilha)}", saida)
+    tela.contagens([("Alunos na lista", len(alunos), "ok"),
+                    ("Alunos sem senha (não entram no site)", sum(1 for a in alunos if not a.senha), "aviso"),
+                    ("Pastas de tema", len(temas), "ok")], saida)
+    for tema in temas:
+        tela.status("fraco", tema, saida, recuo=4)
+    return True
+
+
+def escolher_turma(entrada: Entrada | None = None, saida: Callable = print) -> tuple[str, str] | None:
+    """Escola -> turma -> resumo -> s/n. None = cancelou (ou não há turma)."""
+    from modulos.base.turma import listar_escolas, listar_turmas
+    tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  escolha a turma", saida)
+    while True:
+        escolas = listar_escolas()
+        if not escolas:
+            tela.aviso("Nenhuma turma encontrada. Cada turma é uma pasta "
+                       f"\"{config_mod.PASTA_REDACOES}/<Escola>/<Turma>/\" com alunos.csv.", saida)
+            tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida)
+            return None
+        escola = _escolher(escolas, "Escola", entrada, saida)
+        if escola is None:
+            return None
+        turma = _escolher(listar_turmas(escola), f"Turma de {escola}", entrada, saida, voltar=True)
+        if turma is None:
+            return None
+        if turma != "v" and resumo_turma(escola, turma, saida) and _sim(entrada, "Usar esta turma?"):
+            return escola, turma
+
+
+def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = None,
+                  saida: Callable = print, turma: tuple[str, str] | None = None) -> int:
+    """Escolhe a turma e mostra o menu até a pessoa escolher 0 (ou fechar a entrada)."""
+    turma = turma or escolher_turma(entrada, saida)
+    if not turma:
+        return 0
+    while True:
+        mostrar_menu(saida, turma)
         opcao = _perguntar(entrada, "\n  Escolha uma opção: ")
         if opcao in ("0", ""):
             return 0
+        if opcao == "14":  # trocar turma: o main da próxima opção só recebe a nova
+            turma = escolher_turma(entrada, saida) or turma
+            continue
         try:
+            from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main
+            relatorios = raiz_redacoes() / turma[0] / turma[1] / "relatorios"
             # Bug 017: as perguntas da opção também ficam dentro do try
-            argumentos = argumentos_da_opcao(opcao, entrada, saida=saida)
+            argumentos = argumentos_da_opcao(opcao, entrada, relatorios, saida=saida)
             if argumentos is not None:
-                main(argumentos)
+                main(argumentos + ([] if opcao in SEM_TURMA else ["--escola", turma[0], "--turma", turma[1]]))
         except KeyboardInterrupt:
             tela.aviso("Interrompido (Ctrl+C).", saida)
         except Exception as e:  # o menu não fecha por causa de um erro

@@ -249,7 +249,8 @@ def test_conciliacao_sugestao_fuzzy(alunos_teste, arquivos_por_pasta):
 
 
 def test_conciliacao_ambiguo(planilha_temporaria):
-    """Dois alunos com mesmo nome normalizado -> AMBIGUO."""
+    """Dois alunos com mesmo nome normalizado -> REVISAO_MANUAL (M3: antes AMBIGUO;
+    o site identifica pelo nome e não distingue homônimos)."""
     from openpyxl import Workbook
     from modulos.base.config import Config
     wb = Workbook()
@@ -279,7 +280,7 @@ def test_conciliacao_ambiguo(planilha_temporaria):
         alunos = carregar_alunos(cfg)
         arquivos = descobrir_arquivos(cfg)
         resultado = conciliar(alunos, arquivos, codigos_site={"001"})
-        itens_amb = [item for item in resultado.itens if item.estado == AMBIGUO]
+        itens_amb = [item for item in resultado.itens if item.estado == REVISAO_MANUAL]
         assert len(itens_amb) == 1
         assert len(itens_amb[0].candidatos) == 2
     finally:
@@ -728,7 +729,7 @@ def test_codigo_string_preserva_zeros():
 # Testes de fail-closed para codigos_site
 # =====================================================================
 
-def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_teste, capsys):
+def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_teste, capsys, turma_ficticia):
     """--envio-real (produção) sem códigos do site (dados/temas_site.csv) deve
     abortar com erro claro, antes de ler a planilha (T24: produção liberada,
     mas continua fail-closed sem a referência de códigos)."""
@@ -736,7 +737,7 @@ def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_t
     import sys
     # Diretório sem dados/temas_site.csv
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, 'argv', ['main.py', '--envio-real'])
+    monkeypatch.setattr(sys, 'argv', ['main.py', '--envio-real', *turma_ficticia])  # M3: turma obrigatória
 
     def nao_pode_ler_planilha(cfg):
         raise AssertionError("planilha lida antes do fail-closed")
@@ -747,13 +748,13 @@ def test_fail_closed_envio_real_sem_codigos_site(monkeypatch, tmp_path, config_t
     assert "temas_site.csv" in capsys.readouterr().out
 
 
-def test_fail_closed_analise_remota_sem_codigos_site(monkeypatch, tmp_path, config_teste):
+def test_fail_closed_analise_remota_sem_codigos_site(monkeypatch, tmp_path, config_teste, turma_ficticia):
     """--analise-remota sem a confirmação ANALISAR deve abortar (retorno 2)
     sem abrir navegador, sem login e sem tocar em dados/temas_site.csv.
     (T27: a análise remota foi implementada; antes ela sempre abortava.)"""
     from main import main
     import sys
-    monkeypatch.setattr(sys, 'argv', ['main.py', '--analise-remota'])
+    monkeypatch.setattr(sys, 'argv', ['main.py', '--analise-remota', *turma_ficticia])  # M3: turma obrigatória
     from unittest.mock import patch
     with patch('builtins.input', return_value=''), \
          patch('modulos.site.analise_remota.sync_playwright', side_effect=AssertionError("abriu navegador")), \
@@ -1050,6 +1051,7 @@ def test_confirmar_identidade_sucesso_simulado():
     dropdown_locator_mock = MagicMock()
     dropdown_locator_mock.first.wait_for = MagicMock()
     dropdown_locator_mock.first.text_content.return_value = "Usuario Testes Ignorar "
+    dropdown_locator_mock.count.return_value = 1  # M3: exatamente um menu do usuário
 
     # Fallback 1: page.locator("text=...") - não deve ser chamado
     nome_locator_mock = MagicMock()
@@ -1102,6 +1104,7 @@ def test_confirmar_identidade_falha_simulado():
     dropdown_locator_mock = MagicMock()
     dropdown_locator_mock.first.wait_for = MagicMock()
     dropdown_locator_mock.first.text_content.return_value = "Outro Usuario "
+    dropdown_locator_mock.count.return_value = 1  # M3: exatamente um menu do usuário
 
     # Fallback 1: page.locator("text=...") - não deve ser chamado
     nome_locator_mock = MagicMock()
