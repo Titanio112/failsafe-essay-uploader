@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Menu sem comandos:** na escolha de escola, `n` cria escola ou turma; turma sem a lista de temas do site oferece lê-la na hora (mesma análise remota, com o `ANALISAR`). `AutoReda.bat` (duplo clique, roda de qualquer pasta) e `Criar atalho AutoReda.bat` (cria o atalho `AutoReda` na Área de Trabalho ou na pasta indicada).
 - **Primeiro uso pré-configurado (#37):** depois de confirmar que é a primeira vez, `1` (padrão, Enter) cria Alpha (`1 - Alpha`, `2 - Alpha`, `3 - Alpha`) e Marista (`3A - Marista`, `3B - Marista`); `2` configura à mão; `3` cria só a escola de exemplo.
 - **Excluir escola ou turma (#36):** Configurações > `x`, com aviso, escolha, aviso crítico em vermelho e frase digitada exata. Não apaga o caderno de envios nem o Arquivo morto; recusa durante um envio.
 - Menu 14 virou "Trocar escola ou turma" (outra turma da mesma escola, ou outra escola).
