@@ -201,7 +201,7 @@ Cada turma é uma pasta só dela (nada disso vai para o Git; exemplo inventado e
 Redações plataforma/<Escola>/<Turma>/
   alunos.csv     Nome;Email;Senha  (a senha de cada aluno; sem senha, o aluno não entra no site)
   temas/<Pasta do tema>/<Nome do aluno>.jpg
-  dados/         aprovações e temas_site.csv da turma
+  dados/         aprovações da turma
   relatorios/    logs/
 Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
 ```
@@ -210,7 +210,8 @@ Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
   (opção 14 troca de turma). Direto: `python main.py --escola "Escola" --turma "3A" --revisar`.
 - Turma nova: na escolha de escola, tecla `n` (escola nova ou turma nova numa escola); ou, direto,
   `python main.py --preparar --escola "Escola" --turma "3A"` (cria `alunos.csv` e `temas/`).
-- Turma sem a lista de temas do site: ao escolhê-la o menu oferece lê-la na hora (só leitura, conta de teste).
+- Os temas do site são os mesmos para todas as turmas: uma lista só, `dados/temas_site.csv`. Se ela não existir,
+  o menu oferece lê-la na hora (só leitura, conta de teste); atualizar = menu 9.
 - **Sem terminal:** duplo clique em `AutoReda.bat` abre o menu. Para ter na Área de Trabalho (ou em outra
   pasta), duplo clique em `Criar atalho AutoReda.bat` (ou `Criar atalho AutoReda.bat "C:\outra\pasta"`); o
   atalho aponta para a pasta do projeto e funciona de onde estiver. Não copie o `.bat`, copie o atalho.

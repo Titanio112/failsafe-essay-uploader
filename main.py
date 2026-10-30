@@ -50,11 +50,11 @@ from modulos.dados.sugestao_temas import (
 
 
 def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pastas, codigos_pasta,
-                       revisar: str = "python main.py --revisar", temas_csv: Path = TEMAS_SITE_CSV) -> None:
+                       revisar: str = "python main.py --revisar") -> None:
     """Sugestões para o humano resolver (T26/T28): nomes e códigos de tema. Só sugere."""
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
     pastas = [p for p in arquivos if p not in codigos_pasta]
-    sugestoes = sugerir_codigos(pastas, ler_temas_site(temas_csv))
+    sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
     if not novas and not sugestoes:
         return
     tela.secao("O que falta revisar")
@@ -65,7 +65,7 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
         tela.aviso("Pastas SEM tema aprovado (nada delas é enviado):")
         for pasta, codigo, texto, score in sugestoes:
             if not codigo:
-                tela.status("fraco", f"{pasta}: nenhum tema parecido em {temas_csv} (tema novo no site?)", recuo=4)
+                tela.status("fraco", f"{pasta}: nenhum tema parecido em {TEMAS_SITE_CSV} (tema novo no site?)", recuo=4)
             else:
                 nivel = "provável" if score >= SCORE_PROVAVEL else "fraco, conferir"
                 print(f"    {tela.porcentagem(score)} {pasta}: {nivel} → {texto}")
@@ -307,7 +307,6 @@ def main(argv=None) -> int:
         return 2
     if args.modo_teste:
         configurar_modo_teste(cfg)  # T40: pasta e aprovações de testes/
-    temas_csv = cfg.temas_site or TEMAS_SITE_CSV  # M3: o da turma; sem turma (modo teste), o do projeto
     if args.resolver:
         # T49: só mexe no caderno; os nomes vêm da lista, se ela existir
         from modulos.ferramentas.resolver import executar_resolver
@@ -351,7 +350,7 @@ def main(argv=None) -> int:
             if aluno_conta is None:
                 tela.erro(f"{args.conta_aluno} nao esta na lista de alunos ({cfg.planilha}).")
                 return 2
-        return executar_analise_remota(cfg, temas_csv, aluno=aluno_conta)
+        return executar_analise_remota(cfg, TEMAS_SITE_CSV, aluno=aluno_conta)
 
     modo = ("MODO TESTE (conta de teste)" if args.modo_teste
             else "ENSAIO (redacoes reais -> conta de teste)" if args.ensaio is not None
@@ -372,8 +371,8 @@ def main(argv=None) -> int:
     else:
         if args.envio_real or args.enviar_faltantes:  # T56: as mesmas checagens antes do envio
             # Produção (F4/T24): fail-closed sem a referência de códigos do site
-            if not ler_codigos_site_csv(temas_csv):
-                tela.erro(f"Envio de producao exige {temas_csv} com os codigos do combo de temas.")
+            if not ler_codigos_site_csv(TEMAS_SITE_CSV):
+                tela.erro(f"Envio de producao exige {TEMAS_SITE_CSV} com os codigos do combo de temas.")
                 tela.erro("Nada foi enviado.")
                 return 2
             if config_mod.PRODUCAO_BLOQUEADA and args.ensaio is None:
@@ -400,15 +399,15 @@ def main(argv=None) -> int:
     # O CSV é só referência; a trava real é o combo da conta logada,
     # conferido item a item antes do clique (T18D).
     codigos_site: list[str] = []
-    if Path(temas_csv).exists():
-        codigos_site = ler_codigos_site_csv(temas_csv)
+    if Path(TEMAS_SITE_CSV).exists():
+        codigos_site = ler_codigos_site_csv(TEMAS_SITE_CSV)
         if codigos_site:
-            tela.info(f"Temas do site: {len(set(codigos_site))} códigos em {tela.caminho(temas_csv)} "
+            tela.info(f"Temas do site: {len(set(codigos_site))} códigos em {tela.caminho(TEMAS_SITE_CSV)} "
                       "(atualize com --analise-remota)")
         else:
-            tela.aviso(f"{temas_csv} existe mas sem códigos válidos")
+            tela.aviso(f"{TEMAS_SITE_CSV} existe mas sem códigos válidos")
     else:
-        tela.aviso(f"{temas_csv} não encontrado, sem validação de CODIGO_INVALIDO")
+        tela.aviso(f"{TEMAS_SITE_CSV} não encontrado, sem validação de CODIGO_INVALIDO")
 
     # Conciliação com as aprovações do humano (T26/T28); T40: vale também no modo teste
     conciliacao = conciliar_com_aprovacoes(cfg, alunos, codigos_site)
@@ -446,7 +445,7 @@ def main(argv=None) -> int:
         return _enviar_faltantes(cfg, faltam, resultado=resultado)
     if args.revisar:
         return executar_revisao(
-            resultado, alunos, arquivos, ler_temas_site(temas_csv), codigos_pasta,
+            resultado, alunos, arquivos, ler_temas_site(TEMAS_SITE_CSV), codigos_pasta,
             cfg.pasta_raiz, cfg.arquivo_pastas_aprovadas, cfg.banco_progresso,
             cfg.pasta_relatorios, nomes_aprovados,
             turma_args=" --modo-teste" if args.modo_teste else f' --escola "{cfg.escola}" --turma "{cfg.turma}"',
@@ -506,8 +505,7 @@ def main(argv=None) -> int:
 
     _mostrar_sugestoes(resultado, alunos, arquivos, cfg.arquivo_nomes_aprovados,
                        cfg.arquivo_pastas_aprovadas, codigos_pasta,
-                       "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar",
-                       temas_csv)
+                       "python main.py --modo-teste --revisar" if args.modo_teste else "python main.py --revisar")
 
     # Ensaio (T42): redações reais -> conta de teste
     if args.ensaio is not None:

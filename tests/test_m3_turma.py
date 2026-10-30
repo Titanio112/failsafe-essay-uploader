@@ -149,13 +149,16 @@ def test_main_recusa_dados_do_config_ini_com_turma(capsys):
     assert "tire pasta_raiz/planilha" in capsys.readouterr().out
 
 
-def test_main_com_turma_usa_so_os_caminhos_dela(monkeypatch, capsys):
+def test_main_com_turma_usa_so_os_caminhos_dela_e_os_temas_do_projeto(monkeypatch, capsys):
     import main as main_mod
     pasta = _turma("Escola Um", "3A", ["Ana Um;ana@um.example.com;s1"], {"100 - Tema": ["Ana Um.jpg"]})
-    (pasta / "dados").mkdir()
-    (pasta / "dados" / "temas_site.csv").write_text("codigo,texto\n100,100- Tema\n", encoding="utf-8")
+    temas = config_mod.RAIZ / "dados" / "temas_site.csv"  # um só, para todas as turmas
+    temas.parent.mkdir(exist_ok=True)
+    temas.write_text("codigo,texto\n100,100- Tema\n", encoding="utf-8")
+    monkeypatch.setattr(main_mod, "TEMAS_SITE_CSV", temas)
     assert main_mod.main(["--escola", "Escola Um", "--turma", "3A"]) == 0
     saida = capsys.readouterr().out
+    assert not (pasta / "dados" / "temas_site.csv").exists()
     assert "Alunos carregados: 1" in saida and "Prontas para enviar:" in saida
     assert (pasta / "relatorios" / "relatorio_conciliacao.csv").is_file()
     assert (pasta / "logs" / "automacao.log").is_file()

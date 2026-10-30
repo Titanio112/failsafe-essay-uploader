@@ -240,12 +240,13 @@ def _criar_estrutura(entrada: Entrada | None, saida: Callable) -> None:
 
 def oferecer_temas(turma: tuple[str, str], main: Callable[[list[str]], int], entrada: Entrada | None = None,
                    saida: Callable = print) -> bool:
-    """Turma sem a lista de temas do site: oferece lê-la agora (o mesmo caminho do menu 9, com o ANALISAR)."""
-    from modulos.base.turma import pasta_da_turma
+    """Sem a lista de temas do site (``dados/temas_site.csv``, uma só para todas as turmas): oferece lê-la agora
+    (o mesmo caminho do menu 9, com o ANALISAR). ``turma`` só diz em qual turma o log da leitura fica."""
+    from modulos.dados.conciliacao_completa import TEMAS_SITE_CSV
     try:  # roda antes do laço do menu: um erro aqui não pode fechar o script ao abrir
-        if (pasta_da_turma(*turma) / "dados" / "temas_site.csv").is_file():
+        if TEMAS_SITE_CSV.is_file():
             return False
-        tela.aviso("Esta turma ainda não tem a lista de temas do site.", saida)
+        tela.aviso("Ainda não existe a lista de temas do site (vale para todas as turmas).", saida)
         if not _sim(entrada, "Ler os temas do site agora (só leitura, conta de teste)?"):
             return False
         main(["--analise-remota", "--escola", turma[0], "--turma", turma[1]])
