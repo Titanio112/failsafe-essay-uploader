@@ -1,7 +1,7 @@
 """Menu principal (T47): `python main.py` sem nada abre este menu.
 
 M3: primeiro escolhe escola -> turma, mostra o resumo e pede s/n; o menu
-fica só daquela turma ("Trocar turma" volta à escolha).
+fica só daquela turma ("Trocar escola ou turma" volta à escolha).
 
 Cada opção só monta os argumentos e chama o mesmo ``main`` que os comandos
 com flags usam (com ``--escola``/``--turma``), então o menu nunca pula uma
@@ -37,7 +37,7 @@ OPCOES = [
     ("Ferramentas", "11", "Arquivo morto", "guarda as pastas já enviadas"),
     ("Ferramentas", "12", "Primeiro uso / o que falta", "cria o que falta e explica"),
     ("Ferramentas", "13", "Configurações", ""),
-    ("Ferramentas", "14", "Trocar turma", "volta à escolha de escola e turma"),
+    ("Ferramentas", "14", "Trocar escola ou turma", "outra turma da escola, ou outra escola"),
 ]
 SEM_TURMA = ("4",)  # modo teste: conta de teste e testes/redacoes_teste, sem turma
 
@@ -192,8 +192,10 @@ def resumo_turma(escola: str, turma: str, saida: Callable = print) -> bool:
     return True
 
 
-def escolher_turma(entrada: Entrada | None = None, saida: Callable = print) -> tuple[str, str] | None:
-    """Escola -> turma -> resumo -> s/n. None = cancelou (ou não há turma)."""
+def escolher_turma(entrada: Entrada | None = None, saida: Callable = print,
+                   escola_fixa: str | None = None) -> tuple[str, str] | None:
+    """Escola -> turma -> resumo -> s/n. None = cancelou (ou não há turma).
+    ``escola_fixa``: começa pelas turmas dessa escola (``v`` volta à escolha de escola)."""
     from modulos.base.turma import listar_escolas, listar_turmas
     tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  escolha a turma", saida)
     while True:
@@ -208,7 +210,8 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print) -> t
                        f"\"{config_mod.PASTA_REDACOES}/<Escola>/<Turma>/\" com alunos.csv.", saida)
             tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida)
             return None
-        escola = _escolher(escolas, "Escola", entrada, saida)
+        escola = escola_fixa if escola_fixa in escolas else _escolher(escolas, "Escola", entrada, saida)
+        escola_fixa = None
         if escola is None:
             return None
         turma = _escolher(listar_turmas(escola), f"Turma de {escola}", entrada, saida, voltar=True)
@@ -230,7 +233,9 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
         if opcao in ("0", ""):
             return 0
         if opcao == "14":  # trocar turma: o main da próxima opção só recebe a nova
-            turma = escolher_turma(entrada, saida) or turma
+            tela.menu([("Enter / t", "outra turma desta escola"), ("e", "outra escola")], saida)
+            qual = _perguntar(entrada, "  > ").lower()
+            turma = escolher_turma(entrada, saida, turma[0] if qual in ("", "t") else None) or turma
             continue
         try:
             from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main

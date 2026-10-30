@@ -8,6 +8,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Excluir escola ou turma (#36):** Configurações > `x`, com aviso, escolha, aviso crítico em vermelho e frase digitada exata. Não apaga o caderno de envios nem o Arquivo morto; recusa durante um envio.
+- Menu 14 virou "Trocar escola ou turma" (outra turma da mesma escola, ou outra escola).
 - **Gerenciar escolas e turmas (#35):** menu 13 Configurações ganhou adicionar escola, adicionar turma, renomear escola e renomear turma (a pasta, o arquivo morto e o caderno acompanham; cópia do caderno antes; recusa durante um envio).
 - Toda turma nasce com a pasta-guia `Renomeie_Para_O_Tema_E_Coloque_As_Redacoes_Aqui` em `temas/` (ignorada até ser renomeada). Um único `LEIA-ME.md` por escola, em vez de um por pasta.
 - **Primeiro uso guiado (#34):** sem nenhuma turma, `python main.py` pergunta "É a primeira vez?" e monta escolas e turmas passo a passo (ou cria só uma escola de exemplo), com `LEIA-ME.md` em cada pasta, links clicáveis e resumo final.

@@ -90,3 +90,53 @@ def test_envio_rodando_recusa_renomear():
     with trava_de_envio(banco.parent / "envio.trava"):
         assert not estrutura.renomear_turma(_resp("1", "1", "1Z", "s"), lambda *_: None)
     assert listar_turmas("Escola A") == ["1A", "1B"]
+
+
+# ─── Apagar (x) e trocar (14) ────────────────────────────────
+
+SIM = "Sim eu tenho certeza disso e estou ciente dos riscos e quero apagar"
+
+
+def test_apagar_turma_com_a_frase_e_lista_as_que_restam():
+    _base()
+    saidas = []
+    assert estrutura.apagar(_resp("s", "t", "1", "1", SIM), saidas.append)  # Escola A, turma 1A
+    assert listar_turmas("Escola A") == ["1B"] and (raiz_redacoes() / "Escola A").is_dir()
+    texto = " ".join("\n".join(saidas).split())  # o aviso quebra em linhas
+    assert estrutura.AVISO_TURMA in texto and "A ESCOLA" not in texto and "Turmas disponíveis" in texto
+
+
+def test_apagar_escola_tira_tudo_e_lista_as_escolas_que_restam():
+    _base()
+    saidas = []
+    assert estrutura.apagar(_resp("s", "e", "1", SIM), saidas.append)
+    assert listar_escolas() == ["Escola B"] and not (raiz_redacoes() / "Escola A").exists()
+    assert estrutura.AVISO_ESCOLA in " ".join("\n".join(saidas).split())
+
+
+def test_apagar_so_com_todas_as_travas():
+    _base()
+    for resp in (("n",), ("s", "x"), ("s", "t", "1", "1", SIM.lower()), ("s", "t", "1", "1", SIM + " ")[:4] + ("",),
+                 ("s", "e", "1", "sim")):
+        assert not estrutura.apagar(_resp(*resp), lambda *_: None)
+    assert listar_escolas() == ["Escola A", "Escola B"] and listar_turmas("Escola A") == ["1A", "1B"]
+
+
+def test_apagar_recusa_com_envio_rodando_e_fora_da_raiz(tmp_path):
+    _base()
+    banco = _caderno()
+    with trava_de_envio(banco.parent / "envio.trava"):
+        assert not estrutura.apagar(_resp("s", "e", "1", SIM), lambda *_: None)
+    assert listar_escolas() == ["Escola A", "Escola B"]
+    assert not estrutura._apagar_pasta(tmp_path) and tmp_path.exists()
+    assert not estrutura._apagar_pasta(raiz_redacoes()) and raiz_redacoes().exists()
+
+
+def test_menu_14_troca_so_de_turma_ou_de_escola():
+    from modulos.ferramentas import menu
+    _base()
+    chamadas = []
+    # Escola A/1A -> 14 t: 1B (mesma escola, sem perguntar escola) -> ação -> 14 e: Escola B/2A -> ação -> sair
+    r = iter(["1", "1", "s", "14", "t", "2", "s", "1", "", "14", "e", "2", "1", "s", "1", "", "0"])
+    menu.executar_menu(lambda argv: chamadas.append(argv) or 0, lambda _: next(r), lambda *_: None)
+    assert chamadas == [["--escola", "Escola A", "--turma", "1B"], ["--escola", "Escola B", "--turma", "2A"]]
