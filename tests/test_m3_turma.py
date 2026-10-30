@@ -275,7 +275,7 @@ def test_menu_escolhe_turma_e_trocar_nao_reaproveita_nada():
     chamadas, saidas = [], []
     respostas = iter(["1", "1", "s",            # escola 1, turma 3A, usar
                       "1", "",                  # conferir (3A)
-                      "14", "1", "v", "1", "2", "s",  # trocar: escola, voltar, escola, turma 3B, usar
+                      "14", "e", "1", "v", "1", "2", "s",  # trocar escola: escola, voltar, escola, turma 3B, usar
                       "2", "", "0"])            # revisar (3B), sair
     assert menu.executar_menu(lambda argv: chamadas.append(argv) or 0, lambda _: next(respostas),
                               saidas.append) == 0
