@@ -10,12 +10,12 @@ if not exist "main.py" (
   echo Apague a copia e use o atalho: duplo clique em "Criar atalho AutoReda.bat".
   goto fim
 )
-where python >nul 2>nul
+python --version >nul 2>nul
 if %errorlevel%==0 (
   python main.py %*
   goto fim
 )
-where py >nul 2>nul
+py -3 --version >nul 2>nul
 if %errorlevel%==0 (
   py -3 main.py %*
   goto fim

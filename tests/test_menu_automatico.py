@@ -78,3 +78,14 @@ def test_atalhos_do_windows_rodam_de_qualquer_pasta_e_nao_valem_copiados():
     assert 'if not exist "main.py"' in texto  # cópia solta (ex.: Área de Trabalho) avisa em vez de falhar calada
     criador = (RAIZ_PROJETO / "Criar atalho AutoReda.bat").read_bytes()
     assert criador.isascii() and b"AutoReda.lnk" in criador and b"WorkingDirectory" in criador
+
+
+def test_oferta_de_temas_nunca_derruba_o_menu_ao_abrir():
+    _base()
+
+    def main_quebrado(argv):
+        raise RuntimeError("falhou")
+    saidas = []
+    assert not menu.oferecer_temas(("Escola A", "1A"), main_quebrado, _resp("s"), saidas.append)
+    assert not menu.oferecer_temas(("Escola Que Nao Existe", "X"), lambda argv: 0, _resp("s"), saidas.append)
+    assert any("Não consegui ler os temas" in s for s in saidas)

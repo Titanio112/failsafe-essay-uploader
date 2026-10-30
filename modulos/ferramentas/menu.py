@@ -241,18 +241,21 @@ def _criar_estrutura(entrada: Entrada | None, saida: Callable) -> None:
 def oferecer_temas(turma: tuple[str, str], main: Callable[[list[str]], int], entrada: Entrada | None = None,
                    saida: Callable = print) -> bool:
     """Turma sem a lista de temas do site: oferece lê-la agora (o mesmo caminho do menu 9, com o ANALISAR)."""
-    from modulos.base.turma import aplicar_turma
-    cfg = config_mod.carregar_config()
-    aplicar_turma(cfg, *turma)
-    if cfg.temas_site.is_file():
-        return False
-    tela.aviso("Esta turma ainda não tem a lista de temas do site.", saida)
-    if not _sim(entrada, "Ler os temas do site agora (só leitura, conta de teste)?"):
-        return False
-    try:
+    from modulos.base.turma import pasta_da_turma
+    try:  # roda antes do laço do menu: um erro aqui não pode fechar o script ao abrir
+        if (pasta_da_turma(*turma) / "dados" / "temas_site.csv").is_file():
+            return False
+        tela.aviso("Esta turma ainda não tem a lista de temas do site.", saida)
+        if not _sim(entrada, "Ler os temas do site agora (só leitura, conta de teste)?"):
+            return False
         main(["--analise-remota", "--escola", turma[0], "--turma", turma[1]])
     except KeyboardInterrupt:
         tela.aviso("Interrompido (Ctrl+C).", saida)
+    except Exception as e:  # noqa: BLE001 - o menu segue; os detalhes ficam no log
+        import logging
+        logging.getLogger("automacao_redacoes").exception("Erro ao oferecer a leitura dos temas")
+        tela.erro(f"Não consegui ler os temas agora: {type(e).__name__}: {e}", saida)
+        return False
     return True
 
 
