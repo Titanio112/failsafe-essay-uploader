@@ -57,6 +57,27 @@ def acrescentar_aluno(planilha: Path, nome: str, email: str, senha: str) -> Path
     return copia
 
 
+def trocar_nome(planilha: Path, email: str, novo_nome: str) -> Path:
+    """Troca o NOME do aluno de ``email`` no alunos.csv (issue #55); o resto de cada linha fica como está.
+    Levanta ValueError se o e-mail não existir ou se repetir. Retorna a cópia feita antes."""
+    planilha = Path(planilha)
+    texto = ler_texto(planilha)
+    cabecalho = texto.splitlines()[0]
+    sep = ";" if cabecalho.count(";") >= cabecalho.count(",") else ","
+    linhas = list(csv.reader(io.StringIO(texto), delimiter=sep))
+    colunas = [c.strip().casefold() for c in linhas[0]]
+    i_nome, i_email = colunas.index("nome"), colunas.index("email")
+    alvo = [r for r in linhas[1:] if len(r) > max(i_nome, i_email) and r[i_email].strip().casefold() == email.strip().casefold()]
+    if len(alvo) != 1:
+        raise ValueError(f"e-mail encontrado {len(alvo)} vez(es) no alunos.csv")
+    alvo[0][i_nome] = novo_nome.strip()
+    copia = planilha.with_name(f"{planilha.stem}.{datetime.now():%Y%m%d_%H%M%S}.bak{planilha.suffix}")
+    shutil.copy2(planilha, copia)
+    with open(planilha, "w", encoding="utf-8-sig", newline="") as f:
+        csv.writer(f, delimiter=sep, lineterminator="\n").writerows(linhas)
+    return copia
+
+
 def _senha(entrada: Entrada, prompt: str) -> str:
     try:
         return entrada(prompt) if entrada else getpass.getpass(prompt)  # sem eco no terminal de verdade
