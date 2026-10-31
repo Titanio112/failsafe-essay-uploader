@@ -39,9 +39,32 @@ def validar_novo(nome: str, email: str, senha: str, alunos: list[Aluno]) -> str:
     return ""
 
 
+def _exigir_gravavel(planilha: Path) -> None:
+    """PermissionError já, sem cópia nem escrita pela metade, se o arquivo está aberto no Excel (issue #57)."""
+    open(planilha, "r+b").close()
+
+
+def gravar_com_nova_tentativa(acao: Callable[[], object], entrada: Entrada = None, saida: Callable = print):
+    """Roda ``acao`` (grava o alunos.csv). Com PermissionError (arquivo aberto no Excel) avisa e repete até dar
+    certo. Se a pessoa digitar p, ou não houver como perguntar (sem terminal), levanta o PermissionError."""
+    while True:
+        try:
+            return acao()
+        except PermissionError as erro:
+            tela.aviso("O arquivo alunos.csv está aberto em outro programa (como o Excel). Feche o arquivo e "
+                       "aperte Enter para tentar salvar de novo (p = desistir).", saida)
+            try:
+                resposta = (entrada or input)("  > ")
+            except (EOFError, OSError, KeyboardInterrupt):
+                raise erro from None
+            if resposta.strip().lower() == "p":
+                raise erro
+
+
 def acrescentar_aluno(planilha: Path, nome: str, email: str, senha: str) -> Path:
     """Põe o aluno na última linha de ``planilha``. Retorna a cópia feita antes."""
     planilha = Path(planilha)
+    _exigir_gravavel(planilha)
     copia = planilha.with_name(f"{planilha.stem}.{datetime.now():%Y%m%d_%H%M%S}.bak{planilha.suffix}")
     shutil.copy2(planilha, copia)
     garantir_quebra_final(planilha)  # cp1252 do Excel vira UTF-8 e a última linha ganha a quebra
@@ -61,6 +84,7 @@ def trocar_nome(planilha: Path, email: str, novo_nome: str) -> Path:
     """Troca o NOME do aluno de ``email`` no alunos.csv (issue #55); o resto de cada linha fica como está.
     Levanta ValueError se o e-mail não existir ou se repetir. Retorna a cópia feita antes."""
     planilha = Path(planilha)
+    _exigir_gravavel(planilha)
     texto = ler_texto(planilha)
     cabecalho = texto.splitlines()[0]
     sep = ";" if cabecalho.count(";") >= cabecalho.count(",") else ","
@@ -110,7 +134,7 @@ def cadastrar_pulados(pulados: list[tuple[str, list]], alunos: list[Aluno], plan
                 tela.erro(f"Não cadastrei: {motivo}. Tente de novo ou digite p no nome para pular.", saida)
                 continue
             try:
-                copia = acrescentar_aluno(planilha, nome, email, senha)
+                copia = gravar_com_nova_tentativa(lambda: acrescentar_aluno(planilha, nome, email, senha), entrada, saida)
             except (OSError, ValueError, KeyError) as e:
                 tela.erro(f"Não consegui gravar no alunos.csv ({type(e).__name__}): nada foi cadastrado.", saida)
                 break

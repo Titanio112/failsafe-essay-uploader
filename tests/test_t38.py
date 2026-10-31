@@ -21,14 +21,16 @@ def test_pasta_padrao_e_redacoes_plataforma():
 def test_preparar_cria_o_que_falta_sem_sobrescrever(tmp_path):
     (tmp_path / ".env.example").write_text("ESQUEMA_SENHA_PADRAO=<definir>\n", encoding="utf-8")
     cfg = Config()
-    cfg.turma = "Turma"  # M3: a lista só é criada dentro de uma turma
-    cfg.pasta_raiz = tmp_path / "Redações plataforma"
+    cfg.escola, cfg.turma = "Escola", "Turma"  # M3: a lista só é criada dentro de uma turma
+    cfg.pasta_raiz = tmp_path / "Redações plataforma" / "Escola" / "Turma" / "temas"
     cfg.planilha = tmp_path / "dados" / "dados_alunos.csv"
     saidas = []
 
     assert preparar(cfg, tmp_path, saida=saidas.append) == 0
 
-    assert (cfg.pasta_raiz / "LEIA-ME.md").read_text(encoding="utf-8").startswith("# 📂 Redações para enviar")
+    # issue #57: um LEIA-ME por escola, na pasta da escola e não dentro de temas/
+    assert (cfg.pasta_raiz.parent.parent / "LEIA-ME.md").read_text(encoding="utf-8").startswith("# Escola: Escola")
+    assert not (cfg.pasta_raiz / "LEIA-ME.md").exists()
     assert cfg.planilha.read_text(encoding="utf-8") == "Nome;Email;Senha\n"  # M3: + Senha
     assert (tmp_path / ".env").is_file()
     assert any("criado:" in s for s in saidas)

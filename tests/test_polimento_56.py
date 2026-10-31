@@ -109,7 +109,7 @@ def test_menu_diz_por_que_o_enviar_esta_bloqueado(monkeypatch):
     # 2 contas sem abrir (a 1ª com 2 redações): o menu conta as CONTAS e as redações
     _conferencia([("Ana", cs.NAO_CONFERIDO), ("Ana", cs.NAO_CONFERIDO), ("Bia", cs.NAO_TENTADO), ("Caio", cs.NO_SITE)])
     texto = _menu()
-    assert "restam 2 conta(s) sem conferir (3 redação(ões))" in texto and 'conclua "Conferir contas no site"' in texto
+    assert "restam 2 conta(s) sem conferir (3 redação(ões))" in texto and 'use "Conferir contas no site"' in texto
     # tudo certo e tudo no site: Enviar as que faltam explica que não há o que enviar; Enviar para os alunos libera
     _conferencia([("Ana", cs.NO_SITE), ("Bia", cs.NO_SITE)])
     texto = _menu()
@@ -133,10 +133,10 @@ def test_cadastro_mudou_oferece_conferir_de_novo_e_enter_aceita():
         pendencias.cadastro_mudou = False  # a nova conferência já não muda o cadastro
         return 0
     menu.proximo_passo(["--conferir-site"], TURMA, main, _resp(""), lambda *_: None)  # Enter = sim
-    assert chamadas == [["--conferir-site"] + DA_TURMA]
+    assert chamadas == [["--conferir-site", "--so-pendentes"] + DA_TURMA]  # só as pendentes (issue #57)
     pendencias.cadastro_mudou = True
     menu.proximo_passo(["--conferir-site"], TURMA, main, _resp("n"), lambda *_: None)
-    assert chamadas == [["--conferir-site"] + DA_TURMA]  # "n" volta ao menu sem conferir
+    assert len(chamadas) == 1  # "n" volta ao menu sem conferir
     pendencias.cadastro_mudou = False
 
 

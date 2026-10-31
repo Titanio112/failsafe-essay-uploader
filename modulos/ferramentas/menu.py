@@ -319,6 +319,18 @@ def verificar_turma_ao_abrir(turma: tuple[str, str], main: Callable[[list[str]],
     oferecer_temas(turma, main, entrada, saida)
 
 
+SO_PENDENTES = ["--conferir-site", "--so-pendentes"]  # reconfere só as contas que a conferência de hoje não leu
+
+
+def _contas_pendentes(turma: tuple[str, str]) -> int:
+    from modulos.base.turma import raiz_redacoes
+    from modulos.site.conferencia_site import contas_pendentes_hoje
+    try:
+        return contas_pendentes_hoje(raiz_redacoes() / turma[0] / turma[1] / "relatorios", f"{turma[0]}/{turma[1]}")
+    except Exception:  # noqa: BLE001 - é só uma oferta
+        return 0
+
+
 def proximo_passo(argumentos: list[str], turma: tuple[str, str], main: Callable[[list[str]], int],
                   entrada: Entrada | None = None, saida: Callable = print) -> None:
     """Depois de uma etapa de Preparar, oferece a seguinte: Conferir -> (pendências) Revisão -> Conferir de novo ->
@@ -333,8 +345,12 @@ def proximo_passo(argumentos: list[str], turma: tuple[str, str], main: Callable[
                 pergunta, proximo = "Tudo certo nas pastas. Deseja conferir as contas no site agora?", ["--conferir-site"]
         elif argumentos == ["--revisar"]:
             pergunta, proximo = "Revisão concluída. Deseja conferir as redações de novo, para ver se não sobrou nada?", []
-        elif argumentos == ["--conferir-site"] and pendencias.cadastro_mudou:  # a conferência manual mexeu no cadastro
-            pergunta, proximo = "O cadastro mudou. Deseja conferir as contas no site novamente agora?", ["--conferir-site"]
+        elif argumentos[:1] == ["--conferir-site"] and pendencias.cadastro_mudou:  # a conferência manual mexeu no cadastro
+            pergunta = "O cadastro mudou. Deseja conferir as contas no site novamente agora (só as pendentes)?"
+            proximo = SO_PENDENTES
+        elif argumentos == ["--resolver"] and (pendentes := _contas_pendentes(turma)):
+            pergunta = f"Há {pendentes} conta(s) pendente(s) da conferência de hoje. Deseja conferir só elas agora?"
+            proximo = SO_PENDENTES
         else:
             return
         if not _sim(entrada, pergunta):
