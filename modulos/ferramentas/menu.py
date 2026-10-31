@@ -40,6 +40,7 @@ OPCOES = [
     ("Ferramentas", "14", "Trocar escola ou turma", "outra turma da escola, ou outra escola"),
 ]
 SEM_TURMA = ("4",)  # modo teste: conta de teste e testes/redacoes_teste, sem turma
+NOVA = "<nova>"  # "n" na escolha de escola (nome inválido em pasta: nunca colide com uma escola)
 
 
 def _perguntar(entrada: Entrada | None, texto: str) -> str:
@@ -152,18 +153,20 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
 
 
 def _escolher(itens: list[str], o_que: str, entrada: Entrada | None, saida: Callable,
-              voltar: bool = False) -> str | None:
-    """Item escolhido, "v" (voltar) ou None (cancelar)."""
+              voltar: bool = False, nova: bool = False) -> str | None:
+    """Item escolhido, "v" (voltar), ``NOVA`` ("n", só com ``nova``) ou None (cancelar)."""
     tela.secao(o_que, saida)
     for i, item in enumerate(itens, 1):
         saida(f"    {tela.c(f'{i})', 'tecla')} {item}")
-    extra = "v = voltar, " if voltar else ""
+    extra = ("v = voltar, " if voltar else "") + ("n = nova escola/turma, " if nova else "")
     while True:
         r = _perguntar(entrada, f"  {o_que} ({extra}Enter = cancelar): ").lower()
         if not r or r == "0":
             return None
         if voltar and r == "v":
             return "v"
+        if nova and r == "n":
+            return NOVA
         if r.isdecimal() and 1 <= int(r) <= len(itens):
             return itens[int(r) - 1]
         tela.erro("Opção inválida.", saida)
@@ -210,8 +213,11 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print,
                        f"\"{config_mod.PASTA_REDACOES}/<Escola>/<Turma>/\" com alunos.csv.", saida)
             tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida)
             return None
-        escola = escola_fixa if escola_fixa in escolas else _escolher(escolas, "Escola", entrada, saida)
+        escola = escola_fixa if escola_fixa in escolas else _escolher(escolas, "Escola", entrada, saida, nova=True)
         escola_fixa = None
+        if escola == NOVA:
+            _criar_estrutura(entrada, saida)
+            continue
         if escola is None:
             return None
         turma = _escolher(listar_turmas(escola), f"Turma de {escola}", entrada, saida, voltar=True)
@@ -221,12 +227,47 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print,
             return escola, turma
 
 
+def _criar_estrutura(entrada: Entrada | None, saida: Callable) -> None:
+    """"n" na escolha de escola: cria escola ou turma sem sair do menu (mesmas perguntas do menu 13)."""
+    from modulos.ferramentas import estrutura
+    tela.menu([("e", "nova escola (com as turmas dela)"), ("t", "nova turma em uma escola que já existe")], saida)
+    qual = _perguntar(entrada, "  > ").lower()
+    if qual == "e":
+        estrutura.adicionar_escola(entrada, saida)
+    elif qual == "t":
+        estrutura.adicionar_turma(entrada, saida)
+
+
+def oferecer_temas(turma: tuple[str, str], main: Callable[[list[str]], int], entrada: Entrada | None = None,
+                   saida: Callable = print) -> bool:
+    """Turma sem a lista de temas do site: oferece lê-la agora (o mesmo caminho do menu 9, com o ANALISAR)."""
+    from modulos.base.turma import pasta_da_turma
+    try:  # roda antes do laço do menu: um erro aqui não pode fechar o script ao abrir
+        if (pasta_da_turma(*turma) / "dados" / "temas_site.csv").is_file():
+            return False
+        tela.aviso("Esta turma ainda não tem a lista de temas do site.", saida)
+        if not _sim(entrada, "Ler os temas do site agora (só leitura, conta de teste)?"):
+            return False
+        main(["--analise-remota", "--escola", turma[0], "--turma", turma[1]])
+    except KeyboardInterrupt:
+        tela.aviso("Interrompido (Ctrl+C).", saida)
+    except Exception as e:  # noqa: BLE001 - o menu segue; os detalhes ficam no log
+        import logging
+        logging.getLogger("automacao_redacoes").exception("Erro ao oferecer a leitura dos temas")
+        tela.erro(f"Não consegui ler os temas agora: {type(e).__name__}: {e}", saida)
+        return False
+    return True
+
+
 def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = None,
                   saida: Callable = print, turma: tuple[str, str] | None = None) -> int:
     """Escolhe a turma e mostra o menu até a pessoa escolher 0 (ou fechar a entrada)."""
     turma = turma or escolher_turma(entrada, saida)
     if not turma:
         return 0
+    interativo = entrada is None and sys.stdin.isatty()  # verificação automática só com pessoa no teclado
+    if interativo:
+        oferecer_temas(turma, main, entrada, saida)
     while True:
         mostrar_menu(saida, turma)
         opcao = _perguntar(entrada, "\n  Escolha uma opção: ")
@@ -236,6 +277,8 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
             tela.menu([("Enter / t", "outra turma desta escola"), ("e", "outra escola")], saida)
             qual = _perguntar(entrada, "  > ").lower()
             turma = escolher_turma(entrada, saida, turma[0] if qual in ("", "t") else None) or turma
+            if interativo:
+                oferecer_temas(turma, main, entrada, saida)
             continue
         try:
             from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main
