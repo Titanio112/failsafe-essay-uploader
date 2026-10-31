@@ -76,6 +76,38 @@ def test_mesma_pessoa_troca_o_nome_na_lista_e_renomeia_a_foto_com_copia_e_log():
     assert "Nome na planilha: Davi Lucas de Moura Fontes" in texto and "Nome no site:     Davi L. de Moura Fontes" in texto
 
 
+def test_alunos_csv_aberto_no_excel_espera_e_so_depois_renomeia_a_foto(monkeypatch):
+    pasta, cfg, alunos = _cenario()
+    real, tentativas = cm.trocar_nome, []
+
+    def trocar(*a):
+        tentativas.append(1)
+        if len(tentativas) == 1:
+            raise PermissionError(13, "Permission denied")  # Excel com o arquivo aberto
+        return real(*a)
+    monkeypatch.setattr(cm, "trocar_nome", trocar)
+    conf = _conf(alunos[0], "identidade")
+    saidas = []
+    r = _resp("s", "s", "")  # manual; é a mesma pessoa; fechei o Excel (Enter)
+    assert cm.conferir_manualmente(cfg, [conf], r, saidas.append, abrir=_abrir("Davi L. de Moura Fontes"), alunos=alunos) == 1
+    assert len(tentativas) == 2 and "aberto em outro programa" in "\n".join(saidas)
+    assert (pasta / "temas" / "100 - Tema" / "Davi L. de Moura Fontes.jpg").is_file()  # nome e foto andaram juntos
+
+
+def test_desistir_com_o_arquivo_aberto_nao_renomeia_a_foto(monkeypatch):
+    pasta, cfg, alunos = _cenario()
+    antes = (pasta / "alunos.csv").read_bytes()
+
+    def trancado(*a):
+        raise PermissionError(13, "Permission denied")
+    monkeypatch.setattr(cm, "trocar_nome", trancado)
+    conf = _conf(alunos[0], "identidade")
+    r = _resp("s", "s", "p", "n")  # manual; mesma pessoa; p = desistir; e não consegui à mão
+    assert cm.conferir_manualmente(cfg, [conf], r, lambda *_: None, abrir=_abrir("Davi L. de Moura Fontes"), alunos=alunos) == 0
+    assert (pasta / "alunos.csv").read_bytes() == antes
+    assert (pasta / "temas" / "100 - Tema" / "Davi Lucas de Moura Fontes.jpg").is_file()  # a foto ficou como estava
+
+
 def test_nao_e_a_mesma_pessoa_mostra_o_caminho_e_nao_mexe_na_lista():
     pasta, cfg, alunos = _cenario()
     antes = (pasta / "alunos.csv").read_bytes()
@@ -149,5 +181,5 @@ def test_conferencia_oferece_a_manual_e_se_o_cadastro_mudou_nao_oferece_enviar()
     visto["muda"] = 1
     saidas = []
     cs.executar_conferencia_site(cfg, ResultadoConciliacao(itens=itens), _resp("CONFERIR"), saidas.append, ler=ler,
-                                 depois=depois, guiada=guiada)
+                                 depois=depois, guiada=guiada, so_pendentes=False)  # (a 1ª já deixou relatório de hoje)
     assert "faltam" not in visto and "Conferir contas no site" in "\n".join(saidas)

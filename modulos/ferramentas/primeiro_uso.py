@@ -17,6 +17,7 @@ from typing import Callable
 
 from modulos.base import tela
 from modulos.base.config import Config, RAIZ_PASTA_REDACOES_LEIAME
+from modulos.base.turma import PASTA_GUIA
 from modulos.dados.arquivos_csv import ler_texto
 
 CABECALHO_ALUNOS = "Nome;Email;Senha\n"
@@ -63,10 +64,18 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
     if not pasta.is_dir():
         pasta.mkdir(parents=True)
         criados.append(str(pasta))
-    leiame = pasta / "LEIA-ME.md"
-    if not leiame.exists():
-        leiame.write_text(RAIZ_PASTA_REDACOES_LEIAME, encoding="utf-8")
-        criados.append(str(leiame))
+    if cfg.turma:  # um só LEIA-ME por escola, na pasta da escola (nunca dentro de temas/); issue #57
+        if cfg.escola:
+            from modulos.ferramentas.assistente_inicial import LEIA_ME, TEXTO_ESCOLA
+            leiame = pasta.parent.parent / LEIA_ME
+            if not leiame.exists():
+                leiame.write_text(TEXTO_ESCOLA.format(escola=cfg.escola, guia=PASTA_GUIA), encoding="utf-8")
+                criados.append(str(leiame))
+    else:
+        leiame = pasta / "LEIA-ME.md"
+        if not leiame.exists():
+            leiame.write_text(RAIZ_PASTA_REDACOES_LEIAME, encoding="utf-8")
+            criados.append(str(leiame))
     if cfg.turma and not planilha.exists():  # M3: lista só dentro da turma
         planilha.parent.mkdir(parents=True, exist_ok=True)
         planilha.write_text(CABECALHO_ALUNOS, encoding="utf-8")

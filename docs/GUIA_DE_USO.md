@@ -203,6 +203,18 @@ outros problemas, com a mensagem inteira, e oferece a conferência manual de cad
 Se a conferência manual mudar o `alunos.csv`, o menu pergunta ali mesmo se quer
 conferir as contas de novo.
 
+**Reconferir só as pendentes.** Se a conferência de hoje desta turma já existe, ao
+rodar "Conferir contas no site" de novo o script pergunta se quer só as contas que
+não abriram (ou que mudaram de nome/foto); as já conferidas hoje são reaproveitadas
+e o relatório de hoje fica completo, o que destrava o Enviar. O menu faz essa
+oferta sozinho depois de uma conferência manual que mudou o cadastro e depois de
+"Resolver revisões manuais" (que só olha o caderno de envios; as contas pendentes
+são da conferência no site). Direto: `--conferir-site --so-pendentes`.
+
+Se o `alunos.csv` estiver aberto no Excel quando o script for salvar (trocar nome,
+cadastrar aluno), ele avisa, espera você fechar o arquivo e tenta de novo (Enter);
+`p` desiste. A foto só é renomeada depois que o nome foi gravado.
+
 Nas perguntas de sim/não, **Enter ou `s` = sim** e `n` = não (sem terminal, ou Ctrl+C,
 vale não). Nos submenus, Enter vazio volta. Se **Enviar** estiver cinza, o menu escreve
 embaixo o motivo (contas que faltam conferir, nada a enviar ou a trava de produção).

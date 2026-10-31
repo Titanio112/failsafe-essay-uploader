@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -50,6 +51,7 @@ class ConferenciaAluno:
     erro: str = ""
     tipo_erro: str = ""  # "identidade" | "login" | "" (issue #55: a conferência manual trata cada um)
     linhas: list[tuple[ItemConciliacao, str, list[ItemListaRedacao]]] = field(default_factory=list)
+    reaproveitada: list[dict] | None = None  # linhas da conferência de hoje reaproveitadas, sem abrir a conta (#57)
 
 
 def alunos_para_conferir(resultado: ResultadoConciliacao) -> list[ConferenciaAluno]:
@@ -260,7 +262,9 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path, turma: str = "
         for conf in conferencias:
             if not conf.linhas:
                 comparar(conf)
-            for item, estado, do_tema in conf.linhas:
+            for linha in conf.reaproveitada or []:  # conta não aberta agora: as linhas de hoje, como estavam
+                escritor.writerow([linha[c] for c in COLUNAS_CSV])
+            for item, estado, do_tema in [] if conf.reaproveitada else conf.linhas:
                 escritor.writerow([conf.aluno.nome, item.pasta, item.arquivo, item.codigo_tema,
                                    conf.erro and NAO_CONFERIDO or estado, len(do_tema),
                                    " | ".join(r.data for r in do_tema),
@@ -338,9 +342,67 @@ def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]
     pendentes = [l for l in linhas if l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO)]
     if pendentes:
         contas = len({l["aluno"] for l in pendentes})
-        return False, (f"restam {contas} conta(s) sem conferir ({len(pendentes)} redação(ões)): conclua "
-                       "\"Conferir contas no site\" (a conferência manual corrige nome e senha)")
+        return False, (f"restam {contas} conta(s) sem conferir ({len(pendentes)} redação(ões)): use "
+                       "\"Conferir contas no site\" (ele confere só as pendentes e abre a conferência manual)")
     return True, ""
+
+
+def contas_pendentes_hoje(pasta_relatorios: Path, turma: str) -> int:
+    """Quantas contas a conferência de hoje deixou "não conferidas" ou "não tentadas" (0 = nenhuma ou sem relatório)."""
+    linhas, _ = _linhas_de_hoje(pasta_relatorios, turma)
+    return len({l["aluno"] for l in linhas or [] if l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO)})
+
+
+def _reaproveitaveis(linhas: list[dict], conferencias: list[ConferenciaAluno]) -> dict[str, list[dict]]:
+    """{aluno.id: linhas de hoje} das contas já conferidas SEM erro e com as mesmas fotos (pasta, arquivo, tema).
+    Aluno renomeado ou foto trocada/renomeada não casa e é lido de novo."""
+    por_aluno: dict[str, list[dict]] = {}
+    for l in linhas:
+        por_aluno.setdefault(l["aluno"], []).append(l)
+    achados = {}
+    for conf in conferencias:
+        antigas = por_aluno.get(conf.aluno.nome, [])
+        fotos = {(i.pasta, i.arquivo, i.codigo_tema) for i in conf.itens}
+        if (antigas and len(antigas) == len(conf.itens) == len(fotos)
+                and {(l["pasta"], l["arquivo"], l["tema"]) for l in antigas} == fotos
+                and not any(l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO) for l in antigas)):
+            achados[conf.aluno.id] = antigas
+    return achados
+
+
+def _contas_a_ler(cfg: Config, conferencias: list[ConferenciaAluno], so_pendentes: bool | None,
+                  entrada: Callable[[str], str] | None, saida: Callable) -> list[ConferenciaAluno]:
+    """As contas que serão abertas. Com a conferência de HOJE desta turma já feita, pode reaproveitar as contas
+    conferidas e ler só as pendentes (issue #57). ``so_pendentes``: True, False ou None (pergunta, só com pessoa)."""
+    if so_pendentes is False:
+        return conferencias
+    linhas, _ = _linhas_de_hoje(cfg.pasta_relatorios, cfg.id_turma)
+    achados = _reaproveitaveis(linhas, conferencias) if linhas else {}
+    a_ler = [c for c in conferencias if c.aluno.id not in achados]
+    if not achados:
+        if so_pendentes:
+            tela.info("Não há conferência de hoje para reaproveitar: vou conferir todas as contas.", saida)
+        return conferencias
+    if not a_ler:
+        if so_pendentes:
+            tela.ok("Todas as contas já foram conferidas hoje: nada pendente.", saida)
+            return []
+        return conferencias
+    if so_pendentes is None:
+        if entrada is None and not sys.stdin.isatty():
+            return conferencias
+        if not tela.sim(f"Já há uma conferência de hoje: {len(achados)} conta(s) conferida(s) e {len(a_ler)} "
+                        "pendente(s). Conferir só as pendentes?", entrada):
+            return conferencias
+    for conf in conferencias:
+        antigas = achados.get(conf.aluno.id)
+        if antigas:
+            estado_de = {(l["pasta"], l["arquivo"], l["tema"]): l["resultado"] for l in antigas}
+            conf.reaproveitada, conf.lista = antigas, []
+            conf.linhas = [(i, estado_de[(i.pasta, i.arquivo, i.codigo_tema)], []) for i in conf.itens]
+    tela.info(f"Reaproveitei a conferência de hoje de {len(achados)} conta(s); vou abrir só as {len(a_ler)} "
+              "pendente(s).", saida)
+    return a_ler
 
 
 def nada_falta_enviar(pasta_relatorios: Path, turma: str) -> str:
@@ -355,13 +417,15 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                               entrada: Callable[[str], str] | None = None, saida: Callable = print,
                               ler: Callable | None = None,
                               depois: Callable[[list[ItemConciliacao]], object] | None = None,
-                              guiada: Callable[[list[ConferenciaAluno]], int] | None = None) -> int:
+                              guiada: Callable[[list[ConferenciaAluno]], int] | None = None,
+                              so_pendentes: bool | None = None) -> int:
     """0 = conferido até o fim; 1 = parou antes; 2 = cancelado/nada a conferir.
     ``ler`` (testes): substitui o navegador (recebe cfg, conferências, saida).
     ``depois`` (T53): recebe as fotos que certamente faltam no site, para
     oferecer o envio só delas (o main decide; aqui nada é enviado).
     ``guiada`` (#55): recebe as contas com problema para a conferência manual; devolve quantos cadastros
-    mudaram (se mudou algum, a conferência feita aqui já não vale: não oferece enviar)."""
+    mudaram (se mudou algum, a conferência feita aqui já não vale: não oferece enviar).
+    ``so_pendentes`` (#57): True = só as contas que a conferência de hoje não leu; None = pergunta."""
     from modulos.base.trava import TravaOcupada, trava_de_envio
     conferencias = alunos_para_conferir(resultado)
     pendencias.cadastro_mudou = False
@@ -369,8 +433,11 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     if not conferencias:
         tela.aviso("Nenhuma redação conferida na pasta (nome exato + tema aprovado). Rode a revisão antes.", saida)
         return 2
-    total = sum(len(c.itens) for c in conferencias)
-    tela.texto(f"Vou entrar na conta de {len(conferencias)} aluno(s), ler Minhas redações e comparar com as "
+    a_ler = _contas_a_ler(cfg, conferencias, so_pendentes, entrada, saida)
+    if not a_ler:
+        return 0
+    total = sum(len(c.itens) for c in a_ler)
+    tela.texto(f"Vou entrar na conta de {len(a_ler)} aluno(s), ler Minhas redações e comparar com as "
                f"{total} foto(s) da pasta. Não anexo nem envio nada, e o caderno de envios não muda.", saida)
     tela.status("fraco", "Cada aluno com a senha dele (alunos.csv). Conta que não abre é marcada e a conferência segue; "
                 "só CAPTCHA/bloqueio ou o site fora do ar param.", saida)
@@ -383,12 +450,12 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     try:
         with trava_de_envio(Path(cfg.banco_progresso).parent / "envio.trava"):  # M3: trava global
             # M3: sem senha no alunos.csv a conta nem é aberta
-            for conf in conferencias:
+            for conf in a_ler:
                 if not conf.aluno.senha:
                     conf.erro = "sem senha no alunos.csv da turma"
                     _mostrar_aluno(conf, cfg.pasta_raiz, saida)
             try:
-                parou = (ler or _ler_no_navegador)(cfg, [c for c in conferencias if not c.erro], saida)
+                parou = (ler or _ler_no_navegador)(cfg, [c for c in a_ler if not c.erro], saida)
             except Exception as e:  # noqa: BLE001 - T56: o que já foi lido ainda vai para o relatório
                 log.exception("Conferencia: parou com erro inesperado")
                 tela.erro(f"Erro inesperado ({type(e).__name__}): a conferência parou.", saida)

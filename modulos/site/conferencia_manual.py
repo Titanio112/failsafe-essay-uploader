@@ -18,7 +18,7 @@ from modulos.base.config import Config
 from modulos.base.excecoes import CaptchaOuBloqueio, LoginFalhou
 from modulos.dados.normalizacao import normalizar_nome
 from modulos.dados.planilha_arquivos import Aluno, mascarar_email
-from modulos.ferramentas.cadastro_aluno import trocar_nome
+from modulos.ferramentas.cadastro_aluno import gravar_com_nova_tentativa, trocar_nome
 from modulos.site.conferencia_site import ConferenciaAluno
 from modulos.site.confirmacao import logout  # no topo: um import errado quebra já ao carregar (issue #56)
 
@@ -119,7 +119,8 @@ def conferir_manualmente(cfg: Config, problemas: list[ConferenciaAluno], entrada
                 mesma = False
             else:
                 try:
-                    copia = trocar_nome(cfg.planilha, aluno.email, nome_site)
+                    copia = gravar_com_nova_tentativa(lambda: trocar_nome(cfg.planilha, aluno.email, nome_site),
+                                                      entrada, saida)  # Excel aberto: espera a pessoa fechar
                 except (OSError, ValueError, KeyError) as e:
                     tela.erro(f"Não consegui trocar o nome no alunos.csv ({type(e).__name__}): {e}", saida)
                     mesma = False

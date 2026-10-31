@@ -137,6 +137,8 @@ def parse_args(argv=None):
     p.add_argument("--conferir-site", action="store_true",
                    help="so leitura: entra na conta de cada aluno com redacao na pasta e ve se o tema ja esta "
                         "no site (confirmacao CONFERIR); nao envia nada")
+    p.add_argument("--so-pendentes", action="store_true",
+                   help="com --conferir-site: reaproveita a conferencia de HOJE e abre so as contas que ela nao leu")
     p.add_argument("--enviar-faltantes", action="store_true",
                    help="envia so as que a conferencia no site de HOJE marcou como faltando (ENVIAR)")
     p.add_argument("--arquivar", action="store_true",
@@ -301,6 +303,9 @@ def main(argv=None) -> int:
                                or args.ensaio is not None or args.resolver or args.desfazer_renomeacao):
         tela.erro("--conferir-site roda sozinho (so le o site, nao envia).")
         return 2
+    if args.so_pendentes and not args.conferir_site:
+        tela.erro("--so-pendentes so vale com --conferir-site.")
+        return 2
     if args.ensaio is not None and (args.modo_teste or args.revisar or args.analise_remota):
         tela.erro("--ensaio usa as redacoes reais: nao combina com --modo-teste, --revisar ou --analise-remota.")
         return 2
@@ -433,7 +438,7 @@ def main(argv=None) -> int:
         from modulos.site.conferencia_manual import conferir_manualmente
         guiada = (lambda problemas: conferir_manualmente(cfg, problemas)) if sys.stdin.isatty() else None  # só com pessoa
         return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam, resultado=resultado),
-                                         guiada=guiada)
+                                         guiada=guiada, so_pendentes=True if args.so_pendentes else None)
     if args.enviar_faltantes:
         # T54: usa a conferência de hoje (menu Enviar as que faltam), sem abrir as contas de novo
         from dotenv import load_dotenv
