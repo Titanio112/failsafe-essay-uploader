@@ -1,10 +1,12 @@
 """Primeiro uso (T38): `python main.py --preparar` cria o que falta e explica
 onde colocar cada coisa. Nunca sobrescreve nada que já exista.
 
-Estrutura padrão (na raiz do projeto):
-- ``Redações plataforma/``: uma subpasta por tema, um JPG por aluno;
-- ``dados/dados_alunos.csv``: lista de alunos (Nome;Email);
-- ``.env``: e-mail/senha da conta de teste e senha padrão dos alunos.
+Estrutura (M3), com ``--escola`` e ``--turma``:
+- ``Redações plataforma/<Escola>/<Turma>/alunos.csv``: Nome;Email;Senha;
+- ``Redações plataforma/<Escola>/<Turma>/temas/``: uma subpasta por tema,
+  um JPG por aluno;
+- ``.env``: só o e-mail/senha da CONTA DE TESTE (aluno usa a senha do alunos.csv).
+Sem turma, cria só a pasta das redações e o ``.env``, e explica como criar a turma.
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from modulos.base import tela
 from modulos.base.config import Config, RAIZ_PASTA_REDACOES_LEIAME
 from modulos.dados.arquivos_csv import ler_texto
 
-CABECALHO_ALUNOS = "Nome;Email\n"
+CABECALHO_ALUNOS = "Nome;Email;Senha\n"
 
 
 def _tem_jpg(pasta: Path) -> bool:
@@ -25,11 +27,11 @@ def _tem_jpg(pasta: Path) -> bool:
     return pasta.is_dir() and any(f.suffix.lower() in (".jpg", ".jpeg") for f in pasta.glob("*/*") if f.is_file())
 
 
-VARIAVEIS_ENV = ("ESQUEMA_EMAIL_TESTE", "ESQUEMA_SENHA_TESTE", "ESQUEMA_SENHA_PADRAO")
+VARIAVEIS_ENV = ("ESQUEMA_EMAIL_TESTE", "ESQUEMA_SENHA_TESTE")  # M3: aluno usa a senha do alunos.csv
 
 
 def _env_preenchido(env: Path) -> bool:
-    """Bug 026: o .env existe E as 3 variáveis têm valor que não é o de
+    """Bug 026: o .env existe E as variáveis têm valor que não é o de
     exemplo ("<definir-no-.env>"). Não lê nem mostra os valores além disso."""
     if not env.is_file():
         return False
@@ -45,11 +47,12 @@ def verificar(cfg: Config, env: Path) -> list[tuple[bool, str, str]]:
     alunos_ok = planilha.is_file() and len(ler_texto(planilha).strip().splitlines()) > 1
     return [
         (alunos_ok, f"Lista de alunos: {planilha}",
-         "abra o arquivo e coloque um aluno por linha: Nome;Email (o e-mail da plataforma)"),
+         "abra o arquivo e coloque um aluno por linha: Nome;Email;Senha (e-mail e senha da plataforma; "
+         "o nome igual ao que o site mostra no menu)"),
         (_tem_jpg(pasta), f"Redações: {pasta}",
          "crie uma subpasta por tema e coloque nela um JPG por aluno, com o nome do aluno"),
         (_env_preenchido(env), f"Senhas: {env}",
-         "abra o .env e preencha ESQUEMA_EMAIL_TESTE, ESQUEMA_SENHA_TESTE e ESQUEMA_SENHA_PADRAO"),
+         "abra o .env e preencha ESQUEMA_EMAIL_TESTE e ESQUEMA_SENHA_TESTE (conta de teste)"),
     ]
 
 
@@ -64,7 +67,7 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
     if not leiame.exists():
         leiame.write_text(RAIZ_PASTA_REDACOES_LEIAME, encoding="utf-8")
         criados.append(str(leiame))
-    if not planilha.exists():
+    if cfg.turma and not planilha.exists():  # M3: lista só dentro da turma
         planilha.parent.mkdir(parents=True, exist_ok=True)
         planilha.write_text(CABECALHO_ALUNOS, encoding="utf-8")
         criados.append(str(planilha))
@@ -79,6 +82,10 @@ def preparar(cfg: Config, raiz: Path, saida: Callable = print) -> int:
         tela.ok(f"criado: {c}", saida)
     if not criados:
         tela.info("nada a criar: tudo ja existe.", saida)
+    if not cfg.turma:
+        tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"',
+                     "cria a turma: alunos.csv (Nome;Email;Senha) e temas/", saida)
+        return 0
     mostrar_guia(cfg, env, saida)
     return 0
 

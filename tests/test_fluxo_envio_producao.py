@@ -20,8 +20,9 @@ from modulos.base.excecoes import CaptchaOuBloqueio, LoginFalhou
 from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao
 from modulos.base.progresso_relatorio import Progresso, ENVIADO, ERRO, REVISAO_MANUAL
 
-ANA = Aluno(nome="Ana Lalara", email="ana@escola.com")
-BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com")
+# M3: cada aluno entra com a senha dele (alunos.csv)
+ANA = Aluno(nome="Ana Lalara", email="ana@escola.com", senha="senha-da-ana")
+BRUNO = Aluno(nome="Bruno Silva", email="bruno@escola.com", senha="senha-do-bruno")
 
 
 @pytest.fixture(autouse=True)
@@ -41,6 +42,7 @@ def cfg(tmp_path):
     cfg.pasta_relatorios = tmp_path / "relatorios"
     cfg.headless = True
     cfg.slow_mo_ms = 0
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     return cfg
 
 

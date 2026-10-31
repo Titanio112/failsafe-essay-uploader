@@ -137,7 +137,7 @@ def _cfg_lote(tmp_path, alunos):
 
 
 def test_dois_logins_seguidos_falhando_param_tudo(tmp_path, caplog):
-    alunos = [Aluno(n, f"{n.lower()}@x.com") for n in ("Ana", "Bia", "Caio", "Davi")]
+    alunos = [Aluno(n, f"{n.lower()}@x.com", senha="s") for n in ("Ana", "Bia", "Caio", "Davi")]  # M3
     cfg, resultado = _cfg_lote(tmp_path, alunos)
     with patch("modulos.base.config.PRODUCAO_BLOQUEADA", False), \
          patch.object(fep, "sync_playwright"), patch.object(fep, "obter_senha", return_value="s"), \
@@ -147,7 +147,7 @@ def test_dois_logins_seguidos_falhando_param_tudo(tmp_path, caplog):
          patch("builtins.input", return_value="ENVIAR"):
         assert fep.executar_envio_producao(cfg, resultado) == 1
     assert fazer_login.call_count == 2
-    assert "senha padrao errada?" in caplog.text
+    assert "senha do alunos.csv errada?" in caplog.text  # M3: não há mais senha padrão
     assert "2 logins seguidos falharam" in caplog.text
 
 

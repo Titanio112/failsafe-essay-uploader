@@ -20,7 +20,7 @@ from modulos.ferramentas import menu
 from modulos.site import conferencia_site as cs
 from modulos.site.lista_redacoes import ItemListaRedacao
 
-ANA = Aluno(nome="Ana Souza", email="ana@x.com")
+ANA = Aluno(nome="Ana Souza", email="ana@x.com", senha="s")
 PASTA_LONGA = "3B - Impactos da Invisibilidade da filiação para o cidadão brasileiro"
 
 
@@ -75,7 +75,7 @@ def test_sem_faltar_nada_diz_por_que_nao_pergunta(tmp_path, monkeypatch):
     monkeypatch.setenv("ESQUEMA_SENHA_PADRAO", "x")
     saidas, chamado = [], []
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].lista = [_linha("000")]
         return False
 

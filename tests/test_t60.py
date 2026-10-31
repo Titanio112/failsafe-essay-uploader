@@ -17,7 +17,7 @@ from modulos.ferramentas.pastas_enviadas import PREFIXO, marcar_pastas_enviadas,
 from modulos.site import conferencia_site as cs
 from modulos.site.lista_redacoes import ItemListaRedacao
 
-ANA, BIA = Aluno("Ana Souza", "ana@x.com"), Aluno("Bia Lima", "bia@x.com")
+ANA, BIA = Aluno("Ana Souza", "ana@x.com", senha="s"), Aluno("Bia Lima", "bia@x.com", senha="s")
 NADA = lambda *_: None  # noqa: E731
 
 
@@ -82,7 +82,7 @@ def test_arquivo_morto_mostra_primeiro_as_enviadas_e_e_escolhe_so_elas(tmp_path)
     for nome in ("10 - A", f"{PREFIXO}53 - T", "99 - Z"):
         (tmp_path / nome).mkdir()
     pastas = arquivo_morto.pastas_de_tema(tmp_path)
-    assert pastas[0][0].name == f"{PREFIXO}53 - T"
+    assert [p.name for p, _ in pastas] == [f"{PREFIXO}53 - T"]  # M3: só as marcadas aparecem
     assert [p.name for p in arquivo_morto._escolher(pastas, lambda _: "e", NADA)] == [f"{PREFIXO}53 - T"]
 
 
@@ -95,7 +95,7 @@ def test_conferencia_pergunta_e_marca_no_fim(tmp_path, monkeypatch):
     resultado = conciliar([ANA], {"53 - T": ["Ana Souza.jpg"]}, codigos_site={"53"})
     respostas = iter(["CONFERIR", "s"])
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].lista = [_linha("53")]
         return False
 
@@ -111,7 +111,7 @@ def test_conferencia_que_parou_nao_marca(tmp_path, monkeypatch):
     resultado = conciliar([ANA], {"53 - T": ["Ana Souza.jpg"]}, codigos_site={"53"})
     respostas = iter(["CONFERIR"])
 
-    def ler(cfg_, conferencias, senha, saida):
+    def ler(cfg_, conferencias, saida):  # M3: cada aluno com a senha dele
         conferencias[0].lista = [_linha("53")]
         return True  # parou (CAPTCHA, 2 logins seguidos...)
 

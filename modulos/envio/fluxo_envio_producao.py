@@ -49,7 +49,7 @@ def _motivo_login(e: Exception) -> str:
     if isinstance(e, IdentidadeDivergente):
         return "o site abriu a conta de outra pessoa (identidade nao confere)"
     if isinstance(e, LoginFalhou):
-        return "o site nao aceitou o login (senha padrao errada? conta bloqueada?)"
+        return "o site nao aceitou o login (senha do alunos.csv errada? conta bloqueada?)"
     return f"erro inesperado ({type(e).__name__})"
 
 
@@ -87,20 +87,17 @@ def _marcar_aluno(progresso, lote: LoteAluno, estado: str, detalhe: str) -> None
 
 
 def _enviar_lote_aluno(page, cfg: Config, senha: str, lote: LoteAluno,
-                       progresso, contagem: dict[str, int], conta_teste: bool = False,
+                       progresso, contagem: dict[str, int],
                        andamento: Optional[Andamento] = None) -> Optional[str]:
     """Envia os itens de um aluno. Retorna PARAR_TUDO para encerrar a execução.
-    ``conta_teste`` (T44): identidade exata (nome do menu igual ao da conta)."""
+    ``senha``: a da conta de teste ou, M3, a do próprio aluno (alunos.csv)."""
     aluno = lote.aluno
     try:
         page.goto(f"https://{DOMINIO_ESPERADO}", wait_until="domcontentloaded")
         page.wait_for_load_state("networkidle")
         verificar_dominio_autorizado(page)
         login(page, cfg, aluno.email, senha)
-        if conta_teste:
-            confirmar_identidade(page, aluno, exato=True)
-        else:
-            confirmar_identidade(page, aluno)
+        confirmar_identidade(page, aluno)  # M3: nome exato para todos
     except CaptchaOuBloqueio as e:
         log.error("Captcha/bloqueio no login de %s: %s. Parando a execucao.", aluno.nome, e)
         _marcar_aluno(progresso, lote, ERRO, f"Captcha/bloqueio no login: {e}")
@@ -232,6 +229,16 @@ def executar_envio_producao(
     if conta_teste and any(l.aluno.email.casefold() != conta_teste.casefold() for l in lotes):
         tela.erro("Lote de teste com aluno que nao e a conta de teste. Nada foi enviado.")
         return 2
+    if not conta_teste:
+        # M3: sem senha no alunos.csv o aluno nem chega a fazer login
+        for lote in (l for l in lotes if not l.aluno.senha):
+            tela.erro(f"{lote.aluno.nome}: sem senha no alunos.csv da turma; "
+                      f"{len(lote.itens)} redação(ões) dele(a) ficam fora deste envio.")
+        lotes = [l for l in lotes if l.aluno.senha]
+        total = sum(len(lote.itens) for lote in lotes)
+        if not total:
+            tela.info("Nada para enviar agora.")
+            return 0
 
     rotulo = "teste" if conta_teste else "produção"
     palavra = "ENVIAR TESTE" if conta_teste else "ENVIAR"
@@ -254,7 +261,8 @@ def executar_envio_producao(
     tela.secao("Enviando")
 
     try:
-        with trava_de_envio(Path(cfg.pasta_relatorios) / "envio.trava"):
+        # M3: trava e cópias são globais (ao lado do caderno), não da turma
+        with trava_de_envio(Path(cfg.banco_progresso).parent / "envio.trava"):
             return _enviar_com_navegador(cfg, lotes, progresso, conta_teste, rotulo)
     except TravaOcupada:
         tela.erro("Outro envio está rodando agora (outra janela?). Espere ele acabar. Nada foi enviado.")
@@ -270,13 +278,13 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
     if progresso:
         # T47: cópia do caderno ANTES de qualquer clique; sem cópia, não envia
         try:
-            copia = copiar_caderno(progresso.con, Path(cfg.pasta_relatorios) / "copias")
+            copia = copiar_caderno(progresso.con, Path(cfg.banco_progresso).parent / "copias")
         except (OSError, sqlite3.Error) as e:
             tela.erro(f"Não consegui guardar a cópia de segurança do caderno ({type(e).__name__}). "
                       "Nada foi enviado.")
             return 2
         tela.info(f"Cópia de segurança do caderno: {tela.caminho(copia)}")
-    senha = obter_senha("ESQUEMA_SENHA_TESTE" if conta_teste else "ESQUEMA_SENHA_PADRAO")
+    senha_teste = obter_senha("ESQUEMA_SENHA_TESTE") if conta_teste else ""
     contagem = {ENVIADO: 0, JA_ENVIADO: 0, ERRO: 0, REVISAO_MANUAL: 0}
     parou = False
     falhas_login = 0
@@ -294,8 +302,8 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
                 context = browser.new_context()
                 page = context.new_page()
                 try:
-                    resultado = _enviar_lote_aluno(page, cfg, senha, lote, progresso, contagem,
-                                                   conta_teste=bool(conta_teste), andamento=andamento)
+                    resultado = _enviar_lote_aluno(page, cfg, senha_teste if conta_teste else lote.aluno.senha,
+                                                   lote, progresso, contagem, andamento=andamento)
                     # Itens pulados (login falhou, erro parou o aluno) também contam como "passados"
                     feitas_antes += len(lote.itens)
                     if resultado != PARAR_TUDO:
@@ -304,7 +312,7 @@ def _enviar_com_navegador(cfg: Config, lotes: list[LoteAluno], progresso, conta_
                     if resultado == PARAR_TUDO or falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:
                         if falhas_login >= MAX_FALHAS_LOGIN_SEGUIDAS:
                             log.error("%d logins seguidos falharam. Parando a execucao "
-                                      "(confira ESQUEMA_SENHA_PADRAO e o site).", falhas_login)
+                                      "(confira as senhas do alunos.csv e o site).", falhas_login)
                         parou = True
                         break
                 finally:

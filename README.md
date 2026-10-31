@@ -64,6 +64,12 @@ flowchart LR
    the right person, checks what is already on the site, uploads, and confirms that the
    platform registered the essay as "Pending".
 
+**Schools and classes.** Each class is its own folder,
+`Redações plataforma/<School>/<Class>/` with `alunos.csv` (name;e-mail;password) and `temas/`
+(one folder per theme); a made-up example lives in [`exemplos/`](exemplos). `python main.py` asks for
+the school and class first; nothing runs without one (except the test mode). The progress notebook,
+the send lock and its backups stay global, so a photo never goes to a second student, even across classes.
+
 ### Safety-first design
 
 Every step assumes that the site, the files or the network can lie. The rule is
@@ -74,13 +80,13 @@ Every step assumes that the site, the files or the network can lie. The rule is
 | Sending by accident | Dry run is the default. Real sending needs a flag **and** a typed word (`ENVIAR`). The production path has a hard lock in the code. |
 | Double upload (costs a credit) | The state `SENDING` is written to SQLite **before** the click. Anything uncertain after the click becomes *manual review* and is never retried automatically. |
 | Same essay twice | Same day + same theme already on the site → skip. The same photo (sha256) is never sent twice, even under another file name. |
-| Wrong student | A fresh browser per student, an identity check after login, and logout in `finally`. A test-account e-mail equal to a student's is refused. |
+| Wrong student | A fresh browser per student, the name in the user menu must equal the class list after login, and logout in `finally`. Each class has its own list. A test-account e-mail equal to a student's is refused. |
 | Wrong theme | The theme is selected by the exact code text and the selected option is re-read. A duplicated code in the site's list is an error. |
 | Site changes or errors | The essay list is accepted only with the expected header and page. HTTP errors, pagination or an unreadable list stop that student. A CAPTCHA stops the whole run. |
 | Two runs at once | A lock file allows one sending run at a time. |
 | Day boundary | Brasília time. Nothing is sent between 23:55 and 00:05, so "today" never flips mid-run. |
 | Losing progress | The SQLite ledger is backed up before every run. If the backup fails, nothing is sent. |
-| Secrets in logs | Passwords live only in `.env`. The log filter masks their **values**. |
+| Secrets in logs | Each student's password lives in the class `alunos.csv` (never in Git); the test account's in `.env`. They never reach the screen, reports or `repr`, and the log filter masks their **values**. |
 
 ### Features
 
@@ -187,6 +193,43 @@ flowchart LR
 4. Para cada aluno: abre um navegador limpo, faz login, confere se a conta é da pessoa certa,
    olha o que já está no site, envia e confirma que a plataforma registrou a redação como "Pendente".
 
+### Escolas e turmas
+
+Cada turma é uma pasta só dela (nada disso vai para o Git; exemplo inventado em [`exemplos/`](exemplos)):
+
+```
+Redações plataforma/<Escola>/<Turma>/
+  alunos.csv     Nome;Email;Senha  (a senha de cada aluno; sem senha, o aluno não entra no site)
+  temas/<Pasta do tema>/<Nome do aluno>.jpg
+  dados/         aprovações e temas_site.csv da turma
+  relatorios/    logs/
+Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
+```
+
+- `python main.py` pergunta a escola e a turma, mostra o resumo e abre o menu só daquela turma
+  (opção 14 troca de turma). Direto: `python main.py --escola "Escola" --turma "3A" --revisar`.
+- Turma nova: `python main.py --preparar --escola "Escola" --turma "3A"` (cria `alunos.csv` e `temas/`).
+- Sem turma só o `--modo-teste` roda. `--pasta` saiu; com `--escola/--turma`, `pasta_raiz`/`planilha`
+  em `[dados]` do `config.ini` são recusados.
+- **Nome igual ao do site.** Depois do login, o nome no menu do usuário tem de ser igual ao do
+  `alunos.csv` (acento, maiúscula e pontuação não contam). Se o site abrevia o nome, o aluno dá erro
+  antes de anexar: ponha no `alunos.csv` o nome exatamente como o site mostra. Dois alunos com o mesmo
+  nome na turma vão para revisão manual.
+- O caderno (`relatorios/progresso.db`), a trava e as cópias continuam únicos, na raiz: a mesma foto
+  nunca vai para outro aluno, nem de outra turma. Registros de antes das turmas continuam valendo
+  para todas as travas; para aparecerem no `--resolver` da turma, rode `--vincular-antigos` (faz cópia antes).
+- Arquivo morto (menu 11): só pastas `ENVIADA - ...` (todas as fotos conferidas no site).
+
+**Passar os dados de hoje para uma turma** (à mão, uma vez; o script não move nada sozinho):
+1. Crie a turma: `python main.py --preparar --escola "Minha Escola" --turma "3A"`.
+2. Mova as pastas de tema que estão soltas em `Redações plataforma/` para
+   `Redações plataforma/Minha Escola/3A/temas/`.
+3. Copie a lista `dados/dados_alunos.csv` para `Redações plataforma/Minha Escola/3A/alunos.csv`,
+   com a coluna `Senha` preenchida para cada aluno.
+4. Mova `dados/nomes_aprovados.csv` e `dados/pastas_aprovadas.csv` para `.../3A/dados/` e copie
+   `dados/temas_site.csv` para lá (ou atualize pelo menu 9).
+5. `python main.py --vincular-antigos --escola "Minha Escola" --turma "3A"` e depois o menu 1 para conferir.
+
 ### Segurança em primeiro lugar
 
 Cada passo parte do princípio de que o site, os arquivos ou a rede podem enganar. A regra é
@@ -197,13 +240,13 @@ Cada passo parte do princípio de que o site, os arquivos ou a rede podem engana
 | Enviar sem querer | A simulação é o padrão. Para enviar de verdade é preciso uma opção **e** uma palavra digitada (`ENVIAR`). O envio para alunos tem uma trava no próprio código. |
 | Envio duplicado (gasta crédito) | O estado `ENVIANDO` é gravado no SQLite **antes** do clique. Qualquer dúvida depois do clique vira *revisão manual* e nunca é reenviada sozinha. |
 | Mesma redação duas vezes | Mesmo dia + mesmo tema já no site → pula. A mesma foto (sha256) nunca vai duas vezes, nem com outro nome de arquivo. |
-| Aluno errado | Um navegador limpo por aluno, conferência da identidade depois do login e logout no `finally`. Se o e-mail da conta de teste for igual ao de um aluno, o script recusa. |
+| Aluno errado | Um navegador limpo por aluno, nome do menu do usuário igual ao da lista depois do login e logout no `finally`. Cada turma tem a sua lista. Se o e-mail da conta de teste for igual ao de um aluno, o script recusa. |
 | Tema errado | O tema é escolhido pelo texto exato do código, e a opção marcada é lida de novo. Código repetido na lista do site é erro. |
 | Site mudou ou deu erro | A lista de redações só vale com o cabeçalho e a página esperados. Erro HTTP, paginação ou lista ilegível param aquele aluno. CAPTCHA para a execução inteira. |
 | Duas execuções ao mesmo tempo | Uma trava deixa só um envio por vez. |
 | Virada do dia | Horário de Brasília. Nada é enviado entre 23:55 e 00:05, para o "hoje" não mudar no meio. |
 | Perder o progresso | O caderno (SQLite) é copiado antes de cada envio. Se a cópia falhar, nada é enviado. |
-| Senha no log | As senhas ficam só no `.env`. O filtro do log esconde o **valor** delas. |
+| Senha no log | A senha de cada aluno fica no `alunos.csv` da turma (fora do Git) e a da conta de teste no `.env`. Nunca aparecem na tela, no relatório nem no `repr`; o filtro do log esconde o **valor** delas. |
 
 ### Recursos
 

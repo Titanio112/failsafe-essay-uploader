@@ -5,8 +5,8 @@ Estados de cada arquivo conciliado:
 - ``EXATO_UNICO``: correspondência normalizada exata e única com um aluno.
 - ``SUGESTAO_FUZZY``: melhor candidato aproximado acima do limiar e com
   margem para o segundo. NUNCA entra na fila real sem revisão humana.
-- ``AMBIGUO``: correspondência exata com mais de um aluno, ou fuzzy com
-  margem insuficiente / mais de um candidato no limiar.
+- ``AMBIGUO``: fuzzy com margem insuficiente / mais de um candidato no
+  limiar. (M3: nome exato de mais de um aluno = homônimos -> REVISAO_MANUAL.)
 - ``ARQUIVO_SEM_ALUNO``: nenhum candidato acima do limiar.
 - ``ALUNO_SEM_ARQUIVO``: aluno da planilha sem nenhum arquivo associado.
 - ``SEM_CODIGO``: arquivo sem código no nome nem na pasta.
@@ -17,7 +17,7 @@ Estados de cada arquivo conciliado:
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Set
 
@@ -59,6 +59,8 @@ class Aluno:
     nome: str
     email: str
     creditos: int | None = None
+    # M3: senha do alunos.csv, texto exato; fora do repr (nunca em tela/log)
+    senha: str = field(default="", repr=False, compare=False)
 
     @property
     def nome_norm(self) -> str:
@@ -129,10 +131,14 @@ def _coluna(nome: str) -> str:
     return normalizar_nome(nome).replace(" ", "")
 
 
+# M3: senhas lidas das planilhas; o filtro do log esconde qualquer uma delas
+SENHAS_LIDAS: set[str] = set()
+
+
 def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
     """Lista de alunos em CSV (``;`` ou ``,``), colunas nome/e-mail sem
-    diferenciar maiúsculas. Coluna de senha é ignorada: a senha vem só do
-    .env (ESQUEMA_SENHA_PADRAO) e nunca é lida de arquivo."""
+    diferenciar maiúsculas. M3: a coluna Senha (opcional) é lida como texto
+    exato, sem strip; sem ela (ou vazia) o aluno fica bloqueado para login."""
     import csv
     from modulos.dados.arquivos_csv import abrir_csv
     with abrir_csv(cfg.planilha) as f:
@@ -149,21 +155,19 @@ def _carregar_alunos_csv(cfg: Config) -> list[Aluno]:
                 f"Cabeçalho do CSV sem as colunas '{cfg.coluna_nome}' e '{cfg.coluna_email}'. "
                 f"Colunas encontradas: {colunas}"
             )
-        if "senha" in colunas:
-            # T57: aparecia em toda tela sem ajudar; agora só no log (e no warning, para testes)
-            mensagem = "Coluna 'Senha' da lista de alunos ignorada; a senha vem de ESQUEMA_SENHA_PADRAO no .env."
-            import logging
-            logging.getLogger("automacao_redacoes").info(mensagem, extra={"so_no_arquivo": True})
-            warnings.warn(f"[AVISO] {mensagem}", UserWarning, stacklevel=2)
         idx_nome = colunas.index(_coluna(cfg.coluna_nome))
         idx_email = colunas.index(_coluna(cfg.coluna_email))
+        idx_senha = colunas.index("senha") if "senha" in colunas else None
         alunos = []
         for row in leitor:
             if len(row) <= max(idx_nome, idx_email):
                 continue
             nome, email = row[idx_nome].strip(), row[idx_email].strip()
+            senha = row[idx_senha] if idx_senha is not None and idx_senha < len(row) else ""
             if nome and email:
-                alunos.append(Aluno(nome=nome, email=email))
+                alunos.append(Aluno(nome=nome, email=email, senha=senha))
+                if senha:
+                    SENHAS_LIDAS.add(senha)
     return alunos
 
 
@@ -443,10 +447,11 @@ def conciliar(
                 ))
 
             elif len(exatos) > 1:
-                obs = f"{len(exatos)} alunos com o mesmo nome normalizado"
+                # M3: o nome do site não distingue homônimos: revisão manual
+                obs = f"{len(exatos)} alunos com o mesmo nome normalizado na turma"
                 itens.append(ItemConciliacao(
                     pasta=pasta, arquivo=nome_arquivo, pessoa=pessoa,
-                    estado=AMBIGUO, candidatos=list(exatos),
+                    estado=REVISAO_MANUAL, candidatos=list(exatos),
                     observacao=obs,
                     codigo_tema=codigo or "", codigo_valido=codigo_valido,
                 ))
@@ -478,6 +483,14 @@ def conciliar(
                     observacao=obs,
                     codigo_tema=codigo or "", codigo_valido=codigo_valido,
                 ))
+
+    # M3: arquivo ligado (aprovação, fuzzy) a um aluno com homônimo na turma
+    # também vai para revisão manual: a identidade no site é pelo nome.
+    homonimos = {norm for norm, lista in por_norm.items() if len(lista) > 1}
+    for item in itens:
+        if item.aluno and item.aluno.nome_norm in homonimos and item.estado != REVISAO_MANUAL:
+            item.estado = REVISAO_MANUAL
+            item.observacao = "aluno com homônimo na turma (o site não distingue): decidir à mão"
 
     alunos_com_arquivo = set()
     for item in itens:

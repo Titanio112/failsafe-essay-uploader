@@ -32,8 +32,8 @@ from modulos.site import confirmacao, formulario_envio, login
 from modulos.site.lista_redacoes import ler_lista_redacoes_html
 from tests.test_lista_redacoes_layout_real import PaginaFalsa, _html_lista
 
-ANA = Aluno(nome="ANA LALARA LARILI DOS LARITO", email="ana@escola.com")
-BIA = Aluno(nome="BEATRIZ LANETO", email="bia@escola.com")
+ANA = Aluno(nome="ANA LALARA LARILI DOS LARITO", email="ana@escola.com", senha="s-ana")  # M3: senha do alunos.csv
+BIA = Aluno(nome="BEATRIZ LANETO", email="bia@escola.com", senha="s-bia")
 ARQ = "ANA LALARA LARILI DOS LARITO.JPG"
 
 
@@ -297,7 +297,8 @@ def test_fluxo_com_trava_ocupada_nao_abre_o_navegador(tmp_path, capsys):
     (tmp_path / "100 - T").mkdir()
     (tmp_path / "100 - T" / f"{teste.nome}.jpg").write_bytes(b"f")
     resultado = conciliar([teste], {"100 - T": [f"{teste.nome}.jpg"]}, codigos_site=["100"])
-    with trava_de_envio(cfg.pasta_relatorios / "envio.trava"), \
+    # M3: a trava é global, ao lado do caderno (não na pasta de relatórios da turma)
+    with trava_de_envio(cfg.banco_progresso.parent / "envio.trava"), \
          patch.object(fep, "sync_playwright") as pw, patch("builtins.input", return_value="ENVIAR TESTE"):
         assert fep.executar_envio_producao(cfg, resultado, conta_teste=teste.email) == 2
     assert pw.call_count == 0
@@ -316,17 +317,20 @@ def test_dominio_tem_de_ser_exato(url):
 
 def _pagina_menu(texto):
     page = MagicMock(url="https://www.esquemaredacao.com.br/minhas-redacoes")
+    page.locator.return_value.count.return_value = 1
     page.locator.return_value.first.text_content.return_value = texto
     return page
 
 
 def test_conta_de_teste_exige_nome_igual():
     conta = Aluno(NOME_CONTA_TESTE, "teste@teste.com")
-    assert login.confirmar_identidade(_pagina_menu("Usuario Testes Ignorar "), conta, exato=True)
+    assert login.confirmar_identidade(_pagina_menu("Usuario Testes Ignorar "), conta)
     with pytest.raises(IdentidadeDivergente):
-        login.confirmar_identidade(_pagina_menu("Usuario Testes"), conta, exato=True)
-    # aluno: nome abreviado no site continua aceito (T27)
-    assert login.confirmar_identidade(_pagina_menu("Ana Lalara"), ANA)
+        login.confirmar_identidade(_pagina_menu("Usuario Testes"), conta)
+    # M3: aluno também exige o nome igual (a T27 aceitava o nome abreviado do site)
+    assert login.confirmar_identidade(_pagina_menu(ANA.nome), ANA)
+    with pytest.raises(IdentidadeDivergente):
+        login.confirmar_identidade(_pagina_menu(" ".join(ANA.nome.split()[:2])), ANA)
 
 
 def test_modo_teste_recusa_email_de_aluno(tmp_path, capsys):

@@ -62,7 +62,8 @@ def test_envio_guarda_copia_antes_de_abrir_o_navegador(tmp_path, navegador_falso
     cfg, resultado = _cenario(tmp_path)
     with Progresso(tmp_path / "p.db") as prog, patch("builtins.input", return_value="ENVIAR TESTE"):
         assert fep.executar_envio_producao(cfg, resultado, prog, conta_teste=TESTE.email) == 0
-    assert len(list((cfg.pasta_relatorios / "copias").glob("progresso_*.db"))) == 1
+    # M3: as cópias são globais, ao lado do caderno (não nos relatórios da turma)
+    assert len(list((cfg.banco_progresso.parent / "copias").glob("progresso_*.db"))) == 1
     assert "Cópia de segurança do caderno" in capsys.readouterr().out
 
 
@@ -145,12 +146,14 @@ def test_menu_roda_o_main_volta_e_sai():
     chamadas = []
     def main_falso(argv):
         chamadas.append(argv)
-        if argv == ["--revisar"]:
+        if "--revisar" in argv:
             raise RuntimeError("quebrou")
         return 0
     saidas = []
-    assert menu.executar_menu(main_falso, _respostas("1", "", "2", "", "0"), saidas.append) == 0
-    assert chamadas == [[], ["--revisar"]]
+    # M3: o menu já vem com a turma escolhida e passa --escola/--turma em toda opção
+    assert menu.executar_menu(main_falso, _respostas("1", "", "2", "", "0"), saidas.append, turma=("E", "T")) == 0
+    turma = ["--escola", "E", "--turma", "T"]
+    assert chamadas == [turma, ["--revisar", *turma]]
     assert any("Erro inesperado: RuntimeError: quebrou" in s for s in saidas)
 
 

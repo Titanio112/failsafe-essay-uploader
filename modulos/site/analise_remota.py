@@ -46,7 +46,7 @@ def gravar_temas_csv(temas: list[tuple[str, str]], caminho: Path, conta: str) ->
 
 def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None = None) -> int:
     """0 = CSV atualizado; 1 = falhou (CSV intacto); 2 = cancelado.
-    ``aluno``: entra na conta desse aluno (senha ESQUEMA_SENHA_PADRAO)."""
+    ``aluno``: entra na conta desse aluno (M3: senha dele no alunos.csv)."""
     qual = f"do aluno {aluno.nome}" if aluno else "de TESTE"
     tela.titulo("ANÁLISE REMOTA  ·  só leitura, nada é enviado")
     tela.info(f"Login na conta {qual} e leitura do combo de temas.")
@@ -59,7 +59,10 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
         return 2
 
     if aluno:
-        email, senha = aluno.email, obter_senha("ESQUEMA_SENHA_PADRAO")
+        if not aluno.senha:
+            tela.erro(f"{aluno.nome}: sem senha no alunos.csv da turma. Nenhuma conta foi aberta.")
+            return 2
+        email, senha = aluno.email, aluno.senha
         esperado, modo_teste = aluno, False
     else:
         email = obter_email_teste()
@@ -83,7 +86,7 @@ def executar_analise_remota(cfg: Config, caminho_csv: Path, aluno: Aluno | None 
             abrir_formulario_envio(page)
             temas = ler_combo_temas(page)
         except Exception as e:
-            log.error("Analise remota falhou: %s. %s ficou como estava.", type(e).__name__, caminho_csv)
+            log.error("Analise remota falhou: %s: %s. %s ficou como estava.", type(e).__name__, e, caminho_csv)
             return 1
         finally:
             context.close()

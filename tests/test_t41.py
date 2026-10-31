@@ -76,6 +76,7 @@ def test_dry_run_tem_titulo_e_secoes(tmp_path, monkeypatch, capsys):
     (redacoes / "Ana Lalara.JPG").write_bytes(b"x")
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "Redações plataforma"
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     cfg.planilha = tmp_path / "alunos.csv"
     cfg.planilha.write_text("Nome;Email\nAna Lalara;ana@x.com\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)

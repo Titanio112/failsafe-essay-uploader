@@ -160,7 +160,7 @@ def test_banco_ilegivel_trava_a_renomeacao(tmp_path):
 def test_main_pasta_com_modo_teste_e_recusado(capsys):
     import main as main_mod
     assert main_mod.main(["--modo-teste", "--pasta", "qualquer"]) == 2
-    assert "--pasta nao vale no --modo-teste" in capsys.readouterr().out
+    assert "--pasta saiu" in capsys.readouterr().out  # M3: --pasta não vale em nada
 
 
 def test_main_lista_sem_colunas_explica(tmp_path, monkeypatch, capsys):
@@ -168,6 +168,7 @@ def test_main_lista_sem_colunas_explica(tmp_path, monkeypatch, capsys):
     cfg = Config()
     cfg.pasta_raiz = tmp_path / "Redações plataforma"
     cfg.pasta_raiz.mkdir()
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     cfg.planilha = tmp_path / "alunos.csv"
     cfg.planilha.write_text("Aluno;Contato\nAna;ana@x.com\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)

@@ -76,16 +76,18 @@ def test_main_pasta_inexistente_da_erro_claro(tmp_path, monkeypatch, capsys):
     import main as main_mod
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: Config())
     assert main_mod.main(["--pasta", str(tmp_path / "nao_existe")]) == 2
-    assert "nao encontrada" in capsys.readouterr().out
+    assert "--pasta saiu" in capsys.readouterr().out  # M3: a pasta vem da turma
 
 
 def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
-    """--pasta lê as redações onde estão; pasta aprovada entra na fila."""
+    """Lê as redações da pasta da turma; pasta aprovada entra na fila.
+    (M3: antes era --pasta; agora a pasta vem da turma.)"""
     import main as main_mod
     redacoes = tmp_path / "Redações plataforma"
     (redacoes / PASTA).mkdir(parents=True)
     (redacoes / PASTA / "Ana Lalara.JPG").write_bytes(b"x")
     cfg = Config()
+    cfg.turma, cfg.pasta_raiz = "Turma", redacoes  # M3: o que aplicar_turma faria
     cfg.planilha = tmp_path / "dados_alunos.csv"
     cfg.planilha.write_text("Nome;Email\nAna Lalara;ana@escola.com\n", encoding="utf-8")
     cfg.pasta_relatorios = tmp_path / "relatorios"
@@ -99,7 +101,7 @@ def test_main_dry_run_com_pasta_e_pasta_aprovada(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main_mod, "carregar_config", lambda caminho=None: cfg)
 
-    assert main_mod.main(["--pasta", str(redacoes)]) == 0
+    assert main_mod.main([]) == 0
 
     saida = capsys.readouterr().out
     assert f"Pasta aprovada: {PASTA} -> tema 100" in saida

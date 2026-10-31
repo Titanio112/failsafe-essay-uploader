@@ -395,7 +395,7 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
                      temas: list[tuple[str, str]], codigos_pasta: dict, pasta_raiz: Path,
                      caminho_pastas: Path, banco: Path, pasta_relatorios: Path,
                      nomes_aprovados: dict | None = None,
-                     entrada: Entrada | None = None, saida: Callable = print) -> int:
+                     entrada: Entrada | None = None, saida: Callable = print, turma_args: str = "") -> int:
     log_csv = Path(pasta_relatorios) / f"renomeacoes_{datetime.now():%Y%m%d_%H%M%S}.csv"
     tela.titulo("REVISÃO NO TERMINAL  ·  nada é enviado", saida)
     pastas = sorted(p for p in arquivos if p not in codigos_pasta and not extrair_codigo_tema("", p))
@@ -422,17 +422,18 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
                 f"{renomeados} arquivo(s) renomeado(s).", saida)
     if renomeados or renomeadas:
         tela.info(f"Log das renomeacoes: {tela.caminho(log_csv)}", saida)
-        tela.comando(f'python main.py --desfazer-renomeacao "{log_csv}" --pasta "{pasta_raiz}"',
-                     "para desfazer", saida)
+        tela.comando(f'python main.py --desfazer-renomeacao "{log_csv}"{turma_args}', "para desfazer", saida)
     tela.comando("python main.py", "rode o dry-run de novo para conferir a fila", saida)
     return 0
 
 
 def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = print,
-                         banco: Path | None = None) -> int:
+                         banco: Path | None = None, exigir_raiz: bool = False) -> int:
     """Volta os nomes do log, do último para o primeiro. Retorna quantos voltaram.
     T43: arquivo que já tem estado de envio no banco não volta (a chave do
-    banco é o nome; voltar o nome apagaria o histórico e permitiria reenviar)."""
+    banco é o nome; voltar o nome apagaria o histórico e permitiria reenviar).
+    ``exigir_raiz`` (M3): toda linha do log tem de ser de ``pasta_raiz`` (a
+    pasta de temas da turma); log de outra turma, ou sem a raiz, é recusado."""
     log_csv = Path(log_csv)
     if not log_csv.is_file():
         tela.erro(f"Log nao encontrado: {log_csv}", saida)
@@ -441,6 +442,10 @@ def desfazer_renomeacoes(log_csv: Path, pasta_raiz: Path, saida: Callable = prin
         linhas = list(csv.DictReader(f, delimiter=";"))
     if linhas and not set(COLUNAS_LOG[:4]) <= set(linhas[0]):  # logs antigos não têm "raiz"
         tela.erro(f"Log sem as colunas {COLUNAS_LOG}: {log_csv.name}. Nada foi desfeito.", saida)
+        return 0
+    if exigir_raiz and any(not linha.get("raiz") or Path(linha["raiz"]).resolve() != Path(pasta_raiz).resolve()
+                           for linha in linhas):
+        tela.erro(f"{log_csv.name} não é desta turma (a pasta gravada no log é outra). Nada foi desfeito.", saida)
         return 0
     voltaram = 0
     for linha in reversed(linhas):

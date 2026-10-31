@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 import re
 import sqlite3
 import sys
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from modulos.dados.planilha_arquivos import (
+    SENHAS_LIDAS,  # M3: senhas do alunos.csv também são mascaradas
     ResultadoConciliacao,
     mascarar_email,
     normalizar_nome,
@@ -43,10 +45,9 @@ _VARIAVEIS_SECRETAS = ("ESQUEMA_SENHA_PADRAO", "ESQUEMA_SENHA_TESTE")
 
 
 def _tem_segredo(texto: str) -> bool:
-    import os
     if _PADRAO_SEGREDO.search(texto):
         return True
-    valores = (os.environ.get(v, "") for v in _VARIAVEIS_SECRETAS)
+    valores = [os.environ.get(v, "") for v in _VARIAVEIS_SECRETAS] + list(SENHAS_LIDAS)
     return any(len(valor) >= 3 and valor in texto for valor in valores)
 
 
@@ -70,17 +71,26 @@ class _FiltroSanitizador(logging.Filter):
 
 def configurar_logging(pasta_logs: Path | None = None) -> logging.Logger:
     logger = logging.getLogger("automacao_redacoes")
-    if logger.handlers:
+    arquivos = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
+    if pasta_logs is not None:
+        # M3: o menu troca de turma no mesmo processo: fecha o log da turma anterior
+        alvo = os.path.abspath(Path(pasta_logs) / "automacao.log")  # como o FileHandler guarda
+        for h in arquivos:
+            if h.baseFilename != alvo:
+                h.close()
+                logger.removeHandler(h)
+    if logger.handlers and (pasta_logs is None or any(isinstance(h, logging.FileHandler) for h in logger.handlers)):
         return logger
-    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.setLevel(logging.INFO)
+        console = logging.StreamHandler(sys.stdout)
+        from modulos.base.tela import FormatoTerminal
+        console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
+        console.addFilter(_FiltroSanitizador())
+        # T54: log.info(..., extra={"so_no_arquivo": True}) vai só para o arquivo
+        console.addFilter(lambda record: not getattr(record, "so_no_arquivo", False))
+        logger.addHandler(console)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    console = logging.StreamHandler(sys.stdout)
-    from modulos.base.tela import FormatoTerminal
-    console.setFormatter(FormatoTerminal())  # T41: visual do terminal em tela.py
-    console.addFilter(_FiltroSanitizador())
-    # T54: log.info(..., extra={"so_no_arquivo": True}) vai só para o arquivo
-    console.addFilter(lambda record: not getattr(record, "so_no_arquivo", False))
-    logger.addHandler(console)
     if pasta_logs is not None:
         pasta_logs.mkdir(parents=True, exist_ok=True)
         arq = logging.FileHandler(pasta_logs / "automacao.log", encoding="utf-8")
@@ -103,6 +113,7 @@ CREATE TABLE IF NOT EXISTS progresso (
     hash_arquivo TEXT DEFAULT '',
     criado_em    TEXT NOT NULL,
     atualizado_em TEXT NOT NULL,
+    turma        TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (aluno_id, arquivo)
 );
 CREATE TABLE IF NOT EXISTS envios (
@@ -115,16 +126,35 @@ CREATE TABLE IF NOT EXISTS envios (
 
 
 class Progresso:
-    """Persistência de estado. Fechar com :meth:`close` ou usar como contexto."""
+    """Persistência de estado. Fechar com :meth:`close` ou usar como contexto.
 
-    def __init__(self, caminho_db: Path):
+    M3: um caderno só para todas as turmas. ``turma`` ("Escola/Turma") vai
+    na coluna ``turma`` de cada registro NOVO; registro antigo fica com ''
+    até ser vinculado (:meth:`vincular_antigos`). As proteções (mesma foto,
+    contagem do dia, estados que não reenviam) olham o caderno inteiro."""
+
+    def __init__(self, caminho_db: Path, turma: str = ""):
         caminho_db = Path(caminho_db)
+        self.turma = turma
         if str(caminho_db) != ":memory:":
             caminho_db.parent.mkdir(parents=True, exist_ok=True)
         # T44: outro programa com o banco aberto -> espera até 30 s em vez de quebrar
         self.con = sqlite3.connect(caminho_db, timeout=30)
+        self._migrar_turma(caminho_db)
         self.con.executescript(_SCHEMA)
         self.resolver_enviando_pendentes()
+
+    def _migrar_turma(self, caminho_db: Path) -> None:
+        """M3: caderno de antes da M3 ganha a coluna ``turma`` (vazia nos
+        registros antigos). Nada é apagado; cópia de segurança antes."""
+        colunas = [c[1] for c in self.con.execute("PRAGMA table_info(progresso)")]
+        if not colunas or "turma" in colunas:
+            return
+        if str(caminho_db) != ":memory:":
+            from modulos.base.copia_seguranca import copiar_caderno
+            copiar_caderno(self.con, caminho_db.parent / "copias")
+        self.con.execute("ALTER TABLE progresso ADD COLUMN turma TEXT NOT NULL DEFAULT ''")
+        self.con.commit()
 
     def __enter__(self) -> "Progresso":
         return self
@@ -168,8 +198,8 @@ class Progresso:
         self.con.execute(
             """
             INSERT INTO progresso (aluno_id, arquivo, pasta, estado, tentativas,
-                                   detalhe, hash_arquivo, criado_em, atualizado_em)
-            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
+                                   detalhe, hash_arquivo, criado_em, atualizado_em, turma)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
             ON CONFLICT(aluno_id, arquivo)
             DO UPDATE SET estado = excluded.estado,
                           pasta = excluded.pasta,
@@ -177,8 +207,8 @@ class Progresso:
                           hash_arquivo = COALESCE(NULLIF(excluded.hash_arquivo, ''), progresso.hash_arquivo),
                           atualizado_em = excluded.atualizado_em
             """,
-            (aluno_id, arquivo, pasta, estado, detalhe, hash_arquivo, agora, agora),
-        )
+            (aluno_id, arquivo, pasta, estado, detalhe, hash_arquivo, agora, agora, self.turma),
+        )  # a turma de um registro que já existe não muda (antigo só por vincular_antigos)
         self.con.commit()
 
     def obter(self, aluno_id: str, arquivo: str) -> dict | None:
@@ -235,6 +265,17 @@ class Progresso:
             (aluno_id, hash_arquivo, ENVIADO, JA_ENVIADO, REVISAO_MANUAL, ENVIANDO),
         ).fetchone()
         return {"aluno_id": row[0], "arquivo": row[1], "estado": row[2]} if row else None
+
+    def vincular_antigos(self, alunos_ids: list[str]) -> int:
+        """M3: registros sem turma (de antes da M3) destes alunos passam a ser
+        de ``self.turma``. Só muda a turma; estado, datas e foto ficam."""
+        if not self.turma or not alunos_ids:
+            return 0
+        marcas = ",".join("?" * len(alunos_ids))
+        cur = self.con.execute(f"UPDATE progresso SET turma = ? WHERE turma = '' AND aluno_id IN ({marcas})",
+                               (self.turma, *alunos_ids))
+        self.con.commit()
+        return cur.rowcount
 
     # ─── Envios por aluno (limite de 4) ──────────────────────
 

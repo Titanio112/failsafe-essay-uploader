@@ -42,6 +42,7 @@ def test_conferencia_poe_link_nos_arquivos(tmp_path, monkeypatch, capsys):
     (raiz / "100 - Tema").mkdir(parents=True)
     (raiz / "100 - Tema" / "Ana em branco.JPG").write_bytes(b"x")
     cfg = Config()
+    cfg.turma = "Turma"  # M3: o main exige turma (aqui os caminhos já vêm prontos)
     cfg.pasta_raiz = raiz
     cfg.planilha = tmp_path / "alunos.csv"
     cfg.planilha.write_text("Nome;Email\nAna Souza;ana@x.com\n", encoding="utf-8")
