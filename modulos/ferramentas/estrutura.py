@@ -8,7 +8,9 @@ roda durante um envio (mesma trava). Nada é apagado nem enviado.
 from __future__ import annotations
 
 import logging
+import shutil
 import sqlite3
+import textwrap
 from pathlib import Path
 from typing import Callable
 
@@ -16,11 +18,16 @@ from modulos.base import config as config_mod
 from modulos.base import tela
 from modulos.base.copia_seguranca import copiar_caderno
 from modulos.base.trava import TravaOcupada, trava_de_envio
-from modulos.base.turma import PASTA_GUIA, listar_escolas, listar_turmas, pasta_da_turma, raiz_redacoes
+from modulos.base.turma import PASTA_GUIA, _eh_link, listar_escolas, listar_turmas, pasta_da_turma, raiz_redacoes
 from modulos.ferramentas.arquivo_morto import PASTA_ARQUIVO
 from modulos.ferramentas.assistente_inicial import _nome, _numero, _sim, criar_turma
 
 Entrada = Callable[[str], str] | None
+
+FRASE_APAGAR = "Sim eu tenho certeza disso e estou ciente dos riscos e quero apagar"
+_AVISO = "ESPERO QUE VOCÊ TENHA CERTEZA DO QUE ESTÁ FAZENDO! ISSO VAI APAGAR COMPLETAMENTE OS ALUNOS, OS TEMAS, AS REDAÇÕES"
+AVISO_ESCOLA = f"{_AVISO}, AS TURMAS E A ESCOLA."
+AVISO_TURMA = f"{_AVISO} E A TURMA."
 
 
 def _nomes_na_pasta(pasta: Path) -> set[str]:
@@ -162,14 +169,75 @@ def renomear_turma(entrada: Entrada = None, saida: Callable = print) -> bool:
     return renomear(antigo, antigo.parent / novo, f"{escola}/{turma}", f"{escola}/{novo}", False, saida=saida)
 
 
+def _apagar_pasta(pasta: Path, banco: Path | None = None) -> bool:
+    """rmtree da escola/turma, sempre dentro de Redações plataforma e sob a trava de envio."""
+    banco = banco or config_mod.RAIZ / "relatorios" / "progresso.db"
+    raiz = raiz_redacoes().resolve()
+    if _eh_link(pasta) or pasta.resolve() == raiz or not pasta.resolve().is_relative_to(raiz):
+        tela.erro(f"Recusei: {pasta} não está dentro de {raiz} (ou é um atalho). Nada foi apagado.")
+        return False
+    try:
+        with trava_de_envio(banco.parent / "envio.trava"):
+            _fechar_logs(pasta)
+            shutil.rmtree(pasta)
+    except TravaOcupada:
+        tela.erro("Tem um envio rodando agora. Espere terminar para apagar.")
+        return False
+    except OSError as e:
+        tela.erro(f"Deu erro ao apagar ({e}). Pode ter ficado pela metade: confira a pasta {tela.caminho(pasta)}.")
+        return False
+    return True
+
+
+def apagar(entrada: Entrada = None, saida: Callable = print) -> bool:
+    """Opção x: apagar uma escola ou uma turma, com aviso, escolha, aviso crítico e frase digitada."""
+    from modulos.ferramentas.menu import _escolher
+    if not _sim(entrada, "Você tem certeza que quer fazer isso? É uma ação sem volta."):
+        tela.aviso("Nada foi apagado.", saida)
+        return False
+    tipo = tela.perguntar("  Apagar uma Turma ou uma Escola? (t = turma, e = escola, Enter = cancelar): ",
+                          entrada).lower()
+    if tipo not in ("t", "e"):
+        tela.aviso("Nada foi apagado.", saida)
+        return False
+    escola = _escolher(listar_escolas(), "Escola", entrada, saida)
+    turma = _escolher(listar_turmas(escola), f"Turma de {escola} a apagar", entrada, saida)         if tipo == "t" and escola else None
+    if escola is None or (tipo == "t" and turma is None):
+        tela.aviso("Nada foi apagado.", saida)
+        return False
+    pasta = pasta_da_turma(escola, turma) if tipo == "t" else raiz_redacoes() / escola
+    saida("")
+    for linha in textwrap.wrap(AVISO_TURMA if tipo == "t" else AVISO_ESCOLA, 76):
+        saida(tela.c(linha, "erro"))
+    saida(f"  Vai apagar: {tela.caminho(pasta)}")
+    tela.status("fraco", "O caderno de envios e o Arquivo morto não são apagados.", saida, recuo=4)
+    saida("  Para confirmar, digite exatamente:")
+    saida(f"    {FRASE_APAGAR}")
+    if tela.perguntar("  > ", entrada) != FRASE_APAGAR:
+        tela.aviso("A frase não confere. Nada foi apagado.", saida)
+        return False
+    if not _apagar_pasta(pasta):
+        return False
+    tela.ok(f"Apagada: {escola if tipo == 'e' else f'{escola} / {turma}'}", saida)
+    if tipo == "e":
+        tela.secao("Escolas disponíveis", saida)
+        restantes = listar_escolas()
+    else:
+        tela.secao(f"Turmas disponíveis de {escola}", saida)
+        restantes = listar_turmas(escola)
+    for r in restantes or ["(nenhuma)"]:
+        tela.status("fraco", r, saida, recuo=4)
+    return True
+
+
 def executar_configuracoes_e_estrutura(entrada: Entrada = None, saida: Callable = print) -> None:
     """Menu 13: navegador + gerenciar escolas e turmas."""
     from modulos.ferramentas.configuracoes import executar_configuracoes
     tela.titulo("CONFIGURAÇÕES", saida)
     tela.menu([("1", "navegador: mostrar ou esconder"), ("2", "adicionar uma escola"),
                ("3", "adicionar uma turma a uma escola"), ("4", "renomear uma escola"),
-               ("5", "renomear uma turma")], saida)
+               ("5", "renomear uma turma"), ("x", "deletar escola ou turma (sem volta)")], saida)
     escolha = tela.perguntar("  > ", entrada)
     {"1": executar_configuracoes, "2": adicionar_escola, "3": adicionar_turma,
-     "4": renomear_escola, "5": renomear_turma}.get(escolha, lambda *a, **k: None)(entrada=entrada, saida=saida)
+     "4": renomear_escola, "5": renomear_turma, "x": apagar}.get(escolha.lower(), lambda *a, **k: None)(entrada=entrada, saida=saida)
 
