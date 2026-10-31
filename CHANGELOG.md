@@ -26,6 +26,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   da turma (pergunta s/n, cópia do caderno antes).
 
 ### Mudado
+- **Conferência no site (#50):** senha recusada e identidade divergente não param mais a conferência: o aluno vira `não conferido`, aparece em "Contas que precisam de atenção" e os outros seguem. Só param CAPTCHA/bloqueio e 3 erros do site seguidos. O envio continua parando com 2 logins falhando.
 - **M3:** sem turma só o `--modo-teste` roda; `--pasta` saiu; com turma, `pasta_raiz`/`planilha`
   em `[dados]` do `config.ini` são recusados.
 - **M3, senhas:** cada aluno entra com a senha da coluna `Senha` do `alunos.csv` (texto exato).

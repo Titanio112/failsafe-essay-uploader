@@ -29,6 +29,9 @@ from modulos.site.lista_redacoes import ItemListaRedacao
 log = logging.getLogger("automacao_redacoes")
 
 PALAVRA = "CONFERIR"
+# Senha recusada e identidade divergente são erro de CADASTRO (o site respondeu): marcam o aluno e seguem.
+# Só param a conferência CAPTCHA/bloqueio e o site que não responde (erros seguidos que não são de cadastro).
+MAX_ERROS_DE_SITE_SEGUIDOS = 3
 NO_SITE, EM_PARTE, FORA_DO_SITE, NAO_CONFERIDO = "no site", "em parte", "não está no site", "não conferido"
 OUTRO_TEMA = "talvez no site com outro tema"
 NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
@@ -106,6 +109,11 @@ def comparar(conf: ConferenciaAluno) -> None:
             conf.linhas[i] = (item, OUTRO_TEMA, [r for r in ativas if r.codigo in sobras])
 
 
+def contas_com_problema(conferencias: list[ConferenciaAluno]) -> list[ConferenciaAluno]:
+    """Contas que não abriram (senha recusada, identidade divergente...): precisam de cadastro corrigido."""
+    return [c for c in conferencias if c.erro]
+
+
 def faltam_enviar(conferencias: list[ConferenciaAluno]) -> list[ItemConciliacao]:
     """Só as fotos que certamente não estão no site (conta lida sem erro)."""
     return [item for conf in conferencias if not conf.erro
@@ -126,7 +134,7 @@ def _ler_conta(page, cfg: Config, aluno: Aluno) -> list[ItemListaRedacao]:
 def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: Callable = print) -> bool:
     """Lê a lista de cada aluno. Retorna True se parou antes do fim."""
     from playwright.sync_api import sync_playwright
-    from modulos.envio.fluxo_envio_producao import MAX_FALHAS_LOGIN_SEGUIDAS, Andamento, _motivo_login
+    from modulos.envio.fluxo_envio_producao import Andamento, _motivo_login
     andamento = Andamento(len(conferencias), saida, unidade="alunos")
     falhas = 0
     with sync_playwright() as pw:
@@ -147,7 +155,7 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: 
                     return True
                 except (LoginFalhou, IdentidadeDivergente) as e:
                     conf.erro = _motivo_login(e)
-                    falhas += 1
+                    falhas = 0  # o site respondeu: o problema é o cadastro deste aluno, não derruba os outros
                     log.error("Conferencia: %s (%s): %s", conf.aluno.nome, mascarar_email(conf.aluno.email),
                               conf.erro)
                 except RuntimeError as e:  # lista ilegível (página de erro, outra página)
@@ -170,9 +178,9 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: 
                 comparar(conf)
                 _mostrar_aluno(conf, cfg.pasta_raiz, saida)
                 andamento.avancar()
-                if falhas >= MAX_FALHAS_LOGIN_SEGUIDAS:
-                    tela.erro(f"{falhas} contas seguidas não abriram: parei (senha do alunos.csv errada? site fora?).",
-                              saida)
+                if falhas >= MAX_ERROS_DE_SITE_SEGUIDOS:
+                    tela.erro(f"{falhas} contas seguidas deram erro do site (fora do ar? internet?): parei. "
+                              "Quem ainda não foi lido aparece como \"não tentado\".", saida)
                     return True
         finally:
             browser.close()
@@ -331,6 +339,11 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                     ("Não tentadas (parou antes)", contagem[NAO_TENTADO], "aviso")], saida)
     if parou:
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
+    problemas = contas_com_problema(conferencias)
+    if problemas:
+        tela.secao(f"Contas que precisam de atenção ({len(problemas)})", saida)
+        for c in problemas:
+            tela.status("erro", _curto(f"{c.aluno.nome}: {c.erro}", tela.LARGURA - 6), saida, recuo=4)
     tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios, cfg.id_turma))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
     if contagem[OUTRO_TEMA]:
