@@ -152,8 +152,14 @@ def texto(linhas: str, saida: Saida = print, recuo: int = 2) -> None:
         saida(" " * recuo + linha)
 
 
-def comando(texto_cmd: str, explicacao: str = "", saida: Saida = print) -> None:
-    """Dica de comando: "→ python main.py --revisar  (explicação)"."""
+# O menu liga isto em False: quem usa o menu não digita "python main.py ..." (issue #52)
+DICAS_DE_COMANDO = True
+
+
+def comando(texto_cmd: str, explicacao: str = "", saida: Saida = print, sempre: bool = False) -> None:
+    """Dica de comando: "→ python main.py --revisar  (explicação)". Some dentro do menu (``sempre`` força)."""
+    if not (DICAS_DE_COMANDO or sempre):
+        return
     extra = c(f"  ({explicacao})", "fraco") if explicacao else ""
     saida(f"  {c(SIMBOLOS['seta'], 'info')} {c(texto_cmd, 'tecla')}{extra}")
 
