@@ -430,7 +430,10 @@ def main(argv=None) -> int:
         from dotenv import load_dotenv
         from modulos.site.conferencia_site import executar_conferencia_site
         load_dotenv()
-        return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam, resultado=resultado))
+        from modulos.site.conferencia_manual import conferir_manualmente
+        guiada = (lambda problemas: conferir_manualmente(cfg, problemas)) if sys.stdin.isatty() else None  # só com pessoa
+        return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam, resultado=resultado),
+                                         guiada=guiada)
     if args.enviar_faltantes:
         # T54: usa a conferência de hoje (menu 7), sem abrir as contas de novo
         from dotenv import load_dotenv

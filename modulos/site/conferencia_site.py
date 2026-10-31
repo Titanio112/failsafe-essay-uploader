@@ -46,6 +46,7 @@ class ConferenciaAluno:
     itens: list[ItemConciliacao]
     lista: list[ItemListaRedacao] | None = None  # None = não conseguiu ler
     erro: str = ""
+    tipo_erro: str = ""  # "identidade" | "login" | "" (issue #55: a conferência manual trata cada um)
     linhas: list[tuple[ItemConciliacao, str, list[ItemListaRedacao]]] = field(default_factory=list)
 
 
@@ -155,6 +156,7 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: 
                     return True
                 except (LoginFalhou, IdentidadeDivergente) as e:
                     conf.erro = _motivo_login(e)
+                    conf.tipo_erro = "identidade" if isinstance(e, IdentidadeDivergente) else "login"
                     falhas = 0  # o site respondeu: o problema é o cadastro deste aluno, não derruba os outros
                     log.error("Conferencia: %s (%s): %s", conf.aluno.nome, mascarar_email(conf.aluno.email),
                               conf.erro)
@@ -306,11 +308,14 @@ def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
                               entrada: Callable[[str], str] | None = None, saida: Callable = print,
                               ler: Callable | None = None,
-                              depois: Callable[[list[ItemConciliacao]], object] | None = None) -> int:
+                              depois: Callable[[list[ItemConciliacao]], object] | None = None,
+                              guiada: Callable[[list[ConferenciaAluno]], int] | None = None) -> int:
     """0 = conferido até o fim; 1 = parou antes; 2 = cancelado/nada a conferir.
     ``ler`` (testes): substitui o navegador (recebe cfg, conferências, saida).
     ``depois`` (T53): recebe as fotos que certamente faltam no site, para
-    oferecer o envio só delas (o main decide; aqui nada é enviado)."""
+    oferecer o envio só delas (o main decide; aqui nada é enviado).
+    ``guiada`` (#55): recebe as contas com problema para a conferência manual; devolve quantos cadastros
+    mudaram (se mudou algum, a conferência feita aqui já não vale: não oferece enviar)."""
     from modulos.base.trava import TravaOcupada, trava_de_envio
     conferencias = alunos_para_conferir(resultado)
     tela.titulo("CONFERÊNCIA NO SITE  ·  só leitura, nada é enviado", saida)
@@ -378,6 +383,9 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     faltam = faltam_enviar(conferencias)
     if parou:
         return 1
+    if problemas and guiada and guiada(problemas):
+        tela.aviso("O cadastro mudou: faça \"Conferir contas no site\" de novo para validar antes de enviar.", saida)
+        return 0
     # T60: pasta com TODAS as fotos no site pode ser marcada "ENVIADA - "
     from modulos.ferramentas.pastas_enviadas import marcar_pastas_enviadas, pastas_prontas
     marcar_pastas_enviadas(cfg.pasta_raiz, pastas_prontas(resultado, conferencias), cfg.pasta_relatorios,
