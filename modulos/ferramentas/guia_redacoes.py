@@ -73,13 +73,9 @@ def avisar_se_sem_redacoes(escola: str, turma: str, entrada: Entrada = None, sai
     tela.status("fraco", "Dentro de temas/ já existe uma pasta-guia: renomeie para \"<código> - <tema>\" e solte as fotos.",
                 saida, recuo=4)
     while True:
-        r = _pergunta(entrada, "Você já colocou as redações lá? (s/n):")
-        if r in ("n", "nao", "não", ""):
-            tela.info("Tudo bem. Quando colocar, use \"Conferir as redações\" no menu.", saida)
+        if not tela.sim("Você já colocou as redações lá?", entrada):
+            tela.info("Tudo bem. Quando colocar, use \"Conferir redações\" no menu.", saida)
             return 0
-        if r not in ("s", "sim"):
-            tela.erro("Responda s ou n.", saida)
-            continue
         n = contar_redacoes(escola, turma)
         if n:
             tela.ok(f"Encontrei {n} foto(s). Vamos em frente.", saida)

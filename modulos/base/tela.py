@@ -188,6 +188,16 @@ def perguntar(prompt: str, entrada: Callable[[str], str] | None = None) -> str:
         return ""
 
 
+def sim(texto: str, entrada: Callable[[str], str] | None = None) -> bool:
+    """Pergunta de sim/não: Enter ou s = sim; qualquer outra resposta = não. Sem terminal ou Ctrl+C = não
+    (nunca confirma sozinho)."""
+    try:
+        resposta = (entrada or input)(f"  {texto} (Enter/s = sim, n = não): ")
+    except (EOFError, OSError, KeyboardInterrupt):
+        return False
+    return resposta.strip().lower() in ("", "s", "sim")
+
+
 def caminho(p) -> str:
     """Caminho curto: relativo à pasta atual quando estiver dentro dela.
     T53: num terminal de verdade é link (Ctrl+clique abre o relatório/pasta)."""

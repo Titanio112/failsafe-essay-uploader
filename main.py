@@ -185,7 +185,7 @@ def _enviar_faltantes(cfg, faltam, entrada=None, resultado=None) -> int:
     if config_mod.PRODUCAO_BLOQUEADA:
         tela.bloqueado("Envio para os alunos bloqueado hoje: nada foi enviado. A lista está no relatório acima.")
         return 2
-    if tela.perguntar("  Montar o envio só destas? (s/n): ", entrada).lower() not in ("s", "sim"):
+    if not tela.sim("Montar o envio só destas?", entrada):
         tela.info("Ok, nada foi enviado.")
         return 0
     # T56: o lote é montado com a fila INTEIRA (a checagem "mesma foto em duas
@@ -435,7 +435,7 @@ def main(argv=None) -> int:
         return executar_conferencia_site(cfg, resultado, depois=lambda faltam: _enviar_faltantes(cfg, faltam, resultado=resultado),
                                          guiada=guiada)
     if args.enviar_faltantes:
-        # T54: usa a conferência de hoje (menu 7), sem abrir as contas de novo
+        # T54: usa a conferência de hoje (menu Enviar as que faltam), sem abrir as contas de novo
         from dotenv import load_dotenv
         from modulos.site.conferencia_site import faltantes_do_relatorio
         load_dotenv()

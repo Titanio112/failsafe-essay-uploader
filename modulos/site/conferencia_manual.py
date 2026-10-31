@@ -20,6 +20,7 @@ from modulos.dados.normalizacao import normalizar_nome
 from modulos.dados.planilha_arquivos import Aluno, mascarar_email
 from modulos.ferramentas.cadastro_aluno import trocar_nome
 from modulos.site.conferencia_site import ConferenciaAluno
+from modulos.site.confirmacao import logout  # no topo: um import errado quebra já ao carregar (issue #56)
 
 log = logging.getLogger("automacao_redacoes")
 Entrada = Callable[[str], str] | None
@@ -30,7 +31,7 @@ def conta_aberta(cfg: Config, aluno: Aluno) -> Iterator[str]:
     """Abre o navegador visível, entra na conta do aluno e entrega o nome que o site mostra no menu.
     Fecha tudo ao sair do ``with`` (a pessoa já respondeu)."""
     from playwright.sync_api import sync_playwright
-    from modulos.site.login import DOMINIO_ESPERADO, login, logout, verificar_dominio_autorizado
+    from modulos.site.login import DOMINIO_ESPERADO, login, verificar_dominio_autorizado
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=False, slow_mo=cfg.slow_mo_ms)
         context = browser.new_context()
@@ -52,10 +53,6 @@ def conta_aberta(cfg: Config, aluno: Aluno) -> Iterator[str]:
                 log.warning("Conferencia manual: nao fechou o navegador direito.")
 
 
-def _sim(entrada: Entrada, texto: str) -> bool:
-    return tela.perguntar(f"  {texto} (s/n): ", entrada).lower() in ("s", "sim")
-
-
 def _renomear_fotos(cfg: Config, conf: ConferenciaAluno, novo: Aluno, log_csv: Path, saida: Callable) -> int:
     from modulos.ferramentas.revisao_interativa import renomear
     feitas = 0
@@ -72,15 +69,14 @@ def _renomear_fotos(cfg: Config, conf: ConferenciaAluno, novo: Aluno, log_csv: P
 def _manual(cfg: Config, conf: ConferenciaAluno, entrada: Entrada, saida: Callable) -> bool:
     """A pessoa corrige o alunos.csv à mão. True = "deu certo"."""
     tela.info(f"Abra e corrija (Ctrl+clique): {tela.caminho(cfg.planilha)}", saida)
-    r = tela.perguntar("  Conseguiu fazer a manutenção manual? (s = deu certo, continuar / n = pular este aluno): ", entrada)
-    return r.lower() in ("s", "sim")
+    return tela.sim("Conseguiu fazer a manutenção manual? (n = pular este aluno)", entrada)
 
 
 def conferir_manualmente(cfg: Config, problemas: list[ConferenciaAluno], entrada: Entrada = None,
                          saida: Callable = print, abrir: Callable = conta_aberta,
                          alunos: list[Aluno] | None = None) -> int:
     """Percorre as contas com problema. Retorna quantos cadastros mudaram (nome trocado ou corrigido à mão)."""
-    if not _sim(entrada, f"Deseja fazer a conferência manual das {len(problemas)} conta(s) com problema agora?"):
+    if not tela.sim(f"Deseja fazer a conferência manual das {len(problemas)} conta(s) com problema agora?", entrada):
         return 0
     from modulos.dados.planilha_arquivos import carregar_alunos
     alunos = alunos if alunos is not None else carregar_alunos(cfg)
@@ -100,9 +96,11 @@ def conferir_manualmente(cfg: Config, problemas: list[ConferenciaAluno], entrada
         tela.info("Entrando no aluno para conferência manual...", saida)
         try:
             with abrir(cfg, aluno) as nome_site:
-                tela.ok(f"Navegador aberto. Estamos logados na conta de: {nome_site or '(nome não apareceu)'}", saida)
-                tela.status("fraco", f"Na lista (alunos.csv) o nome é: {aluno.nome}", saida, recuo=4)
-                mesma = bool(nome_site) and _sim(entrada, "Esse aluno que apareceu no site é a mesma pessoa?")
+                tela.ok("Navegador aberto (fica aberto até você responder): confira a tela.", saida)
+                tela.info(f"Nome na planilha: {aluno.nome}", saida)
+                tela.info(f"Nome no site:     {nome_site or '(o nome não apareceu)'}", saida)
+                mesma = bool(nome_site) and tela.sim("É a mesma pessoa? Atualizar o nome na lista para o do site?",
+                                                     entrada)
         except CaptchaOuBloqueio as e:
             tela.erro(f"CAPTCHA/bloqueio ({e}): parei a conferência manual.", saida)
             break

@@ -72,7 +72,8 @@ def test_mesma_pessoa_troca_o_nome_na_lista_e_renomeia_a_foto_com_copia_e_log():
     assert (pasta / "temas" / "100 - Tema" / "Davi L. de Moura Fontes.jpg").is_file()
     assert not (pasta / "temas" / "100 - Tema" / "Davi Lucas de Moura Fontes.jpg").exists()
     assert list((pasta / "relatorios").glob("renomeacoes_*.csv"))  # dá para desfazer
-    assert "Estamos logados na conta de: Davi L. de Moura Fontes" in "\n".join(saidas)
+    texto = "\n".join(saidas)  # os dois nomes, um embaixo do outro
+    assert "Nome na planilha: Davi Lucas de Moura Fontes" in texto and "Nome no site:     Davi L. de Moura Fontes" in texto
 
 
 def test_nao_e_a_mesma_pessoa_mostra_o_caminho_e_nao_mexe_na_lista():

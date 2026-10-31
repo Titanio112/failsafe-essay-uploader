@@ -1,4 +1,4 @@
-"""Gerenciar escolas e turmas depois de prontas (issue #35): menu 13 Configurações.
+"""Gerenciar escolas e turmas depois de prontas (issue #35): menu Ferramentas > Configurações e turmas.
 
 Adicionar escola/turma e renomear escola/turma. Renomear acompanha a pasta, o
 "Arquivo morto" da turma e a coluna ``turma`` do caderno (cópia antes), e não
@@ -137,7 +137,7 @@ def renomear(antigo: Path, novo: Path, id_antigo: str, id_novo: str, escola: boo
     tela.ok(f"Renomeado: {id_antigo}  →  {id_novo}", saida)
     tela.status("fraco", f"{registros} registro(s) do caderno acompanharam o novo nome (cópia antes em relatorios/copias).",
                 saida, recuo=4)
-    tela.status("fraco", "Logs de renomeação antigos (menu 10) dessa pasta deixam de poder ser desfeitos.", saida, recuo=4)
+    tela.status("fraco", "Logs de renomeação antigos (Desfazer renomeação) dessa pasta deixam de poder ser desfeitos.", saida, recuo=4)
     return True
 
 
@@ -231,7 +231,7 @@ def apagar(entrada: Entrada = None, saida: Callable = print) -> bool:
 
 
 def executar_configuracoes_e_estrutura(entrada: Entrada = None, saida: Callable = print) -> None:
-    """Menu 13: navegador + gerenciar escolas e turmas."""
+    """Configurações e turmas: navegador + gerenciar escolas e turmas."""
     from modulos.ferramentas.configuracoes import executar_configuracoes
     tela.titulo("CONFIGURAÇÕES", saida)
     tela.menu([("1", "navegador: mostrar ou esconder"), ("2", "adicionar uma escola"),

@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Polimento da conferência e do menu (#56):** Enter ou `s` = sim em todas as perguntas `(s/n)` (sem terminal ou Ctrl+C = não); erro de conta aparece uma vez e inteiro (sem `…`), e "Contas que precisam de atenção" vem em grupos (senha ou login recusado, nome no site diferente, outros); a conferência manual mostra "Nome na planilha" e "Nome no site" e pergunta "É a mesma pessoa?"; se o cadastro mudar, o menu oferece conferir as contas de novo ali mesmo; Enviar cinza diz o motivo (contas sem conferir, nada falta enviar, trava de produção).
 - **Conferência manual guiada (#55):** depois de "Conferir contas no site", se houver contas com identidade divergente ou senha recusada, o script oferece resolver uma a uma. Identidade: abre o navegador visível na conta, mostra o nome do site e pergunta "é a mesma pessoa?"; sim troca o nome no `alunos.csv` (cópia antes) e renomeia as fotos (com log, dá para desfazer); não mostra o caminho do `alunos.csv` para corrigir à mão. Senha recusada vai direto ao caminho. Se o cadastro mudar, pede para conferir de novo antes de enviar.
 - **Cadastrar aluno novo na Revisão (#54):** nomes que ficaram sem aluno (`p`) no fim da Revisão podem ser cadastrados na hora (nome, e-mail e senha sem eco). A linha vai para o FIM do `alunos.csv` (cópia `.bak` antes; arquivo do Excel vira UTF-8), e-mail ou nome repetidos e senha vazia são recusados, e a foto é ligada ao aluno como na Revisão (renomeada, com log).
 - **Menu reorganizado (#53):** grupos Preparar (Conferir redações, Revisar, Conferir contas no site), Enviar, Manutenção (Resolver revisões, Atualizar temas, Desfazer renomeação) e Ferramentas (Trocar turma, Arquivo morto, Configurações e turmas, Primeiro uso, Testes). Ensaio e Modo teste foram para o submenu Testes. **Enviar fica cinza e recusa** até a conferência no site de HOJE da turma terminar sem contas não conferidas. Comandos diretos com flags não mudam.
@@ -29,6 +30,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   `--preparar --escola X --turma Y` cria a turma. Exemplo inventado em `exemplos/`.
 - **M3:** `--vincular-antigos` liga os registros do caderno de antes das turmas aos alunos
   da turma (pergunta s/n, cópia do caderno antes).
+
+### Corrigido
+- **Conferência manual (#56):** `ImportError: cannot import name 'logout'` impedia o navegador de abrir; o `logout` vem de `modulos.site.confirmacao`, importado no topo do módulo.
+- **Textos (#56):** avisos que citavam números de menu antigos ou "2 contas seguidas sem abrir: para" agora citam o nome da etapa e o comportamento atual.
 
 ### Mudado
 - **Conferência no site (#50):** senha recusada e identidade divergente não param mais a conferência: o aluno vira `não conferido`, aparece em "Contas que precisam de atenção" e os outros seguem. Só param CAPTCHA/bloqueio e 3 erros do site seguidos. O envio continua parando com 2 logins falhando.

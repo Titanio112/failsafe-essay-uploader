@@ -89,7 +89,7 @@ def carregar_codigos_pasta(caminho: Path) -> dict[str, str]:
         if not do_tema:
             tela.aviso(f"pastas_aprovadas: '{pasta}' tem codigo {codigo} sem o tema escrito; ignorada. "
                        "Preencha a coluna tema como no site (ex.: 000- DISSERTATIVO ARGUMENTATIVO) "
-                       "ou aprove pela revisao (menu 2).")
+                       "ou aprove em \"Revisar temas e nomes\".")
             continue
         if do_tema != codigo:
             tela.aviso(f"pastas_aprovadas: '{pasta}' tem codigo {codigo} mas o tema e {do_tema} "

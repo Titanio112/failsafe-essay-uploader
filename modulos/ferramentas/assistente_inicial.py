@@ -37,7 +37,7 @@ Este é o único LEIA-ME desta escola. Cada pasta aqui dentro é uma **turma**.
 3. Solte dentro dela as fotos (JPG), uma por aluno, com o nome do aluno: `Ana Souza.jpg`.
 4. Mais um tema? Crie outra pasta ao lado, do mesmo jeito. Pasta "ENVIADA - ..." é ignorada (tema já enviado).
 
-Para adicionar ou renomear escolas e turmas: `python main.py` -> 13) Configurações.
+Para adicionar ou renomear escolas e turmas: `python main.py` -> Ferramentas > Configurações e turmas.
 """
 
 
@@ -147,7 +147,7 @@ def _resumo(criadas: list[tuple[str, str]], criados: list[Path]) -> bool:
         "1. Abra a pasta da turma e preencha o alunos.csv: Nome;Email;Senha, um aluno por linha.",
         f"2. Em temas/ está a pasta \"{PASTA_GUIA}\": renomeie para \"<código> - <tema>\" (ex.: 100 - Filiação).",
         "3. Solte dentro dela as fotos JPG, uma por aluno, com o nome do aluno: Ana Souza.jpg.",
-        "4. Rode python main.py, escolha a escola e a turma e use \"1) Conferir as redações\" (não envia nada).",
+        "4. Rode python main.py, escolha a escola e a turma e use \"Conferir redações\" (não envia nada).",
         "O LEIA-ME.md de cada escola explica tudo de novo.",
     ):
         tela.status("fraco", linha, recuo=4)
