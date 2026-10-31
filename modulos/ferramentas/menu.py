@@ -260,6 +260,19 @@ def oferecer_temas(turma: tuple[str, str], main: Callable[[list[str]], int], ent
     return True
 
 
+def verificar_turma_ao_abrir(turma: tuple[str, str], main: Callable[[list[str]], int],
+                             entrada: Entrada | None = None, saida: Callable = print) -> None:
+    """O que o menu confere sozinho ao abrir uma turma (só com pessoa no teclado): se há redações e se há temas."""
+    from modulos.ferramentas.guia_redacoes import avisar_se_sem_redacoes
+    try:  # roda antes do laço do menu: um erro aqui não pode fechar o script ao abrir
+        avisar_se_sem_redacoes(*turma, entrada, saida)
+    except Exception as e:  # noqa: BLE001 - o menu segue; os detalhes ficam no log
+        import logging
+        logging.getLogger("automacao_redacoes").exception("Erro ao verificar as redações da turma")
+        tela.erro(f"Não consegui olhar a pasta de redações agora: {type(e).__name__}: {e}", saida)
+    oferecer_temas(turma, main, entrada, saida)
+
+
 def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = None,
                   saida: Callable = print, turma: tuple[str, str] | None = None) -> int:
     """Escolhe a turma e mostra o menu até a pessoa escolher 0 (ou fechar a entrada)."""
@@ -268,7 +281,7 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
         return 0
     interativo = entrada is None and sys.stdin.isatty()  # verificação automática só com pessoa no teclado
     if interativo:
-        oferecer_temas(turma, main, entrada, saida)
+        verificar_turma_ao_abrir(turma, main, entrada, saida)
     while True:
         mostrar_menu(saida, turma)
         opcao = _perguntar(entrada, "\n  Escolha uma opção: ")
@@ -279,7 +292,7 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
             qual = _perguntar(entrada, "  > ").lower()
             turma = escolher_turma(entrada, saida, turma[0] if qual in ("", "t") else None) or turma
             if interativo:
-                oferecer_temas(turma, main, entrada, saida)
+                verificar_turma_ao_abrir(turma, main, entrada, saida)
             continue
         try:
             from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main
