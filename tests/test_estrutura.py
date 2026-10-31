@@ -22,7 +22,7 @@ def _resp(*r):
 
 
 def _base():
-    executar_assistente(_resp("s", "s", "2", "Escola A", "2", "1A", "1B", "Escola B", "1", "2A"))
+    executar_assistente(_resp("s", "2", "2", "Escola A", "2", "1A", "1B", "Escola B", "1", "2A"))
 
 
 def _caderno():

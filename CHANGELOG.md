@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Primeiro uso pré-configurado (#37):** depois de confirmar que é a primeira vez, `1` (padrão, Enter) cria Alpha (`1 - Alpha`, `2 - Alpha`, `3 - Alpha`) e Marista (`3A - Marista`, `3B - Marista`); `2` configura à mão; `3` cria só a escola de exemplo.
 - **Excluir escola ou turma (#36):** Configurações > `x`, com aviso, escolha, aviso crítico em vermelho e frase digitada exata. Não apaga o caderno de envios nem o Arquivo morto; recusa durante um envio.
 - Menu 14 virou "Trocar escola ou turma" (outra turma da mesma escola, ou outra escola).
 - **Gerenciar escolas e turmas (#35):** menu 13 Configurações ganhou adicionar escola, adicionar turma, renomear escola e renomear turma (a pasta, o arquivo morto e o caderno acompanham; cópia do caderno antes; recusa durante um envio).
