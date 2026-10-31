@@ -1,4 +1,4 @@
-"""Arquivo morto (T57): `python main.py --arquivar` (menu 11).
+"""Arquivo morto (T57): `python main.py --arquivar` (menu Ferramentas > Arquivo morto).
 
 M3: só pastas de tema marcadas "ENVIADA - ..." (T60: marcadas depois de
 conferir TODAS as fotos no site) saem da pasta ``temas/`` da turma e vão
@@ -93,7 +93,7 @@ def executar_arquivar(pasta_raiz: Path, destino_turma: Path, pasta_relatorios: P
     if not pastas:
         tela.info(f"Nenhuma pasta \"{PREFIXO}...\" em {tela.caminho(pasta_raiz)}.", saida)
         tela.status("fraco", "Só vai para o arquivo morto a pasta com TODAS as fotos conferidas no site: "
-                    "a conferência (menu 5) oferece marcar essas pastas.", saida)
+                    "\"Conferir contas no site\" oferece marcar essas pastas.", saida)
         return 0
     tela.texto("Pastas com todas as fotos conferidas no site. O que for para o arquivo morto o script não "
                "vê mais; a lista de alunos, os dados e os relatórios da turma ficam.", saida)
@@ -106,7 +106,7 @@ def executar_arquivar(pasta_raiz: Path, destino_turma: Path, pasta_relatorios: P
         return 0
     destino = Path(destino_turma) / f"{relogio.agora():%Y-%m-%d_%H%M%S}"
     tela.status("fraco", f"Destino: {destino}", saida)
-    if tela.perguntar(f"  Mover {len(escolhidas)} pasta(s)? (s/n): ", entrada).lower() not in ("s", "sim"):
+    if not tela.sim(f"Mover {len(escolhidas)} pasta(s)?", entrada):
         tela.info("Nada foi movido.", saida)
         return 0
     log_csv = Path(pasta_relatorios) / f"arquivamento_{relogio.agora():%Y%m%d_%H%M%S}.csv"

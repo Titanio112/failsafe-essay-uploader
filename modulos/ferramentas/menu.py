@@ -13,6 +13,7 @@ continua podendo usar ``python main.py --revisar --escola X --turma Y`` etc.
 from __future__ import annotations
 
 import sys
+import textwrap
 from pathlib import Path
 from typing import Callable
 
@@ -41,7 +42,6 @@ OPCOES = [
 ]
 ACAO_DA_TECLA = {tecla: acao for _, tecla, acao, _, _ in OPCOES}
 ENVIAR = ("6", "7")  # ações que só abrem depois de Preparar (e com a produção liberada)
-MENSAGEM_PREPARAR = "conclua as etapas de Preparar primeiro"
 SEM_TURMA = ("4",)  # ação do modo teste: conta de teste e testes/redacoes_teste, sem turma
 NOVA = "<nova>"  # "n" na escolha de escola (nome inválido em pasta: nunca colide com uma escola)
 
@@ -51,36 +51,55 @@ def _perguntar(entrada: Entrada | None, texto: str) -> str:
 
 
 def _sim(entrada: Entrada | None, texto: str) -> bool:
-    return _perguntar(entrada, f"  {texto} (s/n): ").lower() in ("s", "sim")
+    return tela.sim(texto, entrada)
 
 
-def preparacao_da_turma(turma: tuple[str, str]) -> tuple[bool, str]:
-    """(ok, motivo): a trava do Enviar no menu. Só libera com a conferência no site de HOJE desta turma completa."""
+def preparacao_da_turma(turma: tuple[str, str], acao: str = "") -> tuple[bool, str]:
+    """(ok, motivo): a trava do Enviar no menu. Só libera com a conferência no site de HOJE desta turma completa;
+    "Enviar as que faltam" (ação 7) também precisa de ao menos uma redação faltando no site."""
     from modulos.base.turma import raiz_redacoes
-    from modulos.site.conferencia_site import preparacao_concluida
+    from modulos.site.conferencia_site import nada_falta_enviar, preparacao_concluida
+    relatorios = raiz_redacoes() / turma[0] / turma[1] / "relatorios"
     try:
-        return preparacao_concluida(raiz_redacoes() / turma[0] / turma[1] / "relatorios", f"{turma[0]}/{turma[1]}")
+        ok, motivo = preparacao_concluida(relatorios, f"{turma[0]}/{turma[1]}")
+        if ok and acao == "7":
+            motivo = nada_falta_enviar(relatorios, f"{turma[0]}/{turma[1]}")
+            ok = not motivo
+        return ok, motivo
     except Exception:  # noqa: BLE001 - na dúvida, fica travado
         return False, "não consegui ler a conferência de hoje"
 
 
+def motivos_do_bloqueio(turma: tuple[str, str] | None, acao: str) -> list[str]:
+    """Por que o Enviar está travado agora (vazio = liberado): o que falta em Preparar e/ou a trava de produção."""
+    motivos = []
+    if turma:  # sem turma (testes do desenho) não há o que travar
+        ok, motivo = preparacao_da_turma(turma, acao)
+        if not ok:
+            motivos.append(motivo)
+    if config_mod.PRODUCAO_BLOQUEADA:
+        motivos.append("trava de produção ligada (PRODUCAO_BLOQUEADA em modulos/base/config.py): "
+                       "só a conta de teste envia")
+    return motivos
+
+
 def mostrar_menu(saida: Callable = print, turma: tuple[str, str] | None = None) -> None:
     tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  " + (f"{turma[0]} / {turma[1]}" if turma else "menu"), saida)
-    preparada = preparacao_da_turma(turma)[0] if turma else True  # sem turma (testes do desenho) não há o que travar
     grupo_atual = None
     for grupo, tecla, acao, nome, ajuda in OPCOES:
         if grupo != grupo_atual:
             tela.secao(grupo, saida)
             grupo_atual = grupo
         rotulo = f"{tecla})".rjust(3)  # 1) a 13) alinhados
-        if acao in ENVIAR and not preparada:  # trava visual: cinza e o aviso (a recusa de verdade está em executar_menu)
+        motivos = motivos_do_bloqueio(turma, acao) if acao in ENVIAR else []
+        if motivos:  # trava visual: cinza e o motivo (a recusa de verdade está em executar_menu)
             saida(f" {tela.c(rotulo, 'fraco')} {tela.c(nome, 'fraco')}")
-            aviso = f"{tela.SIMBOLOS['bloqueado']} bloqueado ({MENSAGEM_PREPARAR})"
-            saida(f"       {tela.c(aviso, 'fraco')}")
+            for motivo in motivos:
+                for i, linha in enumerate(textwrap.wrap(motivo, tela.LARGURA - 20)):
+                    prefixo = f"{tela.SIMBOLOS['bloqueado']} bloqueado: " if i == 0 else " " * 13
+                    saida(f"       {tela.c(prefixo + linha, 'fraco')}")
             continue
-        if acao in ENVIAR and config_mod.PRODUCAO_BLOQUEADA:
-            ajuda = tela.c(f"{tela.SIMBOLOS['bloqueado']} bloqueado (só a conta de teste envia)", "bloqueado")
-        elif acao == "13":  # T52: mostra a escolha atual
+        if acao == "13":  # T52: mostra a escolha atual
             ajuda = tela.c(f"{resumo_navegador()} · escolas e turmas", "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
@@ -255,7 +274,7 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print,
 
 
 def _criar_estrutura(entrada: Entrada | None, saida: Callable) -> None:
-    """"n" na escolha de escola: cria escola ou turma sem sair do menu (mesmas perguntas do menu 13)."""
+    """"n" na escolha de escola: cria escola ou turma sem sair do menu (mesmas perguntas de "Configurações e turmas")."""
     from modulos.ferramentas import estrutura
     tela.menu([("e", "nova escola (com as turmas dela)"), ("t", "nova turma em uma escola que já existe")], saida)
     qual = _perguntar(entrada, "  > ").lower()
@@ -268,7 +287,7 @@ def _criar_estrutura(entrada: Entrada | None, saida: Callable) -> None:
 def oferecer_temas(turma: tuple[str, str], main: Callable[[list[str]], int], entrada: Entrada | None = None,
                    saida: Callable = print) -> bool:
     """Sem a lista de temas do site (``dados/temas_site.csv``, uma só para todas as turmas): oferece lê-la agora
-    (o mesmo caminho do menu 9, com o ANALISAR). ``turma`` só diz em qual turma o log da leitura fica."""
+    (o mesmo caminho de "Atualizar temas do site", com o ANALISAR). ``turma`` só diz em qual turma o log da leitura fica."""
     from modulos.dados.conciliacao_completa import TEMAS_SITE_CSV
     try:  # roda antes do laço do menu: um erro aqui não pode fechar o script ao abrir
         if TEMAS_SITE_CSV.is_file():
@@ -314,6 +333,8 @@ def proximo_passo(argumentos: list[str], turma: tuple[str, str], main: Callable[
                 pergunta, proximo = "Tudo certo nas pastas. Deseja conferir as contas no site agora?", ["--conferir-site"]
         elif argumentos == ["--revisar"]:
             pergunta, proximo = "Revisão concluída. Deseja conferir as redações de novo, para ver se não sobrou nada?", []
+        elif argumentos == ["--conferir-site"] and pendencias.cadastro_mudou:  # a conferência manual mexeu no cadastro
+            pergunta, proximo = "O cadastro mudou. Deseja conferir as contas no site novamente agora?", ["--conferir-site"]
         else:
             return
         if not _sim(entrada, pergunta):
@@ -367,9 +388,9 @@ def _executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None,
             from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main
             relatorios = raiz_redacoes() / turma[0] / turma[1] / "relatorios"
             # Bug 017: as perguntas da opção também ficam dentro do try
-            preparada, motivo = preparacao_da_turma(turma) if acao in ENVIAR else (True, "")
+            preparada, motivo = preparacao_da_turma(turma, acao) if acao in ENVIAR else (True, "")
             if not preparada:  # a trava de verdade; o desenho do menu só avisa
-                tela.bloqueado(f"Enviar bloqueado: {MENSAGEM_PREPARAR} ({motivo}).", saida)
+                tela.bloqueado(f"Enviar bloqueado: {motivo}.", saida)
                 argumentos = None
             else:
                 argumentos = argumentos_da_opcao(acao, entrada, relatorios, saida=saida)

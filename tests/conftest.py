@@ -45,6 +45,14 @@ def longe_da_meia_noite(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def sinais_do_menu_limpos(monkeypatch):
+    """Os sinais entre a conferência e o menu (modulos.base.pendencias) são globais: cada teste começa sem eles."""
+    from modulos.base import pendencias
+    monkeypatch.setattr(pendencias, "revisao_pendente", False)
+    monkeypatch.setattr(pendencias, "cadastro_mudou", False)
+
+
+@pytest.fixture(autouse=True)
 def log_limpo():
     """T45: o main abre logs/automacao.log; cada teste começa sem handlers
     (o arquivo do teste anterior é fechado)."""

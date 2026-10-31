@@ -83,10 +83,10 @@ def test_menu_sem_preparar_mostra_enviar_travado_e_com_a_conferencia_de_hoje_lib
     _base()
     monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", False)
     travado = _menu_texto()
-    assert travado.count("conclua as etapas de Preparar primeiro") == 2  # Enviar e Enviar as que faltam
+    assert travado.count("falta conferir as contas no site hoje") == 2  # Enviar e Enviar as que faltam, com o motivo
     assert "Enviar para os alunos" in travado and "Enviar as que faltam" in travado
     _conferencia([cs.NO_SITE, cs.FORA_DO_SITE])
-    assert "conclua as etapas de Preparar primeiro" not in _menu_texto()
+    assert "bloqueado" not in _menu_texto()
     monkeypatch.setattr(config_mod, "PRODUCAO_BLOQUEADA", True)  # a trava da produção continua valendo por cima
     assert "só a conta de teste envia" in _menu_texto()
 

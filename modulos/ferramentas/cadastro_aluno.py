@@ -90,8 +90,8 @@ def cadastrar_pulados(pulados: list[tuple[str, list]], alunos: list[Aluno], plan
     """Pergunta e cadastra os nomes que ficaram sem aluno. Retorna (alunos cadastrados, fotos renomeadas)."""
     from modulos.ferramentas.revisao_interativa import renomear
     n = len(pulados)
-    if tela.perguntar(f"  Ficaram {n} nome(s) sem aluno correspondente na lista. Deseja cadastrá-los manualmente "
-                      f"no alunos.csv agora? (s/n): ", entrada).lower() not in ("s", "sim"):
+    if not tela.sim(f"Ficaram {n} nome(s) sem aluno correspondente na lista. Deseja cadastrá-los manualmente "
+                    f"no alunos.csv agora?", entrada):
         return 0, 0
     tela.info(f"Lista: {tela.caminho(planilha)}  (a pessoa vai no fim; uma cópia fica ao lado)", saida)
     feitos = fotos = 0

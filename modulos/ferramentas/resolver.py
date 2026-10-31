@@ -168,7 +168,7 @@ def vincular_antigos(banco: Path, turma: str, alunos_ids: list[str], entrada: En
             return 0
         tela.texto(f"{n} registro(s) do caderno sem turma são de alunos desta turma (pelo e-mail). "
                    "Só a turma muda: estado, datas e foto ficam como estão.", saida)
-        if tela.perguntar(f"  Vincular os {n} a {turma}? (s/n): ", entrada).lower() not in ("s", "sim"):
+        if not tela.sim(f"Vincular os {n} a {turma}?", entrada):
             tela.info("Nada mudou.", saida)
             return 0
         copia = copiar_caderno(prog.con, Path(banco).parent / "copias")

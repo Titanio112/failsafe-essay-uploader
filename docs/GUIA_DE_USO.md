@@ -194,8 +194,18 @@ Minhas redações e diz, foto por foto, se aquele tema **já está no site em
 qualquer data** ("no site", com as datas), "em parte" (tema repetido, ex.:
 genérico 000, com menos linhas no site do que fotos) ou "não está no site".
 Não anexa, não envia e não mexe no caderno. Pede `CONFERIR` (digitado por
-você), usa a senha padrão, mostra o progresso por aluno, para em CAPTCHA ou
-em 2 contas seguidas sem abrir, e grava `relatorios/conferencia_site_<data>.csv`.
+você), usa a senha de cada aluno (`alunos.csv`), mostra o progresso por aluno e
+grava `relatorios/conferencia_site_<data>.csv`. Conta que não abre (senha recusada,
+nome diferente no site) é marcada e a conferência segue; só CAPTCHA/bloqueio ou o
+site fora do ar (3 erros seguidos) param. No fim, "Contas que precisam de atenção"
+separa **senha ou login recusado**, **nome no site diferente do nome na lista** e
+outros problemas, com a mensagem inteira, e oferece a conferência manual de cada uma.
+Se a conferência manual mudar o `alunos.csv`, o menu pergunta ali mesmo se quer
+conferir as contas de novo.
+
+Nas perguntas de sim/não, **Enter ou `s` = sim** e `n` = não (sem terminal, ou Ctrl+C,
+vale não). Nos submenus, Enter vazio volta. Se **Enviar** estiver cinza, o menu escreve
+embaixo o motivo (contas que faltam conferir, nada a enviar ou a trava de produção).
 Serve para saber o que já foi mandado à mão antes do script (o envio só
 pula o que está no site **hoje**).
 

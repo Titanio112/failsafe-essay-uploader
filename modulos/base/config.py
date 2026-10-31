@@ -52,14 +52,14 @@ Redações plataforma/<Escola>/<Turma>/
 | O quê | Regra |
 |---|---|
 | **Subpasta de temas/** | Uma por tema. Se começar com o código do tema do site (`100 - ...`), o script já sabe o tema. |
-| **Pasta sem código** | Rode a revisão (menu 2) e escolha o tema (ou `g` = tema genérico 000, quando o tema não existe no site). |
+| **Pasta sem código** | Rode "Revisar temas e nomes" e escolha o tema (ou `g` = tema genérico 000, quando o tema não existe no site). |
 | **Arquivo** | Um JPG por aluno, com o **nome do aluno**. Nome curto ou com erro: a revisão pergunta quem é. |
 | **Folha sem redação** | Coloque `em branco` no nome. Ela nunca é enviada. |
 
 ## Depois de colocar as redações
 
 1. `python main.py` — escolhe a turma e abre o menu.
-2. Menu 1 confere tudo, sem enviar nada; menu 2 escolhe temas e confirma nomes.
+2. "Conferir redações" confere tudo, sem enviar nada; "Revisar temas e nomes" escolhe temas e confirma nomes.
 """
 
 # Regra do Antônio (22/10/2026): por enquanto NENHUMA redação é enviada nas

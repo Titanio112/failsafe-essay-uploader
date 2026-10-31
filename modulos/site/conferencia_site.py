@@ -7,19 +7,21 @@ anexado, clicado em "Enviar" nem gravado no caderno; o resultado vai para a
 tela e para relatorios/conferencia_site_<data>.csv.
 
 Confirmação textual CONFERIR (digitada pelo Antônio). Mesmas travas do envio
-para o navegador: um aluno por contexto, domínio exato, identidade conferida,
-CAPTCHA ou 2 logins falhando seguidos param tudo.
+para o navegador: um aluno por contexto, domínio exato, identidade conferida.
+CAPTCHA/bloqueio ou o site fora do ar (3 erros de site seguidos) param tudo; senha recusada
+e identidade divergente só marcam o aluno.
 """
 
 from __future__ import annotations
 
 import csv
 import logging
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from modulos.base import relogio, tela
+from modulos.base import pendencias, relogio, tela
 from modulos.base.config import Config
 from modulos.base.excecoes import CaptchaOuBloqueio, IdentidadeDivergente, LoginFalhou
 from modulos.dados.planilha_arquivos import Aluno, ItemConciliacao, ResultadoConciliacao, mascarar_email
@@ -37,7 +39,7 @@ OUTRO_TEMA = "talvez no site com outro tema"
 NAO_TENTADO = "não tentado"  # T56: a conferência parou antes de chegar no aluno
 CANCELADA = "cancelada no site (conferir)"  # bug 018
 COLUNAS_CSV = ["aluno", "pasta", "arquivo", "tema", "resultado", "no_site", "datas_no_site", "situacoes",
-               "turma"]  # M3: o menu 7 só usa relatório da mesma turma
+               "turma"]  # M3: "Enviar as que faltam" só usa relatório da mesma turma
 
 
 @dataclass
@@ -159,16 +161,17 @@ def _ler_no_navegador(cfg: Config, conferencias: list[ConferenciaAluno], saida: 
                     conf.tipo_erro = "identidade" if isinstance(e, IdentidadeDivergente) else "login"
                     falhas = 0  # o site respondeu: o problema é o cadastro deste aluno, não derruba os outros
                     log.error("Conferencia: %s (%s): %s", conf.aluno.nome, mascarar_email(conf.aluno.email),
-                              conf.erro)
+                              conf.erro, extra={"so_no_arquivo": True})  # a tela já mostra o erro do aluno (uma vez)
                 except RuntimeError as e:  # lista ilegível (página de erro, outra página)
                     conf.erro = f"lista ilegível ({e})"
                     falhas += 1
                     log.error("Conferencia: %s (%s): %s", conf.aluno.nome, mascarar_email(conf.aluno.email),
-                              conf.erro)
+                              conf.erro, extra={"so_no_arquivo": True})
                 except Exception as e:  # noqa: BLE001 - um aluno não derruba a conferência
                     conf.erro = f"erro inesperado ({type(e).__name__})"
                     falhas += 1
-                    log.exception("Conferencia: erro inesperado em %s", conf.aluno.nome)
+                    log.exception("Conferencia: erro inesperado em %s", conf.aluno.nome,
+                                  extra={"so_no_arquivo": True})
                 finally:
                     # T56: sair da conta e fechar sem deixar um erro aqui esconder o de cima
                     try:
@@ -202,11 +205,19 @@ def _curto(texto: str, largura: int) -> str:
     return texto if len(texto) <= largura else texto[:max(largura - 1, 1)] + "…"
 
 
+def _erro_inteiro(texto: str, saida: Callable, recuo: int = 4) -> None:
+    """Linha de erro que quebra na largura da tela em vez de cortar com "…"."""
+    linhas = textwrap.wrap(texto, tela.LARGURA - recuo - 2) or [""]
+    tela.status("erro", linhas[0], saida, recuo=recuo)
+    for linha in linhas[1:]:
+        saida(" " * (recuo + 2) + tela.c(linha, "erro"))
+
+
 def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = print) -> None:
     saida("")
     saida(f"  {tela.c(conf.aluno.nome, 'titulo')}  {tela.c(f'<{mascarar_email(conf.aluno.email)}>', 'fraco')}")
     if conf.erro:
-        tela.status("erro", _curto(f"não conferido: {conf.erro}", tela.LARGURA - 6), saida, recuo=4)
+        _erro_inteiro(f"não conferido: {conf.erro}", saida)
         return
     for item, estado, do_tema in conf.linhas:
         datas = sorted({r.data for r in do_tema if r.data})
@@ -221,6 +232,23 @@ def _mostrar_aluno(conf: ConferenciaAluno, pasta_raiz: Path, saida: Callable = p
         # o nome do arquivo é o do aluno (já está em cima): só a pasta, que abre a foto
         pasta = tela.link(_curto(item.pasta, sobra), Path(pasta_raiz) / item.pasta / item.arquivo)
         tela.status(PAPEL.get(estado, "fraco"), inicio + pasta, saida, recuo=4)
+
+
+GRUPOS_DE_PROBLEMA = (("Senha ou login recusado pelo site", "login"),
+                      ("Nome no site diferente do nome na lista", "identidade"),
+                      ("Outros problemas", ""))
+
+
+def _mostrar_problemas(problemas: list[ConferenciaAluno], saida: Callable = print) -> None:
+    """"Contas que precisam de atenção", em grupos e com a mensagem inteira."""
+    tela.secao(f"Contas que precisam de atenção ({len(problemas)})", saida)
+    for titulo, tipo in GRUPOS_DE_PROBLEMA:
+        do_grupo = [c for c in problemas if c.tipo_erro == tipo]
+        if do_grupo:
+            saida("")
+            saida("  " + tela.c(f"{titulo} ({len(do_grupo)})", "titulo"))
+            for c in do_grupo:
+                _erro_inteiro(f"{c.aluno.nome}: {c.erro}", saida)
 
 
 def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path, turma: str = "") -> Path:
@@ -242,7 +270,7 @@ def gravar_csv(conferencias: list[ConferenciaAluno], pasta: Path, turma: str = "
 
 def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliacao,
                            saida: Callable = print, turma: str | None = None) -> list[ItemConciliacao] | None:
-    """T54 (menu 7): as que faltam segundo a conferência de HOJE, sem refazê-la.
+    """T54 (Enviar as que faltam): as que faltam segundo a conferência de HOJE, sem refazê-la.
 
     Só vale relatório de hoje (Brasília): de outro dia, alguém pode ter
     mandado à mão depois. Só entram fotos que continuam conferidas na pasta
@@ -280,13 +308,12 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
             and (item.aluno.nome, item.pasta, item.arquivo, item.codigo_tema) in faltando]
 
 
-def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]:
-    """A trava do Enviar no menu (#53): (ok, motivo). Só vale a conferência no site DE HOJE desta turma, completa:
-    nenhuma conta "não conferida" nem "não tentada". Só lê o relatório; nada é enviado."""
+def _linhas_de_hoje(pasta_relatorios: Path, turma: str) -> tuple[list[dict] | None, str]:
+    """(linhas, motivo): as linhas da conferência no site DE HOJE desta turma, ou (None, por que não valem)."""
     hoje = relogio.agora().strftime("%Y%m%d")
     relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
     if not relatorios or not relatorios[-1].name.startswith(f"conferencia_site_{hoje}"):
-        return False, "falta conferir as contas no site hoje"
+        return None, "falta conferir as contas no site hoje"
     try:
         with open(relatorios[-1], encoding="utf-8-sig", newline="") as f:
             leitor = csv.DictReader(f, delimiter=";")
@@ -294,15 +321,34 @@ def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]
                 raise ValueError("colunas diferentes")
             linhas = list(leitor)
     except (OSError, UnicodeDecodeError, ValueError, csv.Error):
-        return False, "não consegui ler a conferência de hoje"
+        return None, "não consegui ler a conferência de hoje"
     if not linhas:
-        return False, "a conferência de hoje não tem nenhuma redação"
+        return None, "a conferência de hoje não tem nenhuma redação"
     if any(l["turma"] != turma for l in linhas):
-        return False, "a conferência de hoje é de outra turma"
-    pendentes = sum(1 for l in linhas if l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO))
+        return None, "a conferência de hoje é de outra turma"
+    return linhas, ""
+
+
+def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]:
+    """A trava do Enviar no menu (#53): (ok, motivo). Só vale a conferência no site DE HOJE desta turma, completa:
+    nenhuma conta "não conferida" nem "não tentada". Só lê o relatório; nada é enviado."""
+    linhas, motivo = _linhas_de_hoje(pasta_relatorios, turma)
+    if linhas is None:
+        return False, motivo
+    pendentes = [l for l in linhas if l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO)]
     if pendentes:
-        return False, f"{pendentes} redação(ões) de contas que não abriram ou não foram tentadas"
+        contas = len({l["aluno"] for l in pendentes})
+        return False, (f"restam {contas} conta(s) sem conferir ({len(pendentes)} redação(ões)): conclua "
+                       "\"Conferir contas no site\" (a conferência manual corrige nome e senha)")
     return True, ""
+
+
+def nada_falta_enviar(pasta_relatorios: Path, turma: str) -> str:
+    """Motivo (texto) se a conferência de hoje não achou nenhuma redação faltando no site; "" nos outros casos."""
+    linhas, _ = _linhas_de_hoje(pasta_relatorios, turma)
+    if linhas and not any(l["resultado"] == FORA_DO_SITE for l in linhas):
+        return f"nada falta enviar: nenhuma das {len(linhas)} redações conferidas está ausente do site"
+    return ""
 
 
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
@@ -318,6 +364,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     mudaram (se mudou algum, a conferência feita aqui já não vale: não oferece enviar)."""
     from modulos.base.trava import TravaOcupada, trava_de_envio
     conferencias = alunos_para_conferir(resultado)
+    pendencias.cadastro_mudou = False
     tela.titulo("CONFERÊNCIA NO SITE  ·  só leitura, nada é enviado", saida)
     if not conferencias:
         tela.aviso("Nenhuma redação conferida na pasta (nome exato + tema aprovado). Rode a revisão antes.", saida)
@@ -325,8 +372,8 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     total = sum(len(c.itens) for c in conferencias)
     tela.texto(f"Vou entrar na conta de {len(conferencias)} aluno(s), ler Minhas redações e comparar com as "
                f"{total} foto(s) da pasta. Não anexo nem envio nada, e o caderno de envios não muda.", saida)
-    tela.status("fraco", "Cada aluno com a senha dele (alunos.csv). CAPTCHA ou 2 contas seguidas sem abrir: para.",
-                saida)
+    tela.status("fraco", "Cada aluno com a senha dele (alunos.csv). Conta que não abre é marcada e a conferência segue; "
+                "só CAPTCHA/bloqueio ou o site fora do ar param.", saida)
     saida("")
     if tela.perguntar(f"  Digite {tela.c(PALAVRA, 'tecla')} para começar (qualquer outro texto cancela): ",
                       entrada) != PALAVRA:
@@ -371,9 +418,7 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
         tela.erro("Conferência PARADA antes do fim (veja o motivo acima).", saida)
     problemas = contas_com_problema(conferencias)
     if problemas:
-        tela.secao(f"Contas que precisam de atenção ({len(problemas)})", saida)
-        for c in problemas:
-            tela.status("erro", _curto(f"{c.aluno.nome}: {c.erro}", tela.LARGURA - 6), saida, recuo=4)
+        _mostrar_problemas(problemas, saida)
     tela.info(f"Relatório: {tela.caminho(gravar_csv(conferencias, cfg.pasta_relatorios, cfg.id_turma))}", saida)
     tela.status("fraco", "Nada foi enviado e o caderno não mudou.", saida)
     if contagem[OUTRO_TEMA]:
@@ -384,7 +429,9 @@ def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
     if parou:
         return 1
     if problemas and guiada and guiada(problemas):
-        tela.aviso("O cadastro mudou: faça \"Conferir contas no site\" de novo para validar antes de enviar.", saida)
+        pendencias.cadastro_mudou = True  # o menu oferece conferir de novo, ali mesmo
+        tela.aviso("O cadastro mudou: a conferência acima já não vale. É preciso \"Conferir contas no site\" "
+                   "de novo antes de enviar.", saida)
         return 0
     # T60: pasta com TODAS as fotos no site pode ser marcada "ENVIADA - "
     from modulos.ferramentas.pastas_enviadas import marcar_pastas_enviadas, pastas_prontas

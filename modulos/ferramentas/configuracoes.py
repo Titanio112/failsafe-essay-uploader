@@ -1,4 +1,4 @@
-"""Configurações (T52): menu opção 13.
+"""Configurações (T52): menu Ferramentas > Configurações e turmas.
 
 Guarda as escolhas no config.ini da raiz (o mesmo que carregar_config lê),
 mexendo só na linha da opção: comentários e o resto do arquivo ficam.

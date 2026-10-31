@@ -1,10 +1,10 @@
 """Pastas já enviadas (T60, issue 030).
 
-No fim da conferência no site (menu 5), a pasta em que TODAS as fotos foram
+No fim da conferência no site (Conferir contas no site), a pasta em que TODAS as fotos foram
 conferidas e estão no site pode ser marcada: vira "ENVIADA - <nome>". Quem
 abre a pasta das redações vê na hora o que já foi. O script ignora essas
 pastas em tudo (envio, revisão, conferência), então a troca de nome não abre
-caminho para reenvio. O arquivo morto (menu 11) oferece primeiro as marcadas.
+caminho para reenvio. O Arquivo morto oferece primeiro as marcadas.
 Nada é apagado; cada marcação vai para relatorios/pastas_enviadas_<data>.csv
 e, para desmarcar, basta tirar o "ENVIADA - " do nome.
 """
@@ -47,8 +47,8 @@ def marcar_pastas_enviadas(pasta_raiz: Path, pastas: list[str], pasta_relatorios
     tela.secao("Pastas com tudo no site", saida)
     for pasta in pastas:
         tela.ok(pasta, saida)
-    if tela.perguntar(f"  Marcar {len(pastas)} pasta(s) como \"{PREFIXO}...\"? Depois o arquivo morto (menu 11) "
-                      "oferece guardar essas primeiro. (s/n): ", entrada).lower() not in ("s", "sim"):
+    if not tela.sim(f"Marcar {len(pastas)} pasta(s) como \"{PREFIXO}...\"? Depois o Arquivo morto "
+                    "oferece guardar essas primeiro.", entrada):
         tela.info("Nenhuma pasta foi marcada.", saida)
         return 0
     log_csv = Path(pasta_relatorios) / f"pastas_enviadas_{relogio.agora():%Y%m%d_%H%M%S}.csv"
@@ -65,7 +65,7 @@ def marcar_pastas_enviadas(pasta_raiz: Path, pastas: list[str], pasta_relatorios
             try:
                 origem.rename(destino)
             except OSError as e:
-                tela.erro(f"Não marquei {pasta} ({type(e).__name__}): foto aberta? Feche e rode a opção 5 de novo.",
+                tela.erro(f"Não marquei {pasta} ({type(e).__name__}): foto aberta? Feche e confira as contas no site de novo.",
                           saida)
                 continue
             escritor.writerow([str(origem), str(destino)])
