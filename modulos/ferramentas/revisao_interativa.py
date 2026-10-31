@@ -329,8 +329,10 @@ def renomear(pasta_raiz: Path, pasta: str, arquivo: str, aluno: Aluno, banco: Pa
 
 def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_raiz: Path,
                   banco: Path, log_csv: Path, nomes_aprovados: dict | None = None,
-                  entrada: Entrada | None = None, saida: Callable = print) -> tuple[int, bool]:
-    """Pergunta o aluno de cada nome. Retorna (arquivos renomeados, saiu)."""
+                  entrada: Entrada | None = None, saida: Callable = print,
+                  pulados: list | None = None) -> tuple[int, bool]:
+    """Pergunta o aluno de cada nome. Retorna (arquivos renomeados, saiu).
+    ``pulados`` (issue #54): recebe (nome, itens) dos nomes que ficaram sem aluno."""
     renomeados = 0
     for n, (nome, itens) in enumerate(grupos, 1):
         norm = normalizar_nome(nome)
@@ -368,6 +370,8 @@ def revisar_nomes(grupos: list[tuple[str, list]], alunos: list[Aluno], pasta_rai
                 continue
             if low == "p" or (not resp and not unico):
                 saida(tela.c("  Pulado (esses arquivos nao serao enviados).", "aviso"))
+                if pulados is not None:
+                    pulados.append((nome, itens))
                 break
             if not resp:
                 escolhido = opcoes[0][0]
@@ -395,7 +399,8 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
                      temas: list[tuple[str, str]], codigos_pasta: dict, pasta_raiz: Path,
                      caminho_pastas: Path, banco: Path, pasta_relatorios: Path,
                      nomes_aprovados: dict | None = None,
-                     entrada: Entrada | None = None, saida: Callable = print, turma_args: str = "") -> int:
+                     entrada: Entrada | None = None, saida: Callable = print, turma_args: str = "",
+                     planilha: Path | None = None) -> int:
     log_csv = Path(pasta_relatorios) / f"renomeacoes_{datetime.now():%Y%m%d_%H%M%S}.csv"
     tela.titulo("REVISÃO NO TERMINAL  ·  nada é enviado", saida)
     pastas = sorted(p for p in arquivos if p not in codigos_pasta and not extrair_codigo_tema("", p))
@@ -412,10 +417,14 @@ def executar_revisao(resultado: ResultadoConciliacao, alunos: list[Aluno], arqui
             item.pasta = renomeadas[item.pasta]
     renomeados = 0
     grupos = grupos_para_revisar(resultado, alunos)
+    pulados: list = []
     if not saiu and grupos:
         tela.secao(f"Parte 2: {len(grupos)} nome(s) que nao sao o nome exato de um aluno", saida)
         renomeados, saiu = revisar_nomes(grupos, alunos, pasta_raiz, banco, log_csv,
-                                         nomes_aprovados, entrada, saida)
+                                         nomes_aprovados, entrada, saida, pulados)
+        if pulados and not saiu and planilha is not None:  # issue #54: aluno que falta na lista
+            from modulos.ferramentas.cadastro_aluno import cadastrar_pulados
+            renomeados += cadastrar_pulados(pulados, alunos, planilha, pasta_raiz, banco, log_csv, entrada, saida)[1]
     tela.secao("Fim da revisao" + (" (interrompida)" if saiu else ""), saida)
     tela.status("aviso" if saiu else "ok",
                 f"{aprovadas} pasta(s) aprovada(s) ({len(renomeadas)} renomeada(s)), "

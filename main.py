@@ -450,6 +450,7 @@ def main(argv=None) -> int:
             cfg.pasta_raiz, cfg.arquivo_pastas_aprovadas, cfg.banco_progresso,
             cfg.pasta_relatorios, nomes_aprovados,
             turma_args=" --modo-teste" if args.modo_teste else f' --escola "{cfg.escola}" --turma "{cfg.turma}"',
+            planilha=None if args.modo_teste else cfg.planilha,  # aluno que falta na lista (issue #54)
         )
     csv_path = gerar_relatorio_conciliacao(
         resultado, cfg.pasta_relatorios / "relatorio_conciliacao.csv"

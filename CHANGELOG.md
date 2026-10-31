@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Cadastrar aluno novo na Revisão (#54):** nomes que ficaram sem aluno (`p`) no fim da Revisão podem ser cadastrados na hora (nome, e-mail e senha sem eco). A linha vai para o FIM do `alunos.csv` (cópia `.bak` antes; arquivo do Excel vira UTF-8), e-mail ou nome repetidos e senha vazia são recusados, e a foto é ligada ao aluno como na Revisão (renomeada, com log).
 - **Menu reorganizado (#53):** grupos Preparar (Conferir redações, Revisar, Conferir contas no site), Enviar, Manutenção (Resolver revisões, Atualizar temas, Desfazer renomeação) e Ferramentas (Trocar turma, Arquivo morto, Configurações e turmas, Primeiro uso, Testes). Ensaio e Modo teste foram para o submenu Testes. **Enviar fica cinza e recusa** até a conferência no site de HOJE da turma terminar sem contas não conferidas. Comandos diretos com flags não mudam.
 - **Fluxo contínuo no menu (#52):** dentro do menu somem as dicas `→ python main.py ...`; Conferir com pendências pergunta "Deseja abrir a Revisão agora?", a Revisão oferece conferir de novo e, sem pendências, o menu oferece conferir as contas no site. Os comandos diretos continuam mostrando as dicas.
 - **Turma sem redações (#51):** ao abrir uma turma sem nenhuma foto em `temas/`, o menu avisa e pergunta se quer uma explicação (árvore de pastas, caminho clicável e "Você já colocou as redações lá?") ou continuar sem redações.
