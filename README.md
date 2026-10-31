@@ -207,11 +207,11 @@ Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
 ```
 
 - `python main.py` pergunta a escola e a turma, mostra o resumo e abre o menu só daquela turma
-  (opção 14 troca de turma). Direto: `python main.py --escola "Escola" --turma "3A" --revisar`.
+  (opção 9 troca de turma). Direto: `python main.py --escola "Escola" --turma "3A" --revisar`.
 - Turma nova: na escolha de escola, tecla `n` (escola nova ou turma nova numa escola); ou, direto,
   `python main.py --preparar --escola "Escola" --turma "3A"` (cria `alunos.csv` e `temas/`).
 - Os temas do site são os mesmos para todas as turmas: uma lista só, `dados/temas_site.csv`. Se ela não existir,
-  o menu oferece lê-la na hora (só leitura, conta de teste); atualizar = menu 9.
+  o menu oferece lê-la na hora (só leitura, conta de teste); atualizar = menu 7 (Manutenção).
 - **Sem terminal:** duplo clique em `AutoReda.bat` abre o menu. Para ter na Área de Trabalho (ou em outra
   pasta), duplo clique em `Criar atalho AutoReda.bat` (ou `Criar atalho AutoReda.bat "C:\outra\pasta"`); o
   atalho aponta para a pasta do projeto e funciona de onde estiver. Não copie o `.bat`, copie o atalho.
@@ -224,7 +224,7 @@ Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
 - O caderno (`relatorios/progresso.db`), a trava e as cópias continuam únicos, na raiz: a mesma foto
   nunca vai para outro aluno, nem de outra turma. Registros de antes das turmas continuam valendo
   para todas as travas; para aparecerem no `--resolver` da turma, rode `--vincular-antigos` (faz cópia antes).
-- Arquivo morto (menu 11): só pastas `ENVIADA - ...` (todas as fotos conferidas no site).
+- Arquivo morto (menu 10): só pastas `ENVIADA - ...` (todas as fotos conferidas no site).
 
 **Passar os dados de hoje para uma turma** (à mão, uma vez; o script não move nada sozinho):
 1. Crie a turma: `python main.py --preparar --escola "Minha Escola" --turma "3A"`.
@@ -233,7 +233,7 @@ Arquivo morto/<Escola>/<Turma>/<data_hora>/<ENVIADA - pasta do tema>/
 3. Copie a lista `dados/dados_alunos.csv` para `Redações plataforma/Minha Escola/3A/alunos.csv`,
    com a coluna `Senha` preenchida para cada aluno.
 4. Mova `dados/nomes_aprovados.csv` e `dados/pastas_aprovadas.csv` para `.../3A/dados/` e copie
-   `dados/temas_site.csv` para lá (ou atualize pelo menu 9).
+   `dados/temas_site.csv` para lá (ou atualize pelo menu 7).
 5. `python main.py --vincular-antigos --escola "Minha Escola" --turma "3A"` e depois o menu 1 para conferir.
 
 ### Segurança em primeiro lugar

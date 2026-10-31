@@ -249,12 +249,12 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
     hoje = relogio.agora().strftime("%Y%m%d")
     relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
     if not relatorios:
-        tela.aviso("Ainda não há conferência no site. Rode a opção 5 (Conferir no site) antes.", saida)
+        tela.aviso("Ainda não há conferência no site. Faça antes \"Conferir contas no site\" (Preparar).", saida)
         return None
     ultimo = relatorios[-1]
     if not ultimo.name.startswith(f"conferencia_site_{hoje}"):
         tela.aviso(f"A última conferência ({tela.caminho(ultimo)}) não é de hoje.", saida)
-        tela.status("fraco", "Alguém pode ter enviado à mão depois dela. Rode a opção 5 de novo.", saida)
+        tela.status("fraco", "Alguém pode ter enviado à mão depois dela. Faça \"Conferir contas no site\" de novo.", saida)
         return None
     try:  # T56: relatório mexido no Excel (outra codificação, vírgulas) -> não usa
         with open(ultimo, encoding="utf-8-sig", newline="") as f:
@@ -267,15 +267,40 @@ def faltantes_do_relatorio(pasta_relatorios: Path, resultado: ResultadoConciliac
             faltando = {(l["aluno"], l["pasta"], l["arquivo"], l["tema"]) for l in linhas
                         if l.get("resultado") == FORA_DO_SITE}
     except (OSError, UnicodeDecodeError, ValueError, KeyError, csv.Error) as e:
-        tela.aviso(f"Não consegui ler {tela.caminho(ultimo)} ({type(e).__name__}). Rode a opção 5 de novo.", saida)
+        tela.aviso(f"Não consegui ler {tela.caminho(ultimo)} ({type(e).__name__}). Faça \"Conferir contas no site\" de novo.", saida)
         return None
     if turma is not None and any(l["turma"] != turma for l in linhas):
-        tela.aviso(f"{tela.caminho(ultimo)} é de outra turma. Rode a opção 5 (Conferir no site) nesta turma.", saida)
+        tela.aviso(f"{tela.caminho(ultimo)} é de outra turma. Faça \"Conferir contas no site\" nesta turma.", saida)
         return None
     tela.info(f"Conferência usada: {tela.caminho(ultimo)}", saida)
     return [item for item in resultado.fila_validada()
             if item.aluno and item.codigo_tema
             and (item.aluno.nome, item.pasta, item.arquivo, item.codigo_tema) in faltando]
+
+
+def preparacao_concluida(pasta_relatorios: Path, turma: str) -> tuple[bool, str]:
+    """A trava do Enviar no menu (#53): (ok, motivo). Só vale a conferência no site DE HOJE desta turma, completa:
+    nenhuma conta "não conferida" nem "não tentada". Só lê o relatório; nada é enviado."""
+    hoje = relogio.agora().strftime("%Y%m%d")
+    relatorios = sorted(Path(pasta_relatorios).glob("conferencia_site_*.csv"))
+    if not relatorios or not relatorios[-1].name.startswith(f"conferencia_site_{hoje}"):
+        return False, "falta conferir as contas no site hoje"
+    try:
+        with open(relatorios[-1], encoding="utf-8-sig", newline="") as f:
+            leitor = csv.DictReader(f, delimiter=";")
+            if leitor.fieldnames != COLUNAS_CSV:
+                raise ValueError("colunas diferentes")
+            linhas = list(leitor)
+    except (OSError, UnicodeDecodeError, ValueError, csv.Error):
+        return False, "não consegui ler a conferência de hoje"
+    if not linhas:
+        return False, "a conferência de hoje não tem nenhuma redação"
+    if any(l["turma"] != turma for l in linhas):
+        return False, "a conferência de hoje é de outra turma"
+    pendentes = sum(1 for l in linhas if l["resultado"] in (NAO_CONFERIDO, NAO_TENTADO))
+    if pendentes:
+        return False, f"{pendentes} redação(ões) de contas que não abriram ou não foram tentadas"
+    return True, ""
 
 
 def executar_conferencia_site(cfg: Config, resultado: ResultadoConciliacao,
