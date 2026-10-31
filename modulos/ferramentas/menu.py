@@ -211,7 +211,8 @@ def escolher_turma(entrada: Entrada | None = None, saida: Callable = print,
                 return None
             tela.aviso("Nenhuma turma encontrada. Cada turma é uma pasta "
                        f"\"{config_mod.PASTA_REDACOES}/<Escola>/<Turma>/\" com alunos.csv.", saida)
-            tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida)
+            tela.comando('python main.py --preparar --escola "<Escola>" --turma "<Turma>"', "cria uma turma", saida,
+                         sempre=True)  # sem terminal não há menu para guiar
             return None
         escola = escola_fixa if escola_fixa in escolas else _escolher(escolas, "Escola", entrada, saida, nova=True)
         escola_fixa = None
@@ -273,9 +274,50 @@ def verificar_turma_ao_abrir(turma: tuple[str, str], main: Callable[[list[str]],
     oferecer_temas(turma, main, entrada, saida)
 
 
+def proximo_passo(argumentos: list[str], turma: tuple[str, str], main: Callable[[list[str]], int],
+                  entrada: Entrada | None = None, saida: Callable = print) -> None:
+    """Depois de uma etapa de Preparar, oferece a seguinte: Conferir -> (pendências) Revisão -> Conferir de novo ->
+    contas no site. Só com pessoa no teclado; cada etapa tem as confirmações dela (issue #52)."""
+    from modulos.base import pendencias
+    da_turma = ["--escola", turma[0], "--turma", turma[1]]
+    for _ in range(6):  # Conferir <-> Revisão pode repetir; 6 voltas bastam
+        if argumentos == []:
+            if pendencias.revisao_pendente:
+                pergunta, proximo = "Encontrei pendências. Deseja abrir a Revisão agora?", ["--revisar"]
+            else:
+                pergunta, proximo = "Tudo certo nas pastas. Deseja conferir as contas no site agora?", ["--conferir-site"]
+        elif argumentos == ["--revisar"]:
+            pergunta, proximo = "Revisão concluída. Deseja conferir as redações de novo, para ver se não sobrou nada?", []
+        else:
+            return
+        if not _sim(entrada, pergunta):
+            return
+        try:
+            main(proximo + da_turma)
+        except KeyboardInterrupt:
+            tela.aviso("Interrompido (Ctrl+C).", saida)
+            return
+        except Exception as e:  # noqa: BLE001 - o menu segue; os detalhes ficam no log
+            import logging
+            logging.getLogger("automacao_redacoes").exception("Erro no passo seguinte do menu")
+            tela.erro(f"Erro inesperado: {type(e).__name__}: {e}", saida)
+            return
+        argumentos = proximo
+
+
 def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = None,
                   saida: Callable = print, turma: tuple[str, str] | None = None) -> int:
     """Escolhe a turma e mostra o menu até a pessoa escolher 0 (ou fechar a entrada)."""
+    anterior = tela.DICAS_DE_COMANDO
+    tela.DICAS_DE_COMANDO = False  # quem usa o menu não digita "python main.py ..."
+    try:
+        return _executar_menu(main, entrada, saida, turma)
+    finally:
+        tela.DICAS_DE_COMANDO = anterior
+
+
+def _executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None,
+                   saida: Callable, turma: tuple[str, str] | None) -> int:
     turma = turma or escolher_turma(entrada, saida)
     if not turma:
         return 0
@@ -301,6 +343,8 @@ def executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None = No
             argumentos = argumentos_da_opcao(opcao, entrada, relatorios, saida=saida)
             if argumentos is not None:
                 main(argumentos + ([] if opcao in SEM_TURMA else ["--escola", turma[0], "--turma", turma[1]]))
+                if interativo and opcao not in SEM_TURMA:
+                    proximo_passo(argumentos, turma, main, entrada, saida)
         except KeyboardInterrupt:
             tela.aviso("Interrompido (Ctrl+C).", saida)
         except Exception as e:  # o menu não fecha por causa de um erro

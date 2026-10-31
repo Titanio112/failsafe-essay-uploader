@@ -8,6 +8,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 ## [Não lançado]
 
 ### Adicionado
+- **Fluxo contínuo no menu (#52):** dentro do menu somem as dicas `→ python main.py ...`; Conferir com pendências pergunta "Deseja abrir a Revisão agora?", a Revisão oferece conferir de novo e, sem pendências, o menu oferece conferir as contas no site. Os comandos diretos continuam mostrando as dicas.
 - **Turma sem redações (#51):** ao abrir uma turma sem nenhuma foto em `temas/`, o menu avisa e pergunta se quer uma explicação (árvore de pastas, caminho clicável e "Você já colocou as redações lá?") ou continuar sem redações.
 - **Temas do site centralizados (#48):** um só `dados/temas_site.csv` para todas as turmas (antes cada turma tinha o seu em `<Turma>/dados/`, que deixa de ser lido). O menu só oferece a leitura do site quando esse arquivo não existe.
 - **Limpeza (#49):** saem `verificar_duplicidade`, `contar_linhas_codigo_data`, `validar_codigo_site` e `UploadNaoConfirmado` (sem uso; a contagem de verdade é `contar_tema_hoje`), com os testes que só existiam para elas, e `dados/.gitkeep`.

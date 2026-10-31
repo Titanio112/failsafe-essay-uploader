@@ -14,7 +14,7 @@ except (AttributeError, ValueError):
     pass
 
 from modulos.base import config as config_mod
-from modulos.base import tela
+from modulos.base import pendencias, tela
 from modulos.base.config import (
     NOME_CONTA_TESTE,
     carregar_config,
@@ -55,6 +55,7 @@ def _mostrar_sugestoes(resultado, alunos, arquivos, arquivo_nomes, arquivo_pasta
     novas = registrar_sugestoes(resultado, alunos, arquivo_nomes)
     pastas = [p for p in arquivos if p not in codigos_pasta]
     sugestoes = sugerir_codigos(pastas, ler_temas_site(TEMAS_SITE_CSV))
+    pendencias.revisao_pendente = bool(novas or sugestoes)  # o menu oferece a Revisão (issue #52)
     if not novas and not sugestoes:
         return
     tela.secao("O que falta revisar")
