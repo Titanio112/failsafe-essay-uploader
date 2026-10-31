@@ -22,24 +22,27 @@ from modulos.ferramentas.configuracoes import executar_configuracoes, resumo_nav
 
 Entrada = Callable[[str], str]
 
-# (grupo, tecla, nome, ajuda curta): cada linha cabe em 80 colunas
+# (grupo, tecla mostrada, ação, nome, ajuda curta). A "ação" é o número interno que ``argumentos_da_opcao`` entende
+# (não muda com a ordem do menu). Mais usadas primeiro; cada linha cabe em 80 colunas.
 OPCOES = [
-    ("Preparar", "1", "Conferir as redações", "não envia nada"),
-    ("Preparar", "2", "Revisar temas e nomes", "escolhe temas, confirma alunos"),
-    ("Testar (nada vai para os alunos)", "3", "Ensaio com redações reais", "algumas reais → conta de teste"),
-    ("Testar (nada vai para os alunos)", "4", "Modo teste", "conferir, revisar ou enviar"),
-    ("Testar (nada vai para os alunos)", "5", "Conferir no site", "lê as contas dos alunos, não envia"),
-    ("Enviar", "6", "Enviar para os alunos", "envio de verdade"),
-    ("Enviar", "7", "Enviar as que faltam no site", "usa a conferência de hoje (5)"),
-    ("Enviar", "8", "Resolver revisões manuais", "chegou no site? sim/não"),
-    ("Ferramentas", "9", "Atualizar os temas do site", "só leitura"),
-    ("Ferramentas", "10", "Desfazer uma renomeação", "volta os nomes de uma revisão"),
-    ("Ferramentas", "11", "Arquivo morto", "guarda as pastas já enviadas"),
-    ("Ferramentas", "12", "Primeiro uso / o que falta", "cria o que falta e explica"),
-    ("Ferramentas", "13", "Configurações", ""),
-    ("Ferramentas", "14", "Trocar escola ou turma", "outra turma da escola, ou outra escola"),
+    ("Preparar", "1", "1", "Conferir redações", "não envia nada"),
+    ("Preparar", "2", "2", "Revisar temas e nomes", "escolhe temas, confirma alunos"),
+    ("Preparar", "3", "5", "Conferir contas no site", "login, nome e já enviadas; só lê"),
+    ("Enviar", "4", "6", "Enviar para os alunos", "envio de verdade"),
+    ("Enviar", "5", "7", "Enviar as que faltam", "só o que falta no site"),
+    ("Manutenção", "6", "8", "Resolver revisões manuais", "chegou no site? sim/não"),
+    ("Manutenção", "7", "9", "Atualizar temas do site", "só leitura"),
+    ("Manutenção", "8", "10", "Desfazer renomeação", "volta os nomes de uma revisão"),
+    ("Ferramentas", "9", "14", "Trocar escola ou turma", ""),
+    ("Ferramentas", "10", "11", "Arquivo morto", "guarda as pastas já enviadas"),
+    ("Ferramentas", "11", "13", "Configurações e turmas", ""),
+    ("Ferramentas", "12", "12", "Primeiro uso / o que falta", "cria o que falta e explica"),
+    ("Ferramentas", "13", "T", "Testes", "ensaio e modo teste (conta de teste)"),
 ]
-SEM_TURMA = ("4",)  # modo teste: conta de teste e testes/redacoes_teste, sem turma
+ACAO_DA_TECLA = {tecla: acao for _, tecla, acao, _, _ in OPCOES}
+ENVIAR = ("6", "7")  # ações que só abrem depois de Preparar (e com a produção liberada)
+MENSAGEM_PREPARAR = "conclua as etapas de Preparar primeiro"
+SEM_TURMA = ("4",)  # ação do modo teste: conta de teste e testes/redacoes_teste, sem turma
 NOVA = "<nova>"  # "n" na escolha de escola (nome inválido em pasta: nunca colide com uma escola)
 
 
@@ -51,20 +54,36 @@ def _sim(entrada: Entrada | None, texto: str) -> bool:
     return _perguntar(entrada, f"  {texto} (s/n): ").lower() in ("s", "sim")
 
 
+def preparacao_da_turma(turma: tuple[str, str]) -> tuple[bool, str]:
+    """(ok, motivo): a trava do Enviar no menu. Só libera com a conferência no site de HOJE desta turma completa."""
+    from modulos.base.turma import raiz_redacoes
+    from modulos.site.conferencia_site import preparacao_concluida
+    try:
+        return preparacao_concluida(raiz_redacoes() / turma[0] / turma[1] / "relatorios", f"{turma[0]}/{turma[1]}")
+    except Exception:  # noqa: BLE001 - na dúvida, fica travado
+        return False, "não consegui ler a conferência de hoje"
+
+
 def mostrar_menu(saida: Callable = print, turma: tuple[str, str] | None = None) -> None:
     tela.titulo("AUTOMAÇÃO DE REDAÇÕES  ·  " + (f"{turma[0]} / {turma[1]}" if turma else "menu"), saida)
+    preparada = preparacao_da_turma(turma)[0] if turma else True  # sem turma (testes do desenho) não há o que travar
     grupo_atual = None
-    for grupo, tecla, nome, ajuda in OPCOES:
+    for grupo, tecla, acao, nome, ajuda in OPCOES:
         if grupo != grupo_atual:
             tela.secao(grupo, saida)
             grupo_atual = grupo
-        if tecla in ("6", "7") and config_mod.PRODUCAO_BLOQUEADA:
+        rotulo = f"{tecla})".rjust(3)  # 1) a 13) alinhados
+        if acao in ENVIAR and not preparada:  # trava visual: cinza e o aviso (a recusa de verdade está em executar_menu)
+            saida(f" {tela.c(rotulo, 'fraco')} {tela.c(nome, 'fraco')}")
+            aviso = f"{tela.SIMBOLOS['bloqueado']} bloqueado ({MENSAGEM_PREPARAR})"
+            saida(f"       {tela.c(aviso, 'fraco')}")
+            continue
+        if acao in ENVIAR and config_mod.PRODUCAO_BLOQUEADA:
             ajuda = tela.c(f"{tela.SIMBOLOS['bloqueado']} bloqueado (só a conta de teste envia)", "bloqueado")
-        elif tecla == "13":  # T52: mostra a escolha atual
+        elif acao == "13":  # T52: mostra a escolha atual
             ajuda = tela.c(f"{resumo_navegador()} · escolas e turmas", "fraco")
         else:
             ajuda = tela.c(ajuda, "fraco")
-        rotulo = f"{tecla})".rjust(3)  # 1) a 14) alinhados
         saida(f" {tela.c(rotulo, 'tecla')} {nome:<30} {ajuda}")
     saida("")
     saida(f" {tela.c(' 0)', 'tecla')} Sair")
@@ -147,6 +166,13 @@ def argumentos_da_opcao(opcao: str, entrada: Entrada | None = None,
     if opcao == "13":
         from modulos.ferramentas.estrutura import executar_configuracoes_e_estrutura
         executar_configuracoes_e_estrutura(entrada=entrada, saida=saida)  # navegador, escolas e turmas (#35)
+        return None
+    if opcao == "T":  # Ferramentas > Testes: só para quem está desenvolvendo ou treinando
+        tela.menu([("1", "Ensaio: algumas redações reais → conta de teste"),
+                   ("2", "Modo teste: conferir, revisar ou enviar (conta de teste)")], saida)
+        escolha = _perguntar(entrada, "  > ")
+        if escolha in ("1", "2"):
+            return argumentos_da_opcao("3" if escolha == "1" else "4", entrada, pasta_relatorios, saida)
         return None
     tela.erro("Opção inválida.", saida)
     return None
@@ -329,7 +355,8 @@ def _executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None,
         opcao = _perguntar(entrada, "\n  Escolha uma opção: ")
         if opcao in ("0", ""):
             return 0
-        if opcao == "14":  # trocar turma: o main da próxima opção só recebe a nova
+        acao = ACAO_DA_TECLA.get(opcao, "?")  # tecla mostrada -> ação interna ("?" = inválida)
+        if acao == "14":  # trocar turma: o main da próxima opção só recebe a nova
             tela.menu([("Enter / t", "outra turma desta escola"), ("e", "outra escola")], saida)
             qual = _perguntar(entrada, "  > ").lower()
             turma = escolher_turma(entrada, saida, turma[0] if qual in ("", "t") else None) or turma
@@ -340,10 +367,16 @@ def _executar_menu(main: Callable[[list[str]], int], entrada: Entrada | None,
             from modulos.base.turma import raiz_redacoes  # a turma é conferida pelo main
             relatorios = raiz_redacoes() / turma[0] / turma[1] / "relatorios"
             # Bug 017: as perguntas da opção também ficam dentro do try
-            argumentos = argumentos_da_opcao(opcao, entrada, relatorios, saida=saida)
+            preparada, motivo = preparacao_da_turma(turma) if acao in ENVIAR else (True, "")
+            if not preparada:  # a trava de verdade; o desenho do menu só avisa
+                tela.bloqueado(f"Enviar bloqueado: {MENSAGEM_PREPARAR} ({motivo}).", saida)
+                argumentos = None
+            else:
+                argumentos = argumentos_da_opcao(acao, entrada, relatorios, saida=saida)
             if argumentos is not None:
-                main(argumentos + ([] if opcao in SEM_TURMA else ["--escola", turma[0], "--turma", turma[1]]))
-                if interativo and opcao not in SEM_TURMA:
+                sem_turma = "--modo-teste" in argumentos  # modo teste não usa turma
+                main(argumentos + ([] if sem_turma else ["--escola", turma[0], "--turma", turma[1]]))
+                if interativo and not sem_turma:
                     proximo_passo(argumentos, turma, main, entrada, saida)
         except KeyboardInterrupt:
             tela.aviso("Interrompido (Ctrl+C).", saida)

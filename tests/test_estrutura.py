@@ -132,11 +132,11 @@ def test_apagar_recusa_com_envio_rodando_e_fora_da_raiz(tmp_path):
     assert not estrutura._apagar_pasta(raiz_redacoes()) and raiz_redacoes().exists()
 
 
-def test_menu_14_troca_so_de_turma_ou_de_escola():
+def test_menu_9_troca_so_de_turma_ou_de_escola():
     from modulos.ferramentas import menu
     _base()
     chamadas = []
-    # Escola A/1A -> 14 t: 1B (mesma escola, sem perguntar escola) -> ação -> 14 e: Escola B/2A -> ação -> sair
-    r = iter(["1", "1", "s", "14", "t", "2", "s", "1", "", "14", "e", "2", "1", "s", "1", "", "0"])
+    # Escola A/1A -> 9 t: 1B (mesma escola, sem perguntar escola) -> ação -> 9 e: Escola B/2A -> ação -> sair
+    r = iter(["1", "1", "s", "9", "t", "2", "s", "1", "", "9", "e", "2", "1", "s", "1", "", "0"])
     menu.executar_menu(lambda argv: chamadas.append(argv) or 0, lambda _: next(r), lambda *_: None)
     assert chamadas == [["--escola", "Escola A", "--turma", "1B"], ["--escola", "Escola B", "--turma", "2A"]]

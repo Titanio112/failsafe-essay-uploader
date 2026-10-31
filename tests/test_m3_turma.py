@@ -278,7 +278,7 @@ def test_menu_escolhe_turma_e_trocar_nao_reaproveita_nada():
     chamadas, saidas = [], []
     respostas = iter(["1", "1", "s",            # escola 1, turma 3A, usar
                       "1", "",                  # conferir (3A)
-                      "14", "e", "1", "v", "1", "2", "s",  # trocar escola: escola, voltar, escola, turma 3B, usar
+                      "9", "e", "1", "v", "1", "2", "s",  # trocar escola: escola, voltar, escola, turma 3B, usar
                       "2", "", "0"])            # revisar (3B), sair
     assert menu.executar_menu(lambda argv: chamadas.append(argv) or 0, lambda _: next(respostas),
                               saidas.append) == 0
@@ -292,7 +292,7 @@ def test_menu_escolhe_turma_e_trocar_nao_reaproveita_nada():
 def test_menu_modo_teste_nao_leva_turma_e_sem_turma_nao_abre():
     from modulos.ferramentas import menu
     chamadas = []
-    respostas = iter(["4", "", "", "0"])
+    respostas = iter(["13", "2", "", "", "0"])  # Testes > Modo teste > só conferir
     menu.executar_menu(lambda argv: chamadas.append(argv) or 0, lambda _: next(respostas), lambda *_: None,
                        turma=("E", "T"))
     assert chamadas == [["--modo-teste"]]

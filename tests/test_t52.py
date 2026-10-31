@@ -94,12 +94,12 @@ def test_menu_configuracoes_troca_o_navegador(tmp_path, monkeypatch):
     assert config_mod.carregar_config(ini).headless is False
 
 
-def test_menu_mostra_11_opcoes_e_navegador():
+def test_menu_mostra_as_opcoes_e_o_navegador():
     saidas = []
     menu.mostrar_menu(saidas.append)
     texto = "\n".join(saidas)
-    assert "13) Configurações" in texto and "navegador: aparece" in texto
-    assert " 5) Conferir no site" in texto
+    assert "11) Configurações e turmas" in texto and "navegador: aparece" in texto
+    assert " 3) Conferir contas no site" in texto
 
 
 def test_envio_pelo_menu_nao_pergunta_mais_do_navegador():
