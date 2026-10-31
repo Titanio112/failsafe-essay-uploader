@@ -12,10 +12,6 @@ class IdentidadeDivergente(RuntimeError):
     """Nome/e-mail logado não confere com o aluno esperado."""
 
 
-class UploadNaoConfirmado(RuntimeError):
-    """Mensagem de upload aceito não apareceu no tempo esperado."""
-
-
 class ConfirmacaoInconclusiva(RuntimeError):
     """Não foi possível confirmar envio na lista remota em 120 s."""
 

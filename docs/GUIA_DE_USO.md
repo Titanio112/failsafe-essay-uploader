@@ -326,7 +326,7 @@ modulos/site/           login, lista de redações, formulário, confirmação
 modulos/envio/          filas e fluxos de envio (teste, ensaio e produção)
 modulos/ferramentas/    menu, revisão no terminal, resolver e primeiro uso
 tests/                  testes offline (pytest)
-dados/                  lista de alunos, temas do site, aprovações
+dados/                  temas do site (uma lista para todas as turmas), referências do projeto
 relatorios/             banco de progresso e relatórios (fora do git)
 logs/                   automacao.log (fora do git)
 docs/                   este guia e os bugs (qa-issues)

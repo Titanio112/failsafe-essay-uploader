@@ -4,12 +4,12 @@ Estrutura (dentro de ``Redações plataforma/``)::
 
     <Escola>/<Turma>/alunos.csv        Nome;Email;Senha
     <Escola>/<Turma>/temas/<Tema>/     um JPG por aluno
-    <Escola>/<Turma>/dados/            aprovações e temas_site.csv da turma
+    <Escola>/<Turma>/dados/            aprovações da turma
     <Escola>/<Turma>/relatorios/       relatórios da turma
     <Escola>/<Turma>/logs/             log da turma
 
-Caderno (``relatorios/progresso.db``), trava e cópias continuam globais, na
-raiz do projeto. Os algoritmos não mudam: só os caminhos do ``Config``.
+Caderno (``relatorios/progresso.db``), trava, cópias e a lista de temas do site
+(``dados/temas_site.csv``, igual para todas as turmas) são globais, na raiz do projeto. Os algoritmos não mudam: só os caminhos do ``Config``.
 Nada de cair num padrão: sem turma válida, recusa.
 """
 
@@ -97,7 +97,6 @@ def aplicar_turma(cfg, escola: str, turma: str, criar: bool = False) -> Path:
     cfg.pasta_raiz = pasta / "temas"
     cfg.arquivo_nomes_aprovados = pasta / "dados" / "nomes_aprovados.csv"
     cfg.arquivo_pastas_aprovadas = pasta / "dados" / "pastas_aprovadas.csv"
-    cfg.temas_site = pasta / "dados" / "temas_site.csv"
     cfg.pasta_relatorios = pasta / "relatorios"
     cfg.pasta_logs = pasta / "logs"
     return pasta

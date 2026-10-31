@@ -18,8 +18,6 @@ def test_import_lista_redacoes():
         ItemListaRedacao,
         ler_saldo_creditos,
         ler_lista_redacoes,
-        verificar_duplicidade,
-        contar_linhas_codigo_data,
         ler_lista_redacoes_html,
         contar_tema_hoje,
     )
@@ -88,14 +86,13 @@ def test_import_progresso():
     from modulos.base.progresso_relatorio import Progresso
 
 def test_import_normalizacao():
-    from modulos.dados.normalizacao import validar_codigo_site, extrair_codigo_tema
+    from modulos.dados.normalizacao import extrair_codigo_tema
 
 def test_import_excecoes():
     from modulos.base.excecoes import (
         CaptchaOuBloqueio,
         LoginFalhou,
         IdentidadeDivergente,
-        UploadNaoConfirmado,
         ConfirmacaoInconclusiva,
     )
 

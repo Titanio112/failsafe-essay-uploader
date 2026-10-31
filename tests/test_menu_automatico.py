@@ -47,8 +47,18 @@ def test_n_cancelado_nao_cria_nada_e_volta_a_pedir_a_escola():
     assert listar_escolas() == ["Escola A", "Escola B"]
 
 
-def test_turma_sem_lista_de_temas_oferece_ler_e_so_chama_o_mesmo_caminho_do_menu_9():
+def _temas_do_projeto(monkeypatch, tmp_path, existe: bool):
+    from modulos.dados import conciliacao_completa
+    caminho = tmp_path / "dados" / "temas_site.csv"
+    if existe:
+        caminho.parent.mkdir(parents=True)
+        caminho.write_text("codigo,texto,data_leitura,conta_mascarada\n", encoding="utf-8")
+    monkeypatch.setattr(conciliacao_completa, "TEMAS_SITE_CSV", caminho)
+
+
+def test_sem_lista_de_temas_oferece_ler_e_so_chama_o_mesmo_caminho_do_menu_9(monkeypatch, tmp_path):
     _base()
+    _temas_do_projeto(monkeypatch, tmp_path, existe=False)
     chamadas = []
     assert menu.oferecer_temas(("Escola A", "1A"), lambda argv: chamadas.append(argv) or 0, _resp("s"), lambda *_: None)
     assert chamadas == [["--analise-remota", "--escola", "Escola A", "--turma", "1A"]]  # o ANALISAR é do main
@@ -58,16 +68,17 @@ def test_turma_sem_lista_de_temas_oferece_ler_e_so_chama_o_mesmo_caminho_do_menu
     assert chamadas == []
 
 
-def test_turma_com_lista_de_temas_nao_pergunta_nada():
+def test_com_lista_de_temas_do_projeto_nenhuma_turma_pergunta_nada(monkeypatch, tmp_path):
     _base()
-    cfg = config_mod.carregar_config()
-    aplicar_turma(cfg, "Escola A", "1A")
-    cfg.temas_site.parent.mkdir(parents=True, exist_ok=True)
-    cfg.temas_site.write_text("codigo,texto,data_leitura,conta_mascarada\n", encoding="utf-8")
+    _temas_do_projeto(monkeypatch, tmp_path, existe=True)
 
     def nao_pergunta(_):
         raise AssertionError("perguntou")
     assert not menu.oferecer_temas(("Escola A", "1A"), lambda argv: 0, nao_pergunta, lambda *_: None)
+    assert not menu.oferecer_temas(("Escola B", "2A"), lambda argv: 0, nao_pergunta, lambda *_: None)
+    cfg = config_mod.carregar_config()
+    aplicar_turma(cfg, "Escola A", "1A")
+    assert not hasattr(cfg, "temas_site")  # a turma não tem lista de temas própria
 
 
 def test_atalhos_do_windows_rodam_de_qualquer_pasta_e_nao_valem_copiados():
@@ -80,12 +91,12 @@ def test_atalhos_do_windows_rodam_de_qualquer_pasta_e_nao_valem_copiados():
     assert criador.isascii() and b"AutoReda.lnk" in criador and b"WorkingDirectory" in criador
 
 
-def test_oferta_de_temas_nunca_derruba_o_menu_ao_abrir():
+def test_oferta_de_temas_nunca_derruba_o_menu_ao_abrir(monkeypatch, tmp_path):
     _base()
+    _temas_do_projeto(monkeypatch, tmp_path, existe=False)
 
     def main_quebrado(argv):
         raise RuntimeError("falhou")
     saidas = []
     assert not menu.oferecer_temas(("Escola A", "1A"), main_quebrado, _resp("s"), saidas.append)
-    assert not menu.oferecer_temas(("Escola Que Nao Existe", "X"), lambda argv: 0, _resp("s"), saidas.append)
     assert any("Não consegui ler os temas" in s for s in saidas)

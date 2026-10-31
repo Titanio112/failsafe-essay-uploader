@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from playwright.sync_api import Page, TimeoutError as PWTimeoutError
 
@@ -77,26 +76,6 @@ def ler_lista_redacoes(page: Page) -> list[ItemListaRedacao]:
 
     # Mesmo parser da fixture auditada: Data | Tema | Nota | Situação | (botão)
     return ler_lista_redacoes_html(html)
-
-
-def contar_linhas_codigo_data(lista: list[ItemListaRedacao], codigo: str, data: str) -> int:
-    """Conta quantas linhas na lista têm o código e data especificados.
-    
-    Verifica tanto o campo codigo quanto extrai do campo tema."""
-    import re
-    count = 0
-    for item in lista:
-        if item.data != data:
-            continue
-        # Verificar campo codigo
-        if item.codigo == codigo:
-            count += 1
-            continue
-        # Extrair código do tema se não estiver no campo codigo
-        match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", item.tema)
-        if match and match.group(1) == codigo:
-            count += 1
-    return count
 
 
 def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
@@ -186,45 +165,6 @@ def ler_lista_redacoes_html(html: str) -> list[ItemListaRedacao]:
         raise RuntimeError("Linhas da lista de redacoes nao puderam ser lidas")
 
     return itens
-
-
-def verificar_duplicidade(lista_redacoes: list[ItemListaRedacao], codigo_tema: str, data_hoje: str | None = None) -> tuple[str, Optional[str]]:
-    """Verifica se já existe redação com esse código na lista.
-    
-    Retorna: (estado, data_envio) onde estado pode ser:
-    - "JA_ENVIADO": já enviado HOJE (com data)
-    - "OK": não encontrado hoje, pode prosseguir
-    - "REVISAO_MANUAL": lista ilegível/sem dados
-    """
-    from datetime import datetime
-    if data_hoje is None:
-        data_hoje = datetime.now().strftime("%d/%m/%Y")
-    
-    if not lista_redacoes:
-        return "REVISAO_MANUAL", None
-    
-    # Verificar se a lista tem dados válidos (pelo menos um item com tema e data)
-    tem_dados_validos = any(item.tema.strip() and item.data.strip() for item in lista_redacoes)
-    if not tem_dados_validos:
-        return "REVISAO_MANUAL", None
-    
-    for item in lista_redacoes:
-        # Extrair código do tema
-        import re
-        match = re.match(r"^\s*(\d+)(?=\s*-|\s|$)", item.tema)
-        item_codigo = match.group(1) if match else item.codigo
-        
-        if item_codigo == codigo_tema:
-            # Verificar se a data é de HOJE
-            item_data = item.data.strip()
-            if item_data == data_hoje:
-                if item.situacao.lower() == "cancelada":
-                    return "OK", None
-                return "JA_ENVIADO", item.data
-            # Mesmo código mas data diferente - NÃO é duplicata
-            continue
-    
-    return "OK", None
 
 
 def contar_tema_hoje(lista_redacoes: list[ItemListaRedacao], codigo: str,

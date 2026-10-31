@@ -118,7 +118,6 @@ class Config:
     escola: str = ""
     turma: str = ""
     id_turma: str = ""  # "Escola/Turma", gravado no caderno
-    temas_site: Path | None = None  # None = dados/temas_site.csv do projeto (modo teste)
     pasta_logs: Path = field(default_factory=lambda: RAIZ / "logs")
     dados_do_ini: bool = False  # config.ini tem [dados] pasta_raiz/planilha (recusado com turma)
 
